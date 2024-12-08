@@ -1,4 +1,15 @@
-- hosts: all
+---
+- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+  hosts: all
+  become: yes
+
   tasks:
-    - name: Test connection
-      ping:
+    - name: Update the package index
+      yum:
+        name: "*"
+        state: latest
+
+    - name: Install necessary packages
+      amazon.aws.amazon_linux_extras:
+        name: nginx1
+        state: present
