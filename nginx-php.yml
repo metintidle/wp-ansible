@@ -9,12 +9,8 @@
         name: "*"
         state: latest
 
-    - name: Install necessary packages
-      amazon.aws.amazon_linux_extras:
-        name: nginx1
-        state: present
+    - name: Install Nginx
+      command: amazon-linux-extras install -y nginx1
 
     - name: Enable PHP 8.2
-      amazon.aws.amazon_linux_extras:
-        name: php8.2
-        state: enabled
+      command: amazon-linux-extras enable php8.2
