@@ -13,3 +13,8 @@
       amazon.aws.amazon_linux_extras:
         name: nginx1
         state: present
+
+    - name: Enable PHP 8.2
+      amazon.aws.amazon_linux_extras:
+        name: php8.2
+        state: enabled
