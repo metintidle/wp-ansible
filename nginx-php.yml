@@ -11,6 +11,41 @@
 
     - name: Install Nginx
       command: amazon-linux-extras install -y nginx1
+      become: yes
 
     - name: Enable PHP 8.2
       command: amazon-linux-extras enable php8.2
+      become: yes
+
+    - name: Install PHP and dependencies
+      yum:
+        name:
+          - php-fpm
+          - php-mysqlnd
+          - php-mbstring
+          - php-intl
+          - gcc
+          - ImageMagick
+          - ImageMagick-devel
+          - php-pear
+          - php-devel
+        state: present
+
+    - name: Install Development Tools
+      yum:
+        name: "@Development Tools"
+        state: present
+
+    - name: Update the PECL channel
+      command: pecl channel-update pecl.php.net
+
+    - name: Install the imagick PHP extension
+      pecl:
+        name: imagick
+        state: present
+
+    - name: Enable the imagick extension
+      lineinfile:
+        path: /etc/php.d/20-imagick.ini
+        line: "extension=imagick.so"
+        create: yes
