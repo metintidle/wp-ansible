@@ -1,10 +1,10 @@
 ---
-- name: Install extensions for php
+- name: Install extensions for PHP
   hosts: all
   become: yes
 
   tasks:
-   - name: Install PHP and dependencies
+    - name: Install PHP and dependencies
       yum:
         name:
           - php-fpm
