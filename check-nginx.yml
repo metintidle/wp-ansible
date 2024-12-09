@@ -44,6 +44,7 @@
       command: rpm -q php
       register: php_installed
       ignore_errors: yes
+      failed_when: false
 
     - name: Install PHP
       yum:
