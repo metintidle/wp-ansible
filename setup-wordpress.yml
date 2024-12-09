@@ -1,7 +1,7 @@
 ---
 - name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
   hosts: all
-  # become: yes
+  become: yes
 
   tasks:
     # - name: Download WP-CLI
