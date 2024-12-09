@@ -51,7 +51,8 @@
         name: php
         state: present
       when: php_installed.rc != 0
-    - name: Copy file to remote server
+
+    - name: Nginx config copy to remote server
       copy:
         src: wordpress.conf  # Ensure this file is in your repository under 'files' directory.
         dest: /etc/nginx/default.d/wordpress.conf
@@ -66,7 +67,8 @@
         name: nginx
         state: restarted
       when: nginx_test_result.rc == 0
-    - name: Install PHP and dependencies
+
+    - name: Install PHP and PHP-FPM  dependencies
       yum:
         name:
           - php-fpm
@@ -79,6 +81,7 @@
           - php-pear
           - php-devel
         state: present
+
     - name: Update PHP-FPM configuration for 512MB RAM
       lineinfile:
         path: /etc/php-fpm.d/www.conf
@@ -117,6 +120,7 @@
       with_items:
         - nginx
         - php-fpm
+
     - name: Add ec2-user to nginx group
       user:
         name: ec2-user
@@ -145,6 +149,7 @@
       with_items:
         - php-fpm
         - nginx
+
     - name: Copy file to remote server
       copy:
         src: info.php  # Ensure this file is in your repository under 'files' directory.
