@@ -2,41 +2,16 @@
 - name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
   hosts: all
   become: yes
-
   tasks:
-    # - name: Download WP-CLI
-    #   get_url:
-    #     url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-    #     dest: /usr/local/bin/wp-cli.phar
-    #     mode: "0755"
-
-    # - name: Move WP-CLI to /usr/local/bin/wp
-    #   command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
-    #   become: yes
-
-    # - name: Ensure /usr/local/bin is in PATH
-    #   lineinfile:
-    #     path: /etc/profile
-    #     line: 'export PATH=$PATH:/usr/local/bin'
-    #     state: present
-
     - name: Download WordPress tarball
       get_url:
         url: https://en-au.wordpress.org/wordpress-6.7.1-en_AU.tar.gz
         dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
         mode: "0644"
 
-    - name: Extract WordPress tarball
+    - name: Extract WordPress tarball directly to html directory
       unarchive:
         src: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
-        dest: /home/ec2-user/
-        remote_src: yes
-
-    - name: Copy WordPress files to html directory
-      copy:
-        src: /home/ec2-user/wordpress/
         dest: /home/ec2-user/html/
-        owner: ec2-user
-        group: nginx
-        mode: "0755"
         remote_src: yes
+        extra_opts: [--strip-components=1]
