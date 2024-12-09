@@ -1,0 +1,16 @@
+---
+- name: Fix PHP configuration
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Create wp-config.php
+      command: >
+        wp config create
+        --dbname={{DB_NAME}}
+        --dbuser={{DB_USER}}
+        --dbpass={{DB_PASS}}
+        --dbhost={{DB_HOST}}
+        --dbprefix={{DB_PREFIX}}
+      args:
+        chdir: /home/ec2-user/html
