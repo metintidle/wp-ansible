@@ -1,7 +1,7 @@
 ---  
 - name: Fix PHP configuration  
   hosts: all  
-  become: yes  
+ 
 
   tasks:  
     - name: Create wp-config.php  
