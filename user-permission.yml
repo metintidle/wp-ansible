@@ -4,17 +4,17 @@
   become: yes
 
   tasks:
-    # - name: Add ec2-user to nginx group
-    #   user:
-    #     name: ec2-user
-    #     groups: nginx
-    #     append: yes
+    - name: Add ec2-user to nginx group
+      user:
+        name: ec2-user
+        groups: nginx
+        append: yes
 
-    # - name: Create symbolic link from web server’s document root to home directory
-    #   file:
-    #     src: /usr/share/nginx/html
-    #     dest: /home/ec2-user/html
-    #     state: link
+    - name: Create symbolic link from web server’s document root to home directory
+      file:
+        src: /usr/share/nginx/html
+        dest: /home/ec2-user/html
+        state: link
 
     - name: Change ownership of WordPress files to ec2-user and nginx
       lineinfile:
