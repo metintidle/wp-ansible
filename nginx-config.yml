@@ -1,0 +1,21 @@
+---
+- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Increase Nginx upload size
+      blockinfile:
+        path: /etc/nginx/nginx.conf
+        block: |
+          client_max_body_size 128M;
+          error_page 400 401 402 403 404 405 500 501 502 503 504 /index.php;
+          index  index.php index.html index.htm;
+          location / {
+              try_files $uri $uri/ /index.php?$args;
+          }
+
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
