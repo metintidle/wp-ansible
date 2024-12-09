@@ -4,10 +4,10 @@
   become: yes
 
   tasks:
-    - name: Copy file to remote server
-      copy:
-        src: wordpress.conf  # Ensure this file is in your repository under 'files' directory.
-        dest: /etc/nginx/default.d/wordpress.conf
+    # - name: Copy file to remote server
+    #   copy:
+    #     src: wordpress.conf  # Ensure this file is in your repository under 'files' directory.
+    #     dest: /etc/nginx/default.d/wordpress.conf
 
     # - name: Add client_max_body_size to nginx.conf
     #   lineinfile:
