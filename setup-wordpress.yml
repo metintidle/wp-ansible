@@ -9,18 +9,22 @@
         url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
         dest: /usr/local/bin/wp-cli.phar
         mode: "0755"
+        become: yes
 
     - name: Move WP-CLI to /usr/local/bin/wp
       command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
+      become: yes
 
     - name: Ensure /usr/local/bin is in PATH
       lineinfile:
         path: /etc/profile
         line: 'export PATH=$PATH:/usr/local/bin'
         state: present
+        become: yes
 
     - name: Source profile to update PATH
       shell: source /etc/profile
+      become: yes
 
     - name: Download WordPress core
       command: /usr/local/bin/wp core download
