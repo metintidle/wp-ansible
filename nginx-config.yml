@@ -9,6 +9,33 @@
         src: wordpress.conf  # Ensure this file is in your repository under 'files' directory.
         dest: /etc/nginx/default.d/wordpress.conf
 
+    - name: Add client_max_body_size to nginx.conf
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: 'http {'
+        line: '    client_max_body_size 128M;'
+
+    - name: Add error_page to nginx.conf
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: 'http {'
+        line: '    error_page 400 401 402 403 404 405 500 501 502 503 504 /index.php;'
+
+    - name: Add index to nginx.conf
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: 'http {'
+        line: '    index  index.php index.html index.htm;'
+
+    - name: Add location block to nginx.conf
+      blockinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: 'http {'
+        block: |
+          location / {
+              try_files $uri $uri/ /index.php?$args;
+          }
+
     - name: Test Nginx configuration
       command: nginx -t
       register: nginx_test_result
