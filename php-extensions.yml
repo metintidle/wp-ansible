@@ -18,10 +18,10 @@
           - php-devel
         state: present
 
-    - name: Install Development Tools
-      yum:
-        name: "@Development Tools"
-        state: present
+    # - name: Install Development Tools
+    #   yum:
+    #     name: "@Development Tools"
+    #     state: present
 
     - name: Update the PECL channel
       command: pecl channel-update pecl.php.net
