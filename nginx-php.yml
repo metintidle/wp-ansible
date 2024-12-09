@@ -9,14 +9,63 @@
         name: "*"
         state: latest
 
-    - name: Install Nginx
+    - name: Check if Nginx is installed
+      command: rpm -q nginx
+      register: nginx_installed
+      ignore_errors: yes
+      failed_when: false
+
+    - name: Install Nginx using amazon-linux-extras
       command: amazon-linux-extras install -y nginx1
-      become: yes
+      when: nginx_installed.rc != 0
 
-    - name: Enable PHP 8.2
-      command: amazon-linux-extras enable php8.2
-      become: yes
+    - name: Ensure Nginx is installed
+      yum:
+        name: nginx
+        state: present
+      when: nginx_installed.rc != 0
 
+    - name: Start and enable Nginx service
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Check if Nginx is running
+      command: systemctl status nginx
+      register: nginx_status
+      ignore_errors: yes
+
+    - name: Display Nginx status
+      debug:
+        var: nginx_status.stdout
+
+    - name: Check if PHP is installed
+      command: rpm -q php
+      register: php_installed
+      ignore_errors: yes
+      failed_when: false
+
+    - name: Install PHP
+      yum:
+        name: php
+        state: present
+      when: php_installed.rc != 0
+    - name: Copy file to remote server
+      copy:
+        src: wordpress.conf  # Ensure this file is in your repository under 'files' directory.
+        dest: /etc/nginx/default.d/wordpress.conf
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      register: nginx_test_result
+      ignore_errors: yes
+
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_test_result.rc == 0
     - name: Install PHP and dependencies
       yum:
         name:
@@ -30,22 +79,82 @@
           - php-pear
           - php-devel
         state: present
-
-    - name: Install Development Tools
-      yum:
-        name: "@Development Tools"
-        state: present
-
-    - name: Update the PECL channel
-      command: pecl channel-update pecl.php.net
-
-    - name: Install the imagick PHP extension
-      pecl:
-        name: imagick
-        state: present
-
-    - name: Enable the imagick extension
+    - name: Update PHP-FPM configuration for 512MB RAM
       lineinfile:
-        path: /etc/php.d/20-imagick.ini
-        line: "extension=imagick.so"
-        create: yes
+        path: /etc/php-fpm.d/www.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: "^pm =.*", line: "pm = ondemand" }
+        - { regexp: "^pm.max_children =.*", line: "pm.max_children = 5" }
+        - { regexp: "^pm.start_servers =.*", line: "pm.start_servers = 2" }
+        - {
+            regexp: "^pm.min_spare_servers =.*",
+            line: "pm.min_spare_servers = 1",
+          }
+        - {
+            regexp: "^pm.max_spare_servers =.*",
+            line: "pm.max_spare_servers = 3",
+          }
+        - { regexp: "^;pm.max_requests =.*", line: "pm.max_requests = 500" }
+
+    - name: Increase PHP upload size
+      lineinfile:
+        path: /etc/php.ini
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - {
+            regexp: "^upload_max_filesize =.*",
+            line: "upload_max_filesize = 128M",
+          }
+        - { regexp: "^post_max_size =.*", line: "post_max_size = 128M" }
+
+    - name: Restart PHP-FPM and Nginx
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - nginx
+        - php-fpm
+    - name: Add ec2-user to nginx group
+      user:
+        name: ec2-user
+        groups: nginx
+        append: yes
+
+    - name: Create symbolic link from web server’s document root to home directory
+      file:
+        src: /usr/share/nginx/html
+        dest: /home/ec2-user/html
+        state: link
+
+    - name: Change ownership of WordPress files to ec2-user and nginx
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: "^user =.*", line: "user = ec2-user" }
+        - { regexp: "^group =.*", line: "group = nginx" }
+
+    - name: Restart PHP-FPM and Nginx
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - php-fpm
+        - nginx
+    - name: Copy file to remote server
+      copy:
+        src: info.php  # Ensure this file is in your repository under 'files' directory.
+        dest: /home/ec2-user/html/info.php
+
+    - name: Change ownership of WordPress files to ec2-user and nginx
+      file:
+        path: /usr/share/nginx/html/
+        owner: ec2-user
+        group: nginx
+        recurse: yes
+
+
