@@ -26,17 +26,9 @@
         dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
         mode: "0644"
 
-    - name: Extract WordPress tarball
+    - name: Extract WordPress tarball directly to html directory
       unarchive:
         src: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
-        dest: /home/ec2-user/
-        remote_src: yes
-
-    - name: Copy WordPress files to html directory
-      copy:
-        src: /home/ec2-user/wordpress/
         dest: /home/ec2-user/html/
-        owner: ec2-user
-        group: nginx
-        mode: "0755"
         remote_src: yes
+        extra_opts: [--strip-components=1]
