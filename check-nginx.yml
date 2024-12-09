@@ -9,14 +9,20 @@
         name: "*"
         state: latest
 
-    - name: Install Nginx
+    - name: Check if Nginx is installed
+      command: rpm -q nginx
+      register: nginx_installed
+      ignore_errors: yes
+
+    - name: Install Nginx using amazon-linux-extras
       command: amazon-linux-extras install -y nginx1
-      become: yes
+      when: nginx_installed.rc != 0
 
     - name: Ensure Nginx is installed
       yum:
         name: nginx
         state: present
+      when: nginx_installed.rc != 0
 
     - name: Start and enable Nginx service
       systemd:
@@ -32,3 +38,14 @@
     - name: Display Nginx status
       debug:
         var: nginx_status.stdout
+
+    - name: Check if PHP is installed
+      command: rpm -q php
+      register: php_installed
+      ignore_errors: yes
+
+    - name: Install PHP
+      yum:
+        name: php
+        state: present
+      when: php_installed.rc != 0
