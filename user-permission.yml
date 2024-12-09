@@ -24,3 +24,11 @@
       with_items:
         - { regexp: "^user =.*", line: "user = ec2-user" }
         - { regexp: "^group =.*", line: "group = nginx" }
+
+    - name: Restart PHP-FPM and Nginx
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - php-fpm
+        - nginx
