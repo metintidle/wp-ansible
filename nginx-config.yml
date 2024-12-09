@@ -21,20 +21,21 @@
     #     insertafter: 'server {'
     #     line: '    error_page 400 401 402 403 404 405 500 501 502 503 504 /index.php;'
 
-    - name: Add index to nginx.conf
-      lineinfile:
+    # - name: Add index to nginx.conf
+    #   lineinfile:
+    #     path: /etc/nginx/nginx.conf
+    #     insertafter: '^\s*server\s*{'
+    #     line: '    index  index.php index.html index.htm;'
+
+    - name: Add location block to nginx.conf
+      blockinfile:
         path: /etc/nginx/nginx.conf
         insertafter: '^\s*server\s*{'
-        line: '    index  index.php index.html index.htm;'
-
-    # - name: Add location block to nginx.conf
-    #   blockinfile:
-    #     path: /etc/nginx/nginx.conf
-    #     insertafter: 'server {'
-    #     block: |
-    #       location / {
-    #           try_files $uri $uri/ /index.php?$args;
-    #       }
+        block: |
+          location / {
+              index  index.php index.html index.htm;
+              try_files $uri $uri/ /index.php?$args;
+          }
 
     - name: Find line number of 'server {' in nginx.conf
       shell: awk '/^\s*server\s*{/{print NR}' /etc/nginx/nginx.conf
