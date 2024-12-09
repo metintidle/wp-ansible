@@ -13,6 +13,7 @@
       command: rpm -q nginx
       register: nginx_installed
       ignore_errors: yes
+      failed_when: false
 
     - name: Install Nginx using amazon-linux-extras
       command: amazon-linux-extras install -y nginx1
