@@ -4,37 +4,21 @@
   become: yes
 
   tasks:
-    # - name: Copy file to remote server
-    #   copy:
-    #     src: wordpress.conf  # Ensure this file is in your repository under 'files' directory.
-    #     dest: /etc/nginx/default.d/wordpress.conf
-
-    # - name: Add client_max_body_size to nginx.conf
-    #   lineinfile:
-    #     path: /etc/nginx/nginx.conf
-    #     insertafter: '^\s*server\s*{'
-    #     line: '    client_max_body_size 128M;'
-
+    - name: Copy file to remote server
+      copy:
+        src: wordpress.conf  # Ensure this file is in your repository under 'files' directory.
+        dest: /etc/nginx/default.d/wordpress.conf
 
     - name: Add location block to nginx.conf
       blockinfile:
         path: /etc/nginx/nginx.conf
         insertafter: '^\s*root\s*/usr/share/nginx/html;'
         block: |
-          client_max_body_size 128M;
           location / {
               index  index.php index.html index.htm;
               try_files $uri $uri/ /index.php?$args;
           }
           error_page 400 401 402 403 404 405 500 501 502 503 504 /index.php;
-
-    - name: Find line number of 'server {' in nginx.conf
-      shell: awk '/^\s*server\s*{/{print NR}' /etc/nginx/nginx.conf
-      register: server_line_number
-
-    - name: Display the line number of 'server {'
-      debug:
-        msg: "The line number of 'server {' is {{ server_line_number.stdout }}"
 
     - name: Test Nginx configuration
       command: nginx -t
