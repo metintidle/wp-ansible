@@ -12,7 +12,7 @@
     # - name: Add client_max_body_size to nginx.conf
     #   lineinfile:
     #     path: /etc/nginx/nginx.conf
-    #     insertafter: 'server {'
+    #     insertafter: '^server {'
     #     line: '    client_max_body_size 128M;'
 
     # - name: Add error_page to nginx.conf
@@ -21,11 +21,11 @@
     #     insertafter: 'server {'
     #     line: '    error_page 400 401 402 403 404 405 500 501 502 503 504 /index.php;'
 
-    # - name: Add index to nginx.conf
-    #   lineinfile:
-    #     path: /etc/nginx/nginx.conf
-    #     insertafter: 'server {'
-    #     line: '    index  index.php index.html index.htm;'
+    - name: Add index to nginx.conf
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: '^server {'
+        line: '    index  index.php index.html index.htm;'
 
     # - name: Add location block to nginx.conf
     #   blockinfile:
