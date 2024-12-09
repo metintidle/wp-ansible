@@ -24,7 +24,7 @@
     - name: Add index to nginx.conf
       lineinfile:
         path: /etc/nginx/nginx.conf
-        insertafter: '^server\s*{'
+        insertafter: '^\s*server\s*{'
         line: '    index  index.php index.html index.htm;'
 
     # - name: Add location block to nginx.conf
@@ -37,7 +37,7 @@
     #       }
 
     - name: Find line number of 'server {' in nginx.conf
-      shell: grep -n '^server\s*{' /etc/nginx/nginx.conf | cut -d: -f1
+      shell: awk '/^\s*server\s*{/{print NR}' /etc/nginx/nginx.conf
       register: server_line_number
 
     - name: Display the line number of 'server {'
