@@ -6,7 +6,7 @@
   tasks:
     - name: Download WP-CLI
       get_url:
-        url: https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
+        url: https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.10.0.phar
         dest: /usr/local/bin/wp-cli.phar
         mode: "0755"
 
