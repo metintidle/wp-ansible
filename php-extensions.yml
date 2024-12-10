@@ -27,7 +27,7 @@
       command: pecl channel-update pecl.php.net
 
     - name: Install imagick PHP extension by echoing the Enter key
-      command: echo "" | pecl install imagick
+      command: pecl install imagick -n
       args:
         creates: /usr/lib64/php/modules/imagick.so
 
