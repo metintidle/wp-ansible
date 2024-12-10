@@ -18,18 +18,13 @@
           - php-devel
         state: present
 
-    # - name: Install Development Tools
-    #   yum:
-    #     name: "@Development Tools"
-    #     state: present
+    - name: Ensure pexpect is installed
+      pip:
+        name: pexpect
+        state: present
 
     - name: Update the PECL channel
       command: pecl channel-update pecl.php.net
-
-    # - name: Install imagick PHP extension by echoing the Enter key
-    #   command: echo "" | pecl install imagick
-    #   args:
-    #     creates: /usr/lib64/php/modules/imagick.so
 
     - name: Install imagick PHP extension non-interactively
       expect:
@@ -42,3 +37,8 @@
         path: /etc/php.d/20-imagick.ini
         line: "extension=imagick.so"
         create: yes
+
+    - name: Restart PHP-FPM service
+      service:
+        name: php-fpm
+        state: restarted
