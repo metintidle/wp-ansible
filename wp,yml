@@ -1,0 +1,50 @@
+- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Download WP-CLI
+      get_url:
+        url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+        dest: /usr/local/bin/wp-cli.phar
+        mode: "0755"
+
+    - name: Move WP-CLI to /usr/local/bin/wp
+      command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
+      become: yes
+
+    # - name: Ensure /usr/local/bin is in PATH
+    #   lineinfile:
+    #     path: /etc/profile
+    #     line: 'export PATH=$PATH:/usr/local/bin'
+    #     state: present
+
+    - name: Download WordPress tarball
+      get_url:
+        url: https://en-au.wordpress.org/wordpress-6.7.1-en_AU.tar.gz
+        dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
+        mode: "0644"
+
+    - name: Extract WordPress tarball directly to html directory
+      unarchive:
+        src: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
+        dest: /home/ec2-user/html/
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+
+    - name: Change ownership of all files in html directory
+      file:
+        path: /home/ec2-user/html/
+        owner: ec2-user
+        group: nginx
+        recurse: yes
+    - name: Create wp-config.php
+      command: >
+        wp config create
+        --dbname={{DB_NAME}}
+        --dbuser={{ lookup('env', 'DB_USER') }}
+        --dbpass={{ lookup('env', 'DB_PASS') }}
+        --dbhost={{ lookup('env', 'DB_HOST') }}
+        --dbprefix={{DB_PREFIX}}
+      args:
+        chdir: /home/ec2-user/html
