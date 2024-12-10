@@ -12,13 +12,6 @@
     - name: Install Nginx using amazon-linux-extras
       command: amazon-linux-extras install -y nginx1
 
-
-    - name: Ensure Nginx is installed
-      yum:
-        name: nginx
-        state: present
-      when: nginx_installed.rc != 0
-
     - name: Start and enable Nginx service
       systemd:
         name: nginx
