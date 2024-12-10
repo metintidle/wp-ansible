@@ -35,6 +35,7 @@
         url: https://en-au.wordpress.org/wordpress-6.7.1-en_AU.tar.gz
         dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
         mode: "0644"
+      become: yes
 
     - name: Extract WordPress tarball directly to html directory
       unarchive:
@@ -42,6 +43,7 @@
         dest: /home/ec2-user/html/
         remote_src: yes
         extra_opts: [--strip-components=1]
+      become: yes
 
     - name: Change ownership of all files in html directory
       file:
@@ -49,6 +51,7 @@
         owner: ec2-user
         group: nginx
         recurse: yes
+      become: yes
 
     - name: Verify WP-CLI installation
       command: /usr/local/bin/wp --info
