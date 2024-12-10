@@ -174,24 +174,24 @@
         group: nginx
         recurse: yes
 
-    - name: Update the PECL channel
-      command: pecl channel-update pecl.php.net
+    # - name: Update the PECL channel
+    #   command: pecl channel-update pecl.php.net
 
-    - name: Install imagick PHP extension non-interactively
-      expect:
-        command: pecl install imagick
-        responses:
-          'Please provide the prefix of ImageMagick installation \[autodetect\] :': "\r"
+    # - name: Install imagick PHP extension non-interactively
+    #   expect:
+    #     command: pecl install imagick
+    #     responses:
+    #       'Please provide the prefix of ImageMagick installation \[autodetect\] :': "\r"
 
-    - name: Enable the imagick extension
-      lineinfile:
-        path: /etc/php.d/20-imagick.ini
-        line: "extension=imagick.so"
-        create: yes
+    # - name: Enable the imagick extension
+    #   lineinfile:
+    #     path: /etc/php.d/20-imagick.ini
+    #     line: "extension=imagick.so"
+    #     create: yes
 
-    - name: Restart PHP-FPM service
-      service:
-        name: php-fpm
-        state: restarted
+    # - name: Restart PHP-FPM service
+    #   service:
+    #     name: php-fpm
+    #     state: restarted
 
 
