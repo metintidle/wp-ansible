@@ -1,11 +1,15 @@
 ---
 - name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
   hosts: all
+  vars:
+    site_url: "http://{{ inventory_hostname }}"  # Use the inventory IP for the site URL
+
   tasks:
 
     - name: Install WordPress
       command: >
         wp core install
+        --url="{{ site_url }}"
         --title="New website"
         --admin_user="itt-admin"
         --admin_password="itt@123"
