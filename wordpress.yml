@@ -14,11 +14,19 @@
       command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
       become: yes
 
-    # - name: Ensure /usr/local/bin is in PATH
-    #   lineinfile:
-    #     path: /etc/profile
-    #     line: 'export PATH=$PATH:/usr/local/bin'
-    #     state: present
+    - name: Ensure /usr/local/bin is in PATH
+      lineinfile:
+        path: /etc/profile
+        line: 'export PATH=$PATH:/usr/local/bin'
+        state: present
+
+    - name: Verify WP-CLI installation
+      command: /usr/local/bin/wp --info
+      register: wp_cli_info
+
+    - name: Display WP-CLI info
+      debug:
+        var: wp_cli_info.stdout
 
     - name: Download WordPress tarball
       get_url:
@@ -39,9 +47,10 @@
         owner: ec2-user
         group: nginx
         recurse: yes
+
     - name: Create wp-config.php
       command: >
-        wp config create
+        /usr/local/bin/wp config create
         --dbname={{db_name}}
         --dbuser={{ lookup('env', 'DB_USER') }}
         --dbpass={{ lookup('env', 'DB_PASS') }}
