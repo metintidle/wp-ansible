@@ -9,10 +9,12 @@
         url: https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
         dest: /usr/local/bin/wp-cli.phar
         mode: "0755"
+      become: yes
 
     - name: List details of wp-cli.phar
       command: ls -al /usr/local/bin/wp-cli.phar
       register: wp_cli_phar_details
+      become: yes
 
     - name: Display wp-cli.phar details
       debug:
