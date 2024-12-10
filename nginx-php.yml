@@ -9,15 +9,9 @@
         name: "*"
         state: latest
 
-    - name: Check if Nginx is installed
-      command: rpm -q nginx
-      register: nginx_installed
-      ignore_errors: yes
-      failed_when: false
-
     - name: Install Nginx using amazon-linux-extras
       command: amazon-linux-extras install -y nginx1
-      when: nginx_installed.rc != 0
+
 
     - name: Ensure Nginx is installed
       yum:
@@ -40,17 +34,8 @@
       debug:
         var: nginx_status.stdout
 
-    - name: Check if PHP is installed
-      command: rpm -q php
-      register: php_installed
-      ignore_errors: yes
-      failed_when: false
-
     - name: Install PHP
-      yum:
-        name: php
-        state: present
-      when: php_installed.rc != 0
+      command: amazon-linux-extras enable php8.2
 
     - name: Instal PHP-FPM  dependencies
       yum:
