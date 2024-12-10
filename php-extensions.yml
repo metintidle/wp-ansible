@@ -26,16 +26,16 @@
     - name: Update the PECL channel
       command: pecl channel-update pecl.php.net
 
-    # - name: Install imagick PHP extension by echoing the Enter key
-    #   command: echo "" | pecl install imagick
-    #   args:
-    #     creates: /usr/lib64/php/modules/imagick.so
+    - name: Install imagick PHP extension by echoing the Enter key
+      command: echo "" | pecl install imagick
+      args:
+        creates: /usr/lib64/php/modules/imagick.so
 
-    - name: Install imagick PHP extension non-interactively
-      expect:
-        command: pecl install imagick
-        responses:
-          'Please provide the prefix of ImageMagick installation \[autodetect\] :': "\r"
+    # - name: Install imagick PHP extension non-interactively
+    #   expect:
+    #     command: pecl install imagick
+    #     responses:
+    #       'Please provide the prefix of ImageMagick installation \[autodetect\] :': "\r"
 
     - name: Enable the imagick extension
       lineinfile:
