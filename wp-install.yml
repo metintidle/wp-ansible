@@ -17,3 +17,8 @@
       command: wp plugin install wpvivid-backuprestore --activate
       args:
         chdir: /home/ec2-user/html
+
+    - name: Install Better Search Replace Plugin
+      command: wp plugin install better-search-replace --activate
+      args:
+        chdir: /home/ec2-user/html
