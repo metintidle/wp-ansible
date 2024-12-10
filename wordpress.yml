@@ -48,21 +48,21 @@
         group: nginx
         recurse: yes
 
-    # - name: Verify WP-CLI installation
-    #   command: /usr/local/bin/wp --info
-    #   register: wp_cli_info
+    - name: Verify WP-CLI installation
+      command: /usr/local/bin/wp --info
+      register: wp_cli_info
 
-    # - name: Display WP-CLI info
-    #   debug:
-    #     var: wp_cli_info.stdout
+    - name: Display WP-CLI info
+      debug:
+        var: wp_cli_info.stdout
 
-    # - name: Create wp-config.php
-    #   command: >
-    #     /usr/local/bin/wp config create
-    #     --dbname={{db_name}}
-    #     --dbuser={{ lookup('env', 'DB_USER') }}
-    #     --dbpass={{ lookup('env', 'DB_PASS') }}
-    #     --dbhost={{ lookup('env', 'DB_HOST') }}
-    #     --dbprefix={{db_prefix}}
-    #   args:
-    #     chdir: /home/ec2-user/html
+    - name: Create wp-config.php
+      command: >
+        /usr/local/bin/wp config create
+        --dbname={{db_name}}
+        --dbuser={{ lookup('env', 'DB_USER') }}
+        --dbpass={{ lookup('env', 'DB_PASS') }}
+        --dbhost={{ lookup('env', 'DB_HOST') }}
+        --dbprefix={{db_prefix}}
+      args:
+        chdir: /home/ec2-user/html
