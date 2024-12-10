@@ -6,7 +6,7 @@
   tasks:
     - name: Download WP-CLI
       get_url:
-        url: https://github.com/wp-cli/wp-cli/releases/download/v2.10.0/wp-cli-2.10.0.phar
+        url: https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
         dest: /usr/local/bin/wp-cli.phar
         mode: "0755"
 
@@ -28,14 +28,6 @@
         line: 'export PATH=$PATH:/usr/local/bin'
         state: present
 
-    - name: Verify WP-CLI installation
-      command: /usr/local/bin/wp --info
-      register: wp_cli_info
-
-    - name: Display WP-CLI info
-      debug:
-        var: wp_cli_info.stdout
-
     - name: Download WordPress tarball
       get_url:
         url: https://en-au.wordpress.org/wordpress-6.7.1-en_AU.tar.gz
@@ -55,6 +47,14 @@
         owner: ec2-user
         group: nginx
         recurse: yes
+
+    # - name: Verify WP-CLI installation
+    #   command: /usr/local/bin/wp --info
+    #   register: wp_cli_info
+
+    # - name: Display WP-CLI info
+    #   debug:
+    #     var: wp_cli_info.stdout
 
     # - name: Create wp-config.php
     #   command: >
