@@ -30,5 +30,7 @@
 
   - name: deactivate WPS Hide Login Plugin
     command: wp plugin deactivate wps-hide-login
+    args:
+      chdir: /home/ec2-user/html
     ignore_errors: yes
 
