@@ -27,7 +27,7 @@
       debug:
         var: nginx_status.stdout
 
-    - name: Install PHP
+    - name: Install PHP using amazon-linux-extras
       command: amazon-linux-extras enable php8.2
 
     - name: Instal PHP-FPM  dependencies
