@@ -4,13 +4,13 @@
 
   tasks:
 
-  - name: Extract WordPress tarball directly to html directory
-    unarchive:
-        src: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
-        dest: /home/ec2-user/html/
-        remote_src: yes
-        extra_opts: [--strip-components=1]
-    become: yes
+  # - name: Extract WordPress tarball directly to html directory
+  #   unarchive:
+  #       src: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
+  #       dest: /home/ec2-user/html/
+  #       remote_src: yes
+  #       extra_opts: [--strip-components=1]
+  #   become: yes
 
   - name: Remove wordfence files in root directory
     command: rm -rf /home/ec2-user/html/wordfence-waf.php
