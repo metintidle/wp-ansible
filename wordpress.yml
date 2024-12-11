@@ -67,6 +67,12 @@
       args:
         chdir: /home/ec2-user/html
 
+    - name: Enable WP_DEBUG in wp-config.php
+      command: >
+        /usr/local/bin/wp config set WP_DEBUG true --raw
+      args:
+        chdir: /home/ec2-user/html
+
     - name: Install WordPress
       command: >
         wp core install
