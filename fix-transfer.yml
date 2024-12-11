@@ -1,0 +1,8 @@
+---
+- name: Fix Transfer
+  hosts: all
+
+  tasks:
+  - name: Remove wordfence files in root directory
+    command: rm -rf /home/ec2-user/html/wordfence-waf.php
+    ignore_errors: yes
