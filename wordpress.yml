@@ -1,7 +1,8 @@
 ---
 - name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
   hosts: all
-  # become: yes
+  vars:
+   site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
 
   tasks:
     - name: Download WP-CLI
@@ -23,13 +24,6 @@
     - name: Move WP-CLI to /usr/local/bin/wp
       command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
       become: yes
-
-    # - name: Ensure /usr/local/bin is in PATH
-    #   lineinfile:
-    #     path: /etc/profile
-    #     line: 'export PATH=$PATH:/usr/local/bin'
-    #     state: present
-    #   become: yes
 
     - name: Download WordPress tarball
       get_url:
@@ -70,5 +64,31 @@
         --dbpass={{ lookup('env', 'DB_PASS') }}
         --dbhost={{ lookup('env', 'DB_HOST') }}
         --dbprefix={{db_prefix}}
+      args:
+        chdir: /home/ec2-user/html
+
+    - name: Install WordPress
+      command: >
+        wp core install
+        --url="{{ site_url }}"
+        --title="New website"
+        --admin_user="itt-admin"
+        --admin_password="itt@123"
+        --admin_email="wp.monitoring.log@gmail.com"
+      args:
+        chdir: /home/ec2-user/html
+
+    - name: Install WPvivid Backup Plugin
+      command: wp plugin install wpvivid-backuprestore --activate
+      args:
+        chdir: /home/ec2-user/html
+
+    - name: Install Better Search Replace Plugin
+      command: wp plugin install better-search-replace --activate
+      args:
+        chdir: /home/ec2-user/html
+
+    - name: Install WPS Hide Login Plugin
+      command: wp plugin install wps-hide-login --activate
       args:
         chdir: /home/ec2-user/html
