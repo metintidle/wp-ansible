@@ -26,3 +26,8 @@
       command: wp plugin install better-search-replace --activate
       args:
         chdir: /home/ec2-user/html
+
+    - name: Install WPS Hide Login Plugin
+      command: wp plugin install wps-hide-login --activate
+      args:
+        chdir: /home/ec2-user/html
