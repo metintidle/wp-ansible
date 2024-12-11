@@ -15,9 +15,20 @@
   - name: Remove wordfence files in root directory
     command: rm -rf /home/ec2-user/html/wordfence-waf.php
     ignore_errors: yes
+
   - name: Remove nginx.conf
     command: rm -rf /home/ec2-user/html/nginx.conf
     ignore_errors: yes
+
   - name: Remove class_entra_database_token_utility.php
     command: rm -rf /home/ec2-user/html/class_entra_database_token_utility.php
     ignore_errors: yes
+
+  - name: active debug mode
+    command: sed -i 's/define('WP_DEBUG', false);/define('WP_DEBUG', true);/g' /home/ec2-user/html/wp-config.php
+    ignore_errors: yes
+
+  - name: deactivate WPS Hide Login Plugin
+    command: wp plugin deactivate wps-hide-login
+    ignore_errors: yes
+
