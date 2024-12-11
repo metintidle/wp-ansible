@@ -1,0 +1,11 @@
+---
+- name: check ngnix, php-fpm status and get error logs
+  hosts: all
+  become: yes
+
+  tasks:
+
+    -name: check ngnix status
+      command: systemctl status nginx
+      register: ngnix_status
+      ignore_errors: yes
