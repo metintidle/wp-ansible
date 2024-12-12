@@ -4,15 +4,15 @@
   become: yes
 
   tasks:
-    - name: Install PHP GD extension
-      yum:
-        name: php-gd
-        state: present
+    # - name: Install PHP GD extension
+    #   yum:
+    #     name: php-gd
+    #     state: present
 
-    - name: Restart PHP-FPM service
-      service:
-        name: php-fpm
-        state: restarted
+    # - name: Restart PHP-FPM service
+    #   service:
+    #     name: php-fpm
+    #     state: restarted
 
     - name: Remove wordfence files in root directory
       command: rm -rf /home/ec2-user/html/wordfence-waf.php
