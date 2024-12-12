@@ -27,7 +27,7 @@
       ignore_errors: yes
 
     - name: Activate debug mode
-      command: sed -i "s/define('WP_DEBUG', false);/define('WP_DEBUG', true);/g" /home/ec2-user/html/wp-config.php
+      command: sed -i "s/define('WP_DEBUG', true);/define('WP_DEBUG', false);/g" /home/ec2-user/html/wp-config.php
       ignore_errors: yes
 
     - name: Deactivate WPS Hide Login Plugin
