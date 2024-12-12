@@ -30,8 +30,25 @@
       command: sed -i "s/define('WP_DEBUG', true);/define('WP_DEBUG', false);/g" /home/ec2-user/html/wp-config.php
       ignore_errors: yes
 
-    - name: Deactivate WPS Hide Login Plugin
-      command: wp plugin deactivate wps-hide-login
-      args:
-        chdir: /home/ec2-user/html
-      ignore_errors: yes
+    # - name: Deactivate WPS Hide Login Plugin
+    #   command: wp plugin deactivate wps-hide-login
+    #   args:
+    #     chdir: /home/ec2-user/html
+    #   ignore_errors: yes
+    # - name: Fix error FTP in WordPress wp-config.php
+    #   command: sed -i "s/define('FS_METHOD', 'direct');/define('FS_METHOD', 'ftpext');/g" /home/ec2-user/html/wp-config.php
+    #   ignore_errors: yes
+    - name: Fix WordPress FTP error
+      lineinfile:
+        path: "/home/ec2-user/html/wp-config.php"
+        regexp: '^define\(\'FS_METHOD\','
+        line: "define('FS_METHOD', 'direct');"
+        backup: yes
+      notify: Restart web server
+
+
+
+
+
+
+
