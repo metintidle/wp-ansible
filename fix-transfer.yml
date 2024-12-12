@@ -41,7 +41,7 @@
     - name: Fix WordPress FTP error
       lineinfile:
         path: "/home/ec2-user/html/wp-config.php"
-        regexp: '^define\(\'FS_METHOD\','
+        regexp: "^define\\('FS_METHOD',"
         line: "define('FS_METHOD', 'direct');"
         backup: yes
       notify: Restart web server
