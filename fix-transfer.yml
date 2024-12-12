@@ -30,11 +30,11 @@
     #   command: sed -i "s/define('WP_DEBUG', true);/define('WP_DEBUG', false);/g" /home/ec2-user/html/wp-config.php
     #   ignore_errors: yes
 
-    - name: Disable WP_DEBUG in wp-config.php
-      command: >
-        wp config set WP_DEBUG false --raw
-      args:
-        chdir: /home/ec2-user/html
+    # - name: Disable WP_DEBUG in wp-config.php
+    #   command: >
+    #     wp config set WP_DEBUG false --raw
+    #   args:
+    #     chdir: /home/ec2-user/html
 
     # - name: Deactivate WPS Hide Login Plugin
     #   command: wp plugin deactivate wps-hide-login
