@@ -48,7 +48,7 @@
         regexp: "^define\\('FS_METHOD',"
         line: "define('FS_METHOD', 'direct');"
         backup: yes
-      notify: Restart web server
+      # notify: Restart web server
     - name: Change ownership of all files in html directory
       file:
         path: /home/ec2-user/html/
