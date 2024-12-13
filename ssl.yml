@@ -13,11 +13,15 @@
     - name: Install EPEL repository
       command: amazon-linux-extras install epel -y
 
-    - name: Install Certbot and the Certbot Nginx plugin
+    - name: Install Certbot
       yum:
-        name:
-          - certbot
-          - python2-certbot-nginx
+        name: certbot
+        state: present
+        enablerepo: epel
+
+    - name: Install Certbot Nginx plugin
+      yum:
+        name: python2-certbot-nginx
         state: present
         enablerepo: epel
 
@@ -45,3 +49,9 @@
     - name: Display Nginx test result
       debug:
         var: nginx_test_result.stdout
+
+
+
+
+
+# sudo certbot -d line4u.com.au -d www.line4u.com.au --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
