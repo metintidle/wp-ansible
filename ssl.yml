@@ -21,7 +21,7 @@
         state: present
 
     - name: Obtain an SSL certificate for the domain
-      command: certbot -d {{domain_name}} -d www.{{domain_name}} --non-interactive --redirect --agree-tos --email {{email}}
+      command: certbot -d {{domain_name}} -d www.{{domain_name}} --non-interactive --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
       register: certbot_result
       ignore_errors: yes
 
