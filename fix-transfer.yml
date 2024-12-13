@@ -42,20 +42,20 @@
     #     chdir: /home/ec2-user/html
     #   ignore_errors: yes
 
-    - name: Fix WordPress FTP error
-      lineinfile:
-        path: "/home/ec2-user/html/wp-config.php"
-        regexp: "^define\\('FS_METHOD',"
-        line: "define('FS_METHOD', 'direct');"
-        backup: yes
+    # - name: Fix WordPress FTP error
+    #   lineinfile:
+    #     path: "/home/ec2-user/html/wp-config.php"
+    #     regexp: "^define\\('FS_METHOD',"
+    #     line: "define('FS_METHOD', 'direct');"
+    #     backup: yes
       # notify: Restart web server
-    - name: Change ownership of all files in html directory
-      file:
-        path: /home/ec2-user/html/
-        owner: ec2-user
-        group: nginx
-        recurse: yes
-      become: yes
+    # - name: Change ownership of all files in html directory
+    #   file:
+    #     path: /home/ec2-user/html/
+    #     owner: ec2-user
+    #     group: nginx
+    #     recurse: yes
+    #   become: yes
 
 
 
