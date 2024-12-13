@@ -1,0 +1,46 @@
+---
+- name: Setup SSL on Amazon Linux 2
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update the package index
+      yum:
+        name: '*'
+        state: latest
+        update_cache: yes
+
+    - name: Install EPEL repository
+      command: amazon-linux-extras install epel -y
+
+    - name: Install Certbot and the Certbot Nginx plugin
+      yum:
+        name:
+          - certbot
+          - python2-certbot-nginx
+        state: present
+
+    - name: Obtain an SSL certificate for the domain
+      command: certbot -d {{domain_name}} -d www.{{domain_name}} --non-interactive --redirect --agree-tos --email {{email}}
+      register: certbot_result
+      ignore_errors: yes
+
+    - name: Add a cron job to renew Certbot certificates twice a day as root
+      cron:
+        name: "Renew Certbot certificates"
+        minute: "30"
+        hour: "2,14"
+        job: "/usr/bin/certbot renew --quiet"
+
+    - name: Test the Nginx configuration
+      command: nginx -t
+      register: nginx_test_result
+      ignore_errors: yes
+
+    - name: Display Certbot result
+      debug:
+        var: certbot_result.stdout
+
+    - name: Display Nginx test result
+      debug:
+        var: nginx_test_result.stdout
