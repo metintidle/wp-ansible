@@ -19,6 +19,7 @@
           - certbot
           - python2-certbot-nginx
         state: present
+        enablerepo: epel
 
     - name: Obtain an SSL certificate for the domain
       command: certbot -d {{domain_name}} -d www.{{domain_name}} --non-interactive --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
