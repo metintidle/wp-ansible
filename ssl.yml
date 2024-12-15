@@ -25,33 +25,33 @@
         state: present
         enablerepo: epel
 
-    - name: Obtain an SSL certificate for the domain
-      command: certbot -d {{domain_name}} -d www.{{domain_name}} --non-interactive --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
-      register: certbot_result
-      ignore_errors: yes
+    # - name: Obtain an SSL certificate for the domain
+    #   command: certbot -d {{domain_name}} -d www.{{domain_name}} --non-interactive --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
+    #   register: certbot_result
+    #   ignore_errors: yes
 
-    - name: Add a cron job to renew Certbot certificates twice a day as root
-      cron:
-        name: "Renew Certbot certificates"
-        minute: "30"
-        hour: "2,14"
-        job: "/usr/bin/certbot renew --quiet"
+    # - name: Add a cron job to renew Certbot certificates twice a day as root
+    #   cron:
+    #     name: "Renew Certbot certificates"
+    #     minute: "30"
+    #     hour: "2,14"
+    #     job: "/usr/bin/certbot renew --quiet"
 
-    - name: Test the Nginx configuration
-      command: nginx -t
-      register: nginx_test_result
-      ignore_errors: yes
+    # - name: Test the Nginx configuration
+    #   command: nginx -t
+    #   register: nginx_test_result
+    #   ignore_errors: yes
 
-    - name: Display Certbot result
-      debug:
-        var: certbot_result.stdout
+    # - name: Display Certbot result
+    #   debug:
+    #     var: certbot_result.stdout
 
-    - name: Display Nginx test result
-      debug:
-        var: nginx_test_result.stdout
-
-
+    # - name: Display Nginx test result
+    #   debug:
+    #     var: nginx_test_result.stdout
 
 
 
-# sudo certbot -d line4u.com.au -d www.line4u.com.au --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
+
+
+# sudo certbot -d sabelconstructions.com.au -d www.sabelconstructions.com.au --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
