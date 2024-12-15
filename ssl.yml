@@ -13,11 +13,17 @@
     - name: Install EPEL repository
       command: amazon-linux-extras install epel -y
 
+    - name: Disable repository priority protections
+      command: yum-config-manager --disable epel
+
     - name: Install Certbot
       yum:
         name: certbot
         state: present
         enablerepo: epel
+
+    - name: Enable repository priority protections
+      command: yum-config-manager --enable epel
 
     - name: Install Certbot Nginx plugin
       yum:
