@@ -10,21 +10,21 @@
       - "www.{{ domain_name1 }}"
       - "{{ domain_name2 }}"
       - "www.{{ domain_name2 }}"
-      - "{{ domain_name3 }}"
-      - "www.{{ domain_name3 }}"
+      # - "{{ domain_name3 }}"
+      # - "www.{{ domain_name3 }}"
       # Add more domains as needed, up to a maximum of 4
       # - "subdomain1.{{ domain_name }}"
       # - "subdomain2.{{ domain_name }}"
 
   tasks:
-    - name: Update the package index
-      yum:
-        name: '*'
-        state: latest
-        update_cache: yes
+    # - name: Update the package index
+    #   yum:
+    #     name: '*'
+    #     state: latest
+    #     update_cache: yes
 
-    - name: Install EPEL repository
-      command: amazon-linux-extras install epel -y
+    # - name: Install EPEL repository
+    #   command: amazon-linux-extras install epel -y
 
     - name: Check if Lego is installed
       stat:
