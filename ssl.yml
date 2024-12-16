@@ -26,67 +26,67 @@
     # - name: Install EPEL repository
     #   command: amazon-linux-extras install epel -y
 
-    - name: Check if Lego is installed
-      stat:
-        path: /usr/local/bin/lego
-      register: lego_installed
+    # - name: Check if Lego is installed
+    #   stat:
+    #     path: /usr/local/bin/lego
+    #   register: lego_installed
 
-    - name: Get latest Lego release info
-      uri:
-        url: https://api.github.com/repos/go-acme/lego/releases/latest
-        return_content: yes
-      register: lego_release_info
+    # - name: Get latest Lego release info
+    #   uri:
+    #     url: https://api.github.com/repos/go-acme/lego/releases/latest
+    #     return_content: yes
+    #   register: lego_release_info
 
-    - name: Set Lego download URL
-      set_fact:
-        lego_download_url: "{{ lego_release_info.json.assets | selectattr('name', 'match', 'lego_.*_linux_amd64.tar.gz') | map(attribute='browser_download_url') | first }}"
+    # - name: Set Lego download URL
+    #   set_fact:
+    #     lego_download_url: "{{ lego_release_info.json.assets | selectattr('name', 'match', 'lego_.*_linux_amd64.tar.gz') | map(attribute='browser_download_url') | first }}"
 
-    - name: Print Lego download URL
-      debug:
-        msg: "Lego download URL: {{ lego_download_url }}"
+    # - name: Print Lego download URL
+    #   debug:
+    #     msg: "Lego download URL: {{ lego_download_url }}"
 
-    - name: Download latest Lego release
-      get_url:
-        url: "{{ lego_download_url }}"
-        dest: /tmp/lego.tar.gz
+    # - name: Download latest Lego release
+    #   get_url:
+    #     url: "{{ lego_download_url }}"
+    #     dest: /tmp/lego.tar.gz
 
-    - name: Unarchive Lego
-      unarchive:
-        src: /tmp/lego.tar.gz
-        dest: /usr/local/bin/
-        remote_src: yes
+    # - name: Unarchive Lego
+    #   unarchive:
+    #     src: /tmp/lego.tar.gz
+    #     dest: /usr/local/bin/
+    #     remote_src: yes
 
-    - name: Print Lego version
-      command: /usr/local/bin/lego --version
-      register: lego_version_output
+    # - name: Print Lego version
+    #   command: /usr/local/bin/lego --version
+    #   register: lego_version_output
 
-    - name: Display Lego version
-      debug:
-        msg: "Lego version: {{ lego_version_output.stdout }}"
+    # - name: Display Lego version
+    #   debug:
+    #     msg: "Lego version: {{ lego_version_output.stdout }}"
 
-    - name: Construct Lego command
-      set_fact:
-        lego_command: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego --tls run  {{ domain_args | join(' ') }}"
-      vars:
-        domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
+    # - name: Construct Lego command
+    #   set_fact:
+    #     lego_command: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego --tls run  {{ domain_args | join(' ') }}"
+    #   vars:
+    #     domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
 
-    - name: Print Lego command
-      debug:
-        msg: "{{ lego_command }}"
+    # - name: Print Lego command
+    #   debug:
+    #     msg: "{{ lego_command }}"
 
-    - name: Run Lego command
-      command: "{{ lego_command }}"
+    # - name: Run Lego command
+    #   command: "{{ lego_command }}"
 
 
-    - name: Add a cron job to renew Lego certificates twice a day as root
-      cron:
-        name: "Renew Lego certificates"
-        minute: "30"
-        hour: "2,14"
-        job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego renew --days 30 --tls {{ domain_args | join(' ') }}"
-        state: present
-      vars:
-        domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
+    # - name: Add a cron job to renew Lego certificates twice a day as root
+    #   cron:
+    #     name: "Renew Lego certificates"
+    #     minute: "30"
+    #     hour: "2,14"
+    #     job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego renew --days 30 --tls {{ domain_args | join(' ') }}"
+    #     state: present
+    #   vars:
+    #     domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
 
 
     - name: write the code in a file and create that
@@ -101,8 +101,12 @@
               root  /usr/share/nginx/html;
               index  index.php index.html index.htm ;
 
-              ssl_certificate /etc/lego/certificates/{{ domain_name }}.crt;
-              ssl_certificate_key /etc/lego/certificates/{{ domain_name }}.key;
+              # ssl_certificate /etc/lego/certificates/{{ domain_name }}.crt;
+              # ssl_certificate_key /etc/lego/certificates/{{ domain_name }}.key;
+
+              ssl_certificate /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/{{ domain_name }}/privkey.pem;
+
               ssl_protocols TLSv1.2;
               ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
               ssl_prefer_server_ciphers on;
