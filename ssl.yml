@@ -42,7 +42,11 @@
       set_fact:
         lego_command: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego --tls run --accept-tos {{ domain_args | join(' ') }}"
       vars:
-        domain_args: "{{ domain_names | map('regex_replace', '^', '--domains ') | list }}
+        domain_args: "{{ domain_names | map('regex_replace', '^', '--domains ') | list }}"
+
+    - name: Print Lego command
+      debug:
+        msg: "{{ lego_command }}"
 
     # - name: Obtain an SSL certificate for the domain using Lego
     #   command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego --tls run --accept-tos
