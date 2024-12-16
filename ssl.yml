@@ -13,51 +13,38 @@
     - name: Install EPEL repository
       command: amazon-linux-extras install epel -y
 
-    - name: Disable repository priority protections
-      command: yum-config-manager --disable epel
+    - name: Install Lego
+      get_url:
+        url: https://github.com/go-acme/lego/releases/download/v4.4.0/lego_v4.4.0_linux_amd64.tar.gz
+        dest: /tmp/lego.tar.gz
 
-    - name: Install Certbot
-      yum:
-        name: certbot
-        state: present
-        enablerepo: epel
+    - name: Extract Lego
+      unarchive:
+        src: /tmp/lego.tar.gz
+        dest: /usr/local/bin/
+        remote_src: yes
 
-    - name: Enable repository priority protections
-      command: yum-config-manager --enable epel
+    - name: Obtain an SSL certificate for the domain using Lego
+      command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego run
+      register: lego_result
+      ignore_errors: yes
 
-    - name: Install Certbot Nginx plugin
-      yum:
-        name: python2-certbot-nginx
-        state: present
-        enablerepo: epel
+    - name: Add a cron job to renew Lego certificates twice a day as root
+      cron:
+        name: "Renew Lego certificates"
+        minute: "30"
+        hour: "2,14"
+        job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego renew --days 30"
 
-    # - name: Obtain an SSL certificate for the domain
-    #   command: certbot -d {{domain_name}} -d www.{{domain_name}} --non-interactive --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
-    #   register: certbot_result
-    #   ignore_errors: yes
+    - name: Test the Nginx configuration
+      command: nginx -t
+      register: nginx_test_result
+      ignore_errors: yes
 
-    # - name: Add a cron job to renew Certbot certificates twice a day as root
-    #   cron:
-    #     name: "Renew Certbot certificates"
-    #     minute: "30"
-    #     hour: "2,14"
-    #     job: "/usr/bin/certbot renew --quiet"
+    - name: Display Lego result
+      debug:
+        var: lego_result.stdout
 
-    # - name: Test the Nginx configuration
-    #   command: nginx -t
-    #   register: nginx_test_result
-    #   ignore_errors: yes
-
-    # - name: Display Certbot result
-    #   debug:
-    #     var: certbot_result.stdout
-
-    # - name: Display Nginx test result
-    #   debug:
-    #     var: nginx_test_result.stdout
-
-
-
-
-
-# sudo certbot -d sabelconstructions.com.au -d www.sabelconstructions.com.au --redirect --agree-tos --email "wp.monitoring.log@gmail.com"
+    - name: Display Nginx test result
+      debug:
+        var: nginx_test_result.stdout
