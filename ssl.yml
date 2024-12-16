@@ -55,7 +55,6 @@
         src: /tmp/lego.tar.gz
         dest: /usr/local/bin/
         remote_src: yes
-      when: not lego_installed.stat.exists
 
     - name: Construct Lego command
       set_fact:
