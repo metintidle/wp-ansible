@@ -6,6 +6,12 @@
     domain_names:
       - "{{ domain_name }}"
       - "www.{{ domain_name }}"
+      - "{{ domain_name1 }}"
+      - "www.{{ domain_name1 }}"
+      - "{{ domain_name2 }}"
+      - "www.{{ domain_name2 }}"
+      - "{{ domain_name3 }}"
+      - "www.{{ domain_name3 }}"
       # Add more domains as needed, up to a maximum of 4
       # - "subdomain1.{{ domain_name }}"
       # - "subdomain2.{{ domain_name }}"
