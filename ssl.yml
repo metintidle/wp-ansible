@@ -66,9 +66,9 @@
 
     - name: Construct Lego command
       set_fact:
-        lego_command: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego --tls run --accept-tos {{ domain_args | join(' ') }}"
+        lego_command: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego --tls run  {{ domain_args | join(' ') }}"
       vars:
-        domain_args: "{{ domain_names | map('regex_replace', '^', '--domains ') | list }}"
+        domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
 
     - name: Print Lego command
       debug:
@@ -86,7 +86,7 @@
         job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego renew --days 30 --tls {{ domain_args | join(' ') }}"
         state: present
       vars:
-        domain_args: "{{ domain_names | map('regex_replace', '^', '--domains ') | list }}"
+        domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
 
 
     - name: write the code in a file and create that
