@@ -1,6 +1,5 @@
 ---
 - name: Setup SSL on Amazon Linux
- 2
   hosts: all
   become: yes
   vars:
