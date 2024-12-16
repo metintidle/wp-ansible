@@ -2,6 +2,13 @@
 - name: Setup SSL on Amazon Linux 2
   hosts: all
   become: yes
+  vars:
+    domain_names:
+      - "{{ domain_name }}"
+      - "www.{{ domain_name }}"
+      # Add more domains as needed, up to a maximum of 4
+      # - "subdomain1.{{ domain_name }}"
+      # - "subdomain2.{{ domain_name }}"
 
   tasks:
     - name: Update the package index
@@ -31,27 +38,68 @@
         remote_src: yes
       when: not lego_installed.stat.exists
 
-    - name: Obtain an SSL certificate for the domain using Lego
-      command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego --http run
-      register: lego_result
-      ignore_errors: yes
+    - name: Construct Lego command
+      set_fact:
+        lego_command: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego --tls run --accept-tos {{ domain_args | join(' ') }}"
+      vars:
+        domain_args: "{{ domain_names | map('regex_replace', '^', '--domains ') | list }}
+
+    # - name: Obtain an SSL certificate for the domain using Lego
+    #   command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego --tls run --accept-tos
+    #   register: lego_result
+    #   ignore_errors: yes
 
     - name: Add a cron job to renew Lego certificates twice a day as root
       cron:
         name: "Renew Lego certificates"
         minute: "30"
         hour: "2,14"
-        job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego renew --days 30 --http"
+        job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --path /etc/lego renew --days 30 --tls {{ domain_args | join(' ') }}"
+        state: present
+      vars:
+        domain_args: "{{ domain_names | map('regex_replace', '^', '--domains ') | list }}"
 
-    - name: Test the Nginx configuration
+
+    - name: write the code in a file and create that
+      copy:
+        content: |
+          server {
+              client_max_body_size 256M;
+              listen  443 ssl http2;
+              listen  [::]:443 ssl http2;
+              server_name _;
+
+              root  /usr/share/nginx/html;
+              index  index.php index.html index.htm ;
+
+              ssl_certificate /etc/lego/certificates/{{ domain_name }}.crt;
+              ssl_certificate_key /etc/lego/certificates/{{ domain_name }}.key;
+              ssl_protocols TLSv1.2;
+              ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
+              ssl_prefer_server_ciphers on;
+              ssl_session_cache shared:SSL:10m;
+              ssl_session_timeout 10m;
+              ssl_dhparam /etc/ssl/certs/dhparam.pem;
+              add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
+              location / {
+                    try_files $uri $uri/ /index.php?$args;  # Pass to index.php if not found
+              }
+          }
+        dest: /etc/nginx/conf.d/ssl.conf
+
+    - name: Test Nginx configuration
       command: nginx -t
       register: nginx_test_result
       ignore_errors: yes
 
-    - name: Display Lego result
-      debug:
-        var: lego_result.stdout
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_test_result.rc == 0
 
-    - name: Display Nginx test result
-      debug:
-        var: nginx_test_result.stdout
+
+
+
+
+# /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains setinsteel.com.au --domains www.setinsteel.com.au --path /etc/lego --tls run
