@@ -54,10 +54,9 @@
       debug:
         msg: "{{ lego_command }}"
 
-    # - name: Obtain an SSL certificate for the domain using Lego
-    #   command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego --tls run --accept-tos
-    #   register: lego_result
-    #   ignore_errors: yes
+    - name: Run Lego command
+      command: "{{ lego_command }}"
+
 
     - name: Add a cron job to renew Lego certificates twice a day as root
       cron:
