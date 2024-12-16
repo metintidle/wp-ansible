@@ -25,7 +25,7 @@
         remote_src: yes
 
     - name: Obtain an SSL certificate for the domain using Lego
-      command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego run
+      command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego --http run
       register: lego_result
       ignore_errors: yes
 
@@ -34,7 +34,7 @@
         name: "Renew Lego certificates"
         minute: "30"
         hour: "2,14"
-        job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego renew --days 30"
+        job: "/usr/local/bin/lego --email 'wp.monitoring.log@gmail.com' --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego renew --days 30 --http"
 
     - name: Test the Nginx configuration
       command: nginx -t
