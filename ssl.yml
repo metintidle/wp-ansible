@@ -13,16 +13,23 @@
     - name: Install EPEL repository
       command: amazon-linux-extras install epel -y
 
+    - name: Check if Lego is installed
+      stat:
+        path: /usr/local/bin/lego
+      register: lego_installed
+
     - name: Install Lego
       get_url:
         url: https://github.com/go-acme/lego/releases/download/v4.4.0/lego_v4.4.0_linux_amd64.tar.gz
         dest: /tmp/lego.tar.gz
+      when: not lego_installed.stat.exists
 
     - name: Extract Lego
       unarchive:
         src: /tmp/lego.tar.gz
         dest: /usr/local/bin/
         remote_src: yes
+      when: not lego_installed.stat.exists
 
     - name: Obtain an SSL certificate for the domain using Lego
       command: /usr/local/bin/lego --email "wp.monitoring.log@gmail.com" --domains {{domain_name}} --domains www.{{domain_name}} --path /etc/lego --http run
