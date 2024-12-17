@@ -5,24 +5,40 @@
    site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
 
   tasks:
+    - name: Check if WP-CLI is already installed
+      stat:
+        path: /usr/local/bin/wp
+      register: wp_cli_installed
+      become: yes
+
     - name: Download WP-CLI
       get_url:
         url: https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
         dest: /usr/local/bin/wp-cli.phar
         mode: "0755"
       become: yes
+      when: not wp_cli_installed.stat.exists
 
     - name: List details of wp-cli.phar
       command: ls -al /usr/local/bin/wp-cli.phar
       register: wp_cli_phar_details
       become: yes
+      when: not wp_cli_installed.stat.exists
 
     - name: Display wp-cli.phar details
       debug:
         var: wp_cli_phar_details.stdout
+      when: not wp_cli_installed.stat.exists
 
     - name: Move WP-CLI to /usr/local/bin/wp
       command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
+      become: yes
+      when: not wp_cli_installed.stat.exists
+
+    - name: Check if WordPress is already installed
+      stat:
+        path: /home/ec2-user/html/wp-config.php
+      register: wordpress_installed
       become: yes
 
     - name: Download WordPress tarball
@@ -31,6 +47,7 @@
         dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
         mode: "0644"
       become: yes
+      when: not wordpress_installed.stat.exists
 
     - name: Extract WordPress tarball directly to html directory
       unarchive:
@@ -39,6 +56,7 @@
         remote_src: yes
         extra_opts: [--strip-components=1]
       become: yes
+      when: not wordpress_installed.stat.exists
 
     - name: Change ownership of all files in html directory
       file:
@@ -47,6 +65,7 @@
         group: nginx
         recurse: yes
       become: yes
+      when: not wordpress_installed.stat.exists
 
     - name: Verify WP-CLI installation
       command: /usr/local/bin/wp --info
@@ -55,6 +74,12 @@
     - name: Display WP-CLI info
       debug:
         var: wp_cli_info.stdout
+
+    - name: Check if wp-config.php exists
+      stat:
+        path: /home/ec2-user/html/wp-config.php
+      register: wp_config_exists
+      become: yes
 
     - name: Create wp-config.php
       command: >
@@ -66,6 +91,8 @@
         --dbprefix={{db_prefix}}
       args:
         chdir: /home/ec2-user/html
+      when: not wp_config_exists.stat.exists
+      become: yes
 
     - name: Fix WordPress FTP error
       lineinfile:
@@ -73,6 +100,8 @@
         regexp: "^define\\('FS_METHOD',"
         line: "define('FS_METHOD', 'direct');"
         backup: yes
+      when: not wp_config_exists.stat.exists
+      become: yes
 
     - name: Install WordPress
       command: >
@@ -94,4 +123,3 @@
       command: wp plugin install better-search-replace --activate
       args:
         chdir: /home/ec2-user/html
-
