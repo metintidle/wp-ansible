@@ -39,6 +39,12 @@
       stat:
         path: /home/ec2-user/html/wp-config.php
       register: wordpress_installed
+      become: yes
+
+    - name: Print message if WordPress is already installed
+      debug:
+        msg: "WordPress is already installed."
+      when: wordpress_installed.stat.exists
 
     - name: Download WordPress tarball
       get_url:
