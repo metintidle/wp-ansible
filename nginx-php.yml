@@ -42,6 +42,7 @@
           - ImageMagick-devel
           - php-pear
           - php-devel
+          - php-gd
         state: present
 
     - name: Ensure pexpect is installed
