@@ -39,14 +39,12 @@
       stat:
         path: /home/ec2-user/html/wp-config.php
       register: wordpress_installed
-      become: yes
 
     - name: Download WordPress tarball
       get_url:
         url: https://en-au.wordpress.org/wordpress-6.7.1-en_AU.tar.gz
         dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
         mode: "0644"
-      become: yes
       when: not wordpress_installed.stat.exists
 
     - name: Extract WordPress tarball directly to html directory
@@ -55,7 +53,6 @@
         dest: /home/ec2-user/html/
         remote_src: yes
         extra_opts: [--strip-components=1]
-      become: yes
       when: not wordpress_installed.stat.exists
 
     - name: Change ownership of all files in html directory
@@ -79,7 +76,6 @@
       stat:
         path: /home/ec2-user/html/wp-config.php
       register: wp_config_exists
-      become: yes
 
     - name: Create wp-config.php
       command: >
@@ -92,7 +88,7 @@
       args:
         chdir: /home/ec2-user/html
       when: not wp_config_exists.stat.exists
-      become: yes
+
 
     - name: Fix WordPress FTP error
       lineinfile:
@@ -101,7 +97,7 @@
         line: "define('FS_METHOD', 'direct');"
         backup: yes
       when: not wp_config_exists.stat.exists
-      become: yes
+
 
     - name: Install WordPress
       command: >
