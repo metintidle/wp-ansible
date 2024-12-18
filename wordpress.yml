@@ -51,6 +51,7 @@
         url: https://en-au.wordpress.org/wordpress-6.7.1-en_AU.tar.gz
         dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
         mode: "0644"
+      become: yes
       when: not wordpress_downloaded.stat.exists
 
     - name: Extract WordPress tarball directly to html directory
