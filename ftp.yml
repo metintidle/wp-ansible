@@ -34,7 +34,7 @@
         state: present
         groups: nginx
         shell: /sbin/nologin
-        password: "{{ftp_password}}"
+        password: "{{ ftp_password | password_hash('sha512') }}"
     
     - name: change the owner of the /usr/share/nginx/html directory to ftpuser
       file:
