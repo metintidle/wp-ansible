@@ -28,13 +28,20 @@
         name: vsftpd
         state: restarted
 
+    - name: Check if ftpuser exists
+      ansible.builtin.getent:
+        database: passwd
+        key: ftpuser
+      register: ftpuser_exists
+      
     - name: Create FTP user with out home directory and add to nginx group
-      user:
+      ansible.builtin.user:
         name: ftpuser
         state: present
         groups: nginx
         shell: /sbin/nologin
         password: "{{ ftp_password | password_hash('sha512') }}"
+      when: ftpuser_exists.failed
     
     - name: change the owner of the /usr/share/nginx/html directory to ftpuser
       file:
