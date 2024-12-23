@@ -1,0 +1,18 @@
+---
+- name: Create cron job with fpm bash file for each minute
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Copy file to remote server
+      copy:
+        src: fpm.sh
+        dest: /home/ec2-user/fpm.sh
+        mode: 0755
+
+    - name: Add a cron job to run fpm.sh every minute
+      cron:
+        name: "Run fpm.sh every minute"
+        minute: "*"
+        job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
+
