@@ -58,6 +58,12 @@
         state: present
       notify: Restart vsftpd
 
+    - name: Update FTP user password
+      ansible.builtin.user:
+        name: ftpuser
+        password: "{{ ftp_password | password_hash('sha512') }}"
+        update_password: always
+
   handlers:
     - name: Restart vsftpd
       ansible.builtin.systemd:
