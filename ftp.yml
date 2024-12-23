@@ -1,0 +1,44 @@
+---
+- name: Setup FTP on Amazon Linux
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Check if vsftpd is installed
+      command: rpm -q vsftpd
+      register: vsftpd_installed
+      ignore_errors: yes
+
+    - name: Install vsftpd if not installed
+      yum:
+        name: vsftpd
+        state: present
+      when: vsftpd_installed.rc != 0
+
+    - name: Copy vsftpd.conf
+      copy:
+        src: configs/vsftpd.conf
+        dest: /etc/vsftpd/vsftpd.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Restart vsftpd
+      systemd:
+        name: vsftpd
+        state: restarted
+
+    - name: Create FTP user with out home directory and add to nginx group
+      user:
+        name: ftpuser
+        state: present
+        groups: nginx
+        shell: /sbin/nologin
+        password: "{{ftp_password}}"
+    
+    - name: change the owner of the /usr/share/nginx/html directory to ftpuser
+      file:
+        path: /usr/share/nginx/html
+        owner: ftpuser
+        group: nginx
+        mode: 0755
