@@ -42,3 +42,17 @@
         owner: ftpuser
         group: nginx
         mode: 0755
+
+    - name: Ensure pasv_address is set in vsftpd.conf
+      ansible.builtin.lineinfile:
+        path: /etc/vsftpd/vsftpd.conf
+        regexp: '^#?pasv_address='
+        line: "pasv_address={{ inventory_hostname }}"
+        state: present
+      notify: Restart vsftpd
+
+  handlers:
+    - name: Restart vsftpd
+      ansible.builtin.systemd:
+        name: vsftpd
+        state: restarted
