@@ -4,10 +4,16 @@
   become: yes
 
   tasks:
-    - name: Install vsftpd
+    - name: Check if vsftpd is installed
+      command: rpm -q vsftpd
+      register: vsftpd_installed
+      ignore_errors: yes
+
+    - name: Install vsftpd if not installed
       yum:
         name: vsftpd
         state: present
+      when: vsftpd_installed.rc != 0
 
     - name: Copy vsftpd.conf
       copy:
