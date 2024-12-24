@@ -4,29 +4,21 @@
   become: yes
 
   tasks:
-    - name: Update all installed packages
-      ansible.builtin.yum:
-        name: "*"
-        state: latest
-        update_only: yes  # Only updates existing packages, doesn't install new ones
-   
-    - name: Get free memory information
-      ansible.builtin.shell: free -m
-      register: memory_info
-
-    - name: Display memory information
-      ansible.builtin.debug:
-        var: memory_info.stdout_lines
-    # - name: Check if vsftpd is installed
-    #   command: rpm -q vsftpd
-    #   register: vsftpd_installed
-    #   ignore_errors: yes
-
-    - name: Install vsftpd if not installed
+    - name: Clean yum cache
+      command: yum clean all
+      
+    - name: Install vsftpd 
       yum:
         name: vsftpd
         state: present
-      # when: vsftpd_installed.rc != 0
+        
+    - name: List available vsftpd versions
+      ansible.builtin.command: yum list vsftpd --showduplicates
+      register: vsftpd_versions
+
+    - name: Display available vsftpd versions
+      ansible.builtin.debug:
+        var: vsftpd_versions.stdout_lines  
 
     - name: Copy vsftpd.conf
       copy:
