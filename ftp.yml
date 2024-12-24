@@ -4,6 +4,13 @@
   become: yes
 
   tasks:
+    - name: Get free memory information
+      ansible.builtin.shell: free -m
+      register: memory_info
+
+    - name: Display memory information
+      ansible.builtin.debug:
+        var: memory_info.stdout_lines
     # - name: Check if vsftpd is installed
     #   command: rpm -q vsftpd
     #   register: vsftpd_installed
@@ -69,6 +76,8 @@
     #     name: ftpuser
     #     password: "{{ ftp_password | password_hash('sha512') }}"
     #     update_password: always
+
+
 
   handlers:
     - name: Restart vsftpd
