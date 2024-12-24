@@ -8,24 +8,9 @@
       ansible.builtin.command:
         cmd: yum clean all
 
-    # - name: Get the available versions of vsftpd
-    #   command: yum list vsftpd --showduplicates
-    #   register: vsftpd_versions
-
-    # - name: Extract the latest version from the available list
-    #   set_fact:
-    #     latest_vsftpd: "{{ vsftpd_versions.stdout_lines | select('search', 'vsftpd') | map('regex_search', 'vsftpd.x86_64\\s+([\\d.\\-a-zA-Z]+)', '\\1') | list | sort | last }}"
-
-    # - name: Display the latest version
-    #   debug:
-    #     var: latest_vsftpd
-
     - name: Install the latest version of vsftpd
       ansible.builtin.command:
         cmd: yum install vsftpd -y
-      # yum:
-      #   name: "vsftpd" # vsftpd-{{ latest_vsftpd }}
-      #   state: present
 
     - name: Copy vsftpd.conf
       ansible.builtin.copy:
