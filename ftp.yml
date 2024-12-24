@@ -44,6 +44,7 @@
         database: passwd
         key: ftpuser
       register: ftpuser_exists
+      ignore_errors: yes
       
     - name: Add /sbin/nologin to /etc/shells
       ansible.builtin.lineinfile:
