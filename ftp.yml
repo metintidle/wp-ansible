@@ -7,21 +7,21 @@
     - name: Clean yum cache
       command: yum clean all
 
-    - name: Get the available versions of vsftpd
-      command: yum list vsftpd --showduplicates
-      register: vsftpd_versions
+    # - name: Get the available versions of vsftpd
+    #   command: yum list vsftpd --showduplicates
+    #   register: vsftpd_versions
 
-    - name: Extract the latest version from the available list
-      set_fact:
-        latest_vsftpd: "{{ vsftpd_versions.stdout_lines | select('search', 'vsftpd') | map('regex_search', 'vsftpd.x86_64\\s+([\\d.\\-a-zA-Z]+)', '\\1') | list | sort | last }}"
+    # - name: Extract the latest version from the available list
+    #   set_fact:
+    #     latest_vsftpd: "{{ vsftpd_versions.stdout_lines | select('search', 'vsftpd') | map('regex_search', 'vsftpd.x86_64\\s+([\\d.\\-a-zA-Z]+)', '\\1') | list | sort | last }}"
 
-    - name: Display the latest version
-      debug:
-        var: latest_vsftpd
+    # - name: Display the latest version
+    #   debug:
+    #     var: latest_vsftpd
 
     - name: Install the latest version of vsftpd
       yum:
-        name: "vsftpd-{{ latest_vsftpd }}"
+        name: "vsftpd" # vsftpd-{{ latest_vsftpd }}
         state: present
 
     - name: Copy vsftpd.conf
