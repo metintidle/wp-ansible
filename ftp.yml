@@ -7,18 +7,22 @@
     - name: Clean yum cache
       command: yum clean all
 
-    - name: List available vsftpd versions
-      ansible.builtin.command: yum list vsftpd --showduplicates
+    - name: Get the available versions of vsftpd
+      command: yum list vsftpd --showduplicates
       register: vsftpd_versions
 
-    - name: Display available vsftpd versions
-      ansible.builtin.debug:
-        var: vsftpd_versions.stdout_lines    
-    - name: Install vsftpd 
+    - name: Extract the latest version from the available list
+      set_fact:
+        latest_vsftpd: "{{ vsftpd_versions.stdout_lines | select('search', 'vsftpd') | map('regex_search', 'vsftpd.x86_64\\s+([\\d.\\-a-zA-Z]+)', '\\1') | list | sort | last }}"
+
+    - name: Display the latest version
+      debug:
+        var: latest_vsftpd
+
+    - name: Install the latest version of vsftpd
       yum:
-        name: vsftpd
+        name: "vsftpd-{{ latest_vsftpd }}"
         state: present
-        disable_excludes: all
 
     - name: Copy vsftpd.conf
       copy:
