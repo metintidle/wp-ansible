@@ -6,19 +6,18 @@
   tasks:
     - name: Clean yum cache
       command: yum clean all
-      
-    - name: Install vsftpd 
-      yum:
-        name: vsftpd
-        state: present
-        
+
     - name: List available vsftpd versions
       ansible.builtin.command: yum list vsftpd --showduplicates
       register: vsftpd_versions
 
     - name: Display available vsftpd versions
       ansible.builtin.debug:
-        var: vsftpd_versions.stdout_lines  
+        var: vsftpd_versions.stdout_lines    
+    - name: Install vsftpd 
+      yum:
+        name: vsftpd
+        state: present
 
     - name: Copy vsftpd.conf
       copy:
