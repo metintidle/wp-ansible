@@ -34,6 +34,12 @@
         key: ftpuser
       register: ftpuser_exists
       
+    - name: Add /sbin/nologin to /etc/shells
+      ansible.builtin.lineinfile:
+        path: /etc/shells
+        line: '/sbin/nologin'
+        state: present
+      
     - name: Create FTP user with out home directory and add to nginx group
       ansible.builtin.user:
         name: ftpuser
