@@ -20,9 +20,11 @@
     #     var: latest_vsftpd
 
     - name: Install the latest version of vsftpd
-      yum:
-        name: "vsftpd" # vsftpd-{{ latest_vsftpd }}
-        state: present
+      ansible.builtin.command:
+        cmd: yum install vsftpd -y
+      # yum:
+      #   name: "vsftpd" # vsftpd-{{ latest_vsftpd }}
+      #   state: present
 
     - name: Copy vsftpd.conf
       copy:
