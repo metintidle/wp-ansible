@@ -46,11 +46,11 @@
       register: ftpuser_exists
       ignore_errors: yes
       
-    - name: Add /sbin/nologin to /etc/shells
-      ansible.builtin.lineinfile:
-        path: /etc/shells
-        line: '/sbin/nologin'
-        state: present
+    # - name: Add /sbin/nologin to /etc/shells
+    #   ansible.builtin.lineinfile:
+    #     path: /etc/shells
+    #     line: '/sbin/nologin'
+    #     state: present
       
     - name: Create FTP user with out home directory and add to nginx group
       ansible.builtin.user:
@@ -61,10 +61,10 @@
         password: "{{ ftp_password | password_hash('sha512') }}"
       when: ftpuser_exists.failed
     
-    - name: change the owner of the /usr/share/nginx/html directory to ftpuser
+    - name: change the owner of the /usr/share/nginx/html directory to ec2-user
       file:
         path: /usr/share/nginx/html
-        owner: ftpuser
+        owner: ec2-user
         group: nginx
         mode: 0755
 
