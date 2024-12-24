@@ -4,10 +4,12 @@
   become: yes
 
   tasks:
-    - name: Update the package index
-      yum:
+    - name: Update all installed packages
+      ansible.builtin.yum:
         name: "*"
         state: latest
+        update_only: yes  # Only updates existing packages, doesn't install new ones
+   
     - name: Get free memory information
       ansible.builtin.shell: free -m
       register: memory_info
