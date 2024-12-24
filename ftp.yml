@@ -17,8 +17,8 @@
     - name: Install vsftpd 
       yum:
         name: vsftpd
-        state: latest
-        # disable_excludes: all
+        state: present
+        disable_excludes: all
 
     - name: Copy vsftpd.conf
       copy:
