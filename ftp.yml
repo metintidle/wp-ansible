@@ -46,6 +46,12 @@
         shell: /sbin/nologin
         password: "{{ ftp_password | password_hash('sha512') }}"
       when: ftpuser_exists.failed
+      
+    - name: Ensure ftpuser is in nginx group
+      ansible.builtin.user:
+        name: ftpuser
+        groups: nginx
+        append: yes
     
     - name: change the owner of the /usr/share/nginx/html directory to ec2-user
       ansible.builtin.file:
@@ -67,8 +73,6 @@
     #     name: ftpuser
     #     password: "{{ ftp_password | password_hash('sha512') }}"
     #     update_password: always
-
-
 
   handlers:
     - name: Restart vsftpd
