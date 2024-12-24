@@ -4,6 +4,10 @@
   become: yes
 
   tasks:
+    - name: Update the package index
+      yum:
+        name: "*"
+        state: latest
     - name: Get free memory information
       ansible.builtin.shell: free -m
       register: memory_info
