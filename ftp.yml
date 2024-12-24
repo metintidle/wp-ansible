@@ -5,7 +5,8 @@
 
   tasks:
     - name: Clean yum cache
-      command: yum clean all
+      ansible.builtin.command:
+        cmd: yum clean all
 
     # - name: Get the available versions of vsftpd
     #   command: yum list vsftpd --showduplicates
@@ -27,7 +28,7 @@
       #   state: present
 
     - name: Copy vsftpd.conf
-      copy:
+      ansible.builtin.copy:
         src: configs/vsftpd.conf
         dest: /etc/vsftpd/vsftpd.conf
         owner: root
@@ -35,7 +36,7 @@
         mode: 0644
 
     - name: Restart vsftpd
-      systemd:
+      ansible.builtin.systemd:
         name: vsftpd
         state: restarted
 
@@ -62,7 +63,7 @@
       when: ftpuser_exists.failed
     
     - name: change the owner of the /usr/share/nginx/html directory to ec2-user
-      file:
+      ansible.builtin.file:
         path: /usr/share/nginx/html
         owner: ec2-user
         group: nginx
