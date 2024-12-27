@@ -1,0 +1,47 @@
+# Vector Agent Configuration
+# Sources: Collect logs from Nginx and PHP-FPM
+# Sink: Send logs to the aggregator server at 54.252.141.202
+
+# Sources
+sources:
+  nginx_logs:
+    type: "file"         # File source to read logs
+    include:
+      - "/var/log/nginx/access.log"
+      - "/var/log/nginx/error.log"
+    ignore_older: 1d     # Ignore files older than 1 day
+    read_from: "beginning"
+
+  php_fpm_logs:
+    type: "file"         # File source to read PHP-FPM logs
+    include:
+      - "/var/log/php-fpm.log"
+    ignore_older: 1d
+    read_from: "beginning"
+
+# Transforms
+transforms:
+  parse_nginx_logs:
+    type: "remap"
+    inputs: ["nginx_logs"]
+    source: |
+      . = parse_json(.message) ?? {}
+      .source = "nginx"
+
+  parse_php_fpm_logs:
+    type: "remap"
+    inputs: ["php_fpm_logs"]
+    source: |
+      .message = parse_regex(.message, r"(?P<level>\w+): (?P<details>.+)") ?? {}
+      .source = "php-fpm"
+
+# Sink
+sinks:
+  aggregator_sink:
+    type: "vector"          # Send data to Vector aggregator
+    inputs:
+      - "parse_nginx_logs"
+      - "parse_php_fpm_logs"
+    address: "54.252.141.202:9000"  # Aggregator server address
+    encoding:
+      codec: "json"         # Send logs in JSON format
