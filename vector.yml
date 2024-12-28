@@ -15,21 +15,10 @@
         verbosity: 0
     - name: Run Insrallation script
       ansible.builtin.shell: curl --proto '=https' --tlsv1.2 -sSfL https://sh.vector.dev | bash -s -- -y  
-    # - name: Add Vector repository
-    #   ansible.builtin.get_url:
-    #     url: https://repositories.timber.io/public/vector/cfg/setup/bash.rpm.sh
-    #     dest: /tmp/vector-install.sh
-    #     mode: '0755'
-
-    # - name: Execute Vector repository script
-    #   ansible.builtin.command: /tmp/vector-install.sh
-    #   when: not vector_installed.stat.exists
-
-    - name: Install Vector package
-      ansible.builtin.yum:
-        name: vector
-        state: present
-      when: not vector_installed.stat.exists
+    - name: Check if Vector is installed
+      stat:
+        path: /usr/bin/vector
+      register: vector_installed
 
     - name: replace agent vector config 
       ansible.builtin.copy:
