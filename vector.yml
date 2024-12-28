@@ -4,14 +4,15 @@
   become: yes
 
   tasks:
-    - name: add Vector to packages
-      ansible.builtin.command:
-        cmd: curl --proto '=https' --tlsv1.2 -sSfL https://sh.vector.dev | bash
-      # args:
-      #   warn: false
-    # - name: Install Vector
-    #   ansible.builtin.command:
-    #     cmd: sudo yum install vector
+    - name: Check if Vector is installed
+      stat:
+        path: /usr/bin/vector
+      register: vector_installed
+
+    - name: Add Vector to packages
+      ansible.builtin.shell: curl --proto '=https' --tlsv1.2 -sSfL https://sh.vector.dev | bash
+      when: not vector_installed.stat.exists
+
     - name: replace agent vector config 
       ansible.builtin.copy:
         src: configs/vector-agent.yml
@@ -31,6 +32,3 @@
       register: vector_status
       changed_when: false
       failed_when: vector_status.failed
-       
-
-    
