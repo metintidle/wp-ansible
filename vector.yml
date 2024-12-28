@@ -9,6 +9,11 @@
         path: /usr/bin/vector
       register: vector_installed
 
+    - name: Debug Vector installation status
+      ansible.builtin.debug:
+        var: vector_installed
+        verbosity: 0
+
     - name: Add Vector to packages
       ansible.builtin.shell: curl --proto '=https' --tlsv1.2 -sSfL https://sh.vector.dev | bash
       when: not vector_installed.stat.exists
