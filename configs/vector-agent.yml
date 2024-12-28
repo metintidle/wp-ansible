@@ -9,14 +9,14 @@ sources:
     include:
       - "/var/log/nginx/access.log"
       - "/var/log/nginx/error.log"
-    ignore_older: 1d     # Ignore files older than 1 day
+    ignore_older: 86400     # Ignore files older than 1 day (in seconds)
     read_from: "beginning"
 
   php_fpm_logs:
     type: "file"         # File source to read PHP-FPM logs
     include:
       - "/var/log/php-fpm.log"
-    ignore_older: 1d
+    ignore_older: 86400     # Ignore files older than 1 day (in seconds)
     read_from: "beginning"
 
 # Transforms
@@ -32,7 +32,7 @@ transforms:
     type: "remap"
     inputs: ["php_fpm_logs"]
     source: |
-      .message = parse_regex(.message, r"(?P<level>\w+): (?P<details>.+)") ?? {}
+      .message = parse_regex!(.message, r'(?P<level>[a-zA-Z]+): (?P<details>.+)')
       .source = "php-fpm"
 
 # Sink
@@ -43,5 +43,11 @@ sinks:
       - "parse_nginx_logs"
       - "parse_php_fpm_logs"
     address: "54.252.141.202:9000"  # Aggregator server address
-    encoding:
-      codec: "json"         # Send logs in JSON format
+    batch:
+      timeout_secs: 1       # Shorter batch timeout for faster retries
+    request:
+      timeout_secs: 30      # Increase request timeout
+      retry_initial_backoff_secs: 1
+      retry_max_duration_secs: 300
+      headers:
+        Host: "vector-aggregator"
