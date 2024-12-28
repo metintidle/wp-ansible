@@ -5,9 +5,10 @@
 
   tasks:
     - name: add Vector to packages
-      shell: curl --proto '=https' --tlsv1.2 -sSfL https://sh.vector.dev | bash
-      args:
-        warn: false
+      ansible.builtin.command:
+        cmd: curl --proto '=https' --tlsv1.2 -sSfL https://sh.vector.dev | bash
+      # args:
+      #   warn: false
     # - name: Install Vector
     #   ansible.builtin.command:
     #     cmd: sudo yum install vector
