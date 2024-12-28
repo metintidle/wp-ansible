@@ -5,12 +5,12 @@
 
   tasks:
     - name: add Vector to packages
-      shell: curl -L https://setup.vector.dev | bash
+      shell: curl --proto '=https' --tlsv1.2 -sSfL https://sh.vector.dev | bash
       args:
         warn: false
-    - name: Install Vector
-      ansible.builtin.command:
-        cmd: sudo yum install vector
+    # - name: Install Vector
+    #   ansible.builtin.command:
+    #     cmd: sudo yum install vector
     - name: replace agent vector config 
       ansible.builtin.copy:
         src: configs/vector-agent.yml
