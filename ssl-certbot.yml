@@ -17,12 +17,17 @@
     # - "subdomain2.{{ domain_name }}"
 
   tasks:
+  - name: find the domain name in nginx.conf
+    shell: "grep -oP 'server_name \K[^;]+' /etc/nginx/nginx.conf"
+    register: nginx_domain_names
+
   - name: Replace server_name in nginx.conf
     blockinfile:
       path: /etc/nginx/nginx.conf
       insertafter: '^\s*server_name\s*_;\s*$'
       block: |
         server_name {{ domain_names | join(' ') }};
+    when: "'{{ domain_name }}' not in nginx_domain_names.stdout"
 
   - name: Restart Nginx
     service:
