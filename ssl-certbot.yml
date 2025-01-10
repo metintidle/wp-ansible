@@ -1,0 +1,73 @@
+---
+- name: Setup SSL on Amazon Linux
+  hosts: all
+  become: yes
+  vars:
+    domain_names:
+    - "{{ domain_name }}"
+    - "www.{{ domain_name }}"
+    - "{{ domain_name1 }}"
+    - "www.{{ domain_name1 }}"
+    - "{{ domain_name2 }}"
+    - "www.{{ domain_name2 }}"
+    # - "{{ domain_name3 }}"
+    # - "www.{{ domain_name3 }}"
+    # Add more domains as needed, up to a maximum of 4
+    # - "subdomain1.{{ domain_name }}"
+    # - "subdomain2.{{ domain_name }}"
+
+  tasks:
+  - name: Replace server_name in nginx.conf
+    blockinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: '^\s*server_name\s*_;\s*$'
+      block: |
+        server_name {{ domain_names | join(' ') }};
+    vars:
+      domain_names: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
+
+  - name: Update the package index
+    yum:
+      name: '*'
+      state: latest
+      update_cache: yes
+
+  - name: Install EPEL repository
+    command: amazon-linux-extras install epel -y && yum install certbot certbot-nginx -y
+
+  # - name: Install Certbot
+  #   command:  yum install certbot -y
+
+  - name: Construct Certbot command
+    set_fact:
+      certbot_command: "certbot certonly --non-interactive --agree-tos --email 'wp.monitoring.log@gmail.com' {{ domain_args | join(' ') }}"
+    vars:
+      domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
+
+  - name: Print Certbot command
+    debug:
+      msg: "{{ certbot_command }}"
+
+  - name: Run Certbot command
+    command: "{{ certbot_command }}"
+
+  - name: Add a cron job to renew Certbot certificates twice a day as root
+    cron:
+      name: "Renew Certbot certificates"
+      minute: "30"
+      hour: "2,14"
+      job: "certbot renew --quiet"
+      state: present
+
+
+
+  - name: Test Nginx configuration
+    command: nginx -t
+    register: nginx_test_result
+    ignore_errors: yes
+
+  - name: Restart Nginx
+    service:
+      name: nginx
+      state: restarted
+    when: nginx_test_result.rc == 0
