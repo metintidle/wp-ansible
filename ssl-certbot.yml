@@ -34,17 +34,27 @@
       name: nginx
       state: restarted
 
+  - name: Check if EPEL repository is installed
+    stat:
+      path: /etc/yum.repos.d/epel.repo
+    register: epel_repo
+
   - name: Install EPEL repository
     command: amazon-linux-extras install epel -y
-    creates: /etc/yum.repos.d/epel.repo
+    when: not epel_repo.stat.exists
+
+  - name: Check if Certbot is installed
+    stat:
+      path: /usr/bin/certbot
+    register: certbot_installed
 
   - name: Install Certbot
     command: yum install certbot certbot-nginx -y
-    creates: /usr/bin/certbot
+    when: not certbot_installed.stat.exists
 
   - name: Construct Certbot command
     set_fact:
-      certbot_command: "certbot --nginx --non-interactive --redirect --agree-tos --email 'wp.monitoring.log@gmail.com'  {{ domain_args | join(' ') }}"
+      certbot_command: "certbot --nginx --non-interactive --redirect --agree-tos --email 'wp.monitoring.log@gmail.com' {{ domain_args | join(' ') }}"
     vars:
       domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
 
@@ -62,8 +72,6 @@
       hour: "2,14"
       job: "certbot renew --quiet"
       state: present
-
-
 
   - name: Test Nginx configuration
     command: nginx -t
