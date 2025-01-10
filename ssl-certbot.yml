@@ -34,12 +34,6 @@
       name: nginx
       state: restarted
 
-  # - name: Update the package index
-  #   yum:
-  #     name: '*'
-  #     state: latest
-  #     update_cache: yes
-
   - name: Install EPEL repository
     command: amazon-linux-extras install epel -y
     creates: /etc/yum.repos.d/epel.repo
