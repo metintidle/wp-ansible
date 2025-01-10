@@ -23,8 +23,11 @@
       insertafter: '^\s*server_name\s*_;\s*$'
       block: |
         server_name {{ domain_names | join(' ') }};
-    vars:
-      domain_names: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
+
+  - name: Restart Nginx
+    service:
+      name: nginx
+      state: restarted
 
   - name: Update the package index
     yum:
