@@ -36,10 +36,10 @@
       update_cache: yes
 
   - name: Install EPEL repository
-    command: amazon-linux-extras install epel -y && yum install certbot certbot-nginx -y
+    command: amazon-linux-extras install epel -y
 
-  # - name: Install Certbot
-  #   command:  yum install certbot -y
+  - name: Install Certbot
+    command:  yum install certbot certbot-nginx -y
 
   - name: Construct Certbot command
     set_fact:
