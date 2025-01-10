@@ -42,13 +42,15 @@
 
   - name: Install EPEL repository
     command: amazon-linux-extras install epel -y
+    creates: /etc/yum.repos.d/epel.repo
 
   - name: Install Certbot
-    command:  yum install certbot certbot-nginx -y
+    command: yum install certbot certbot-nginx -y
+    creates: /usr/bin/certbot
 
   - name: Construct Certbot command
     set_fact:
-      certbot_command: "certbot certonly --non-interactive --agree-tos --email 'wp.monitoring.log@gmail.com' --nginx {{ domain_args | join(' ') }}"
+      certbot_command: "certbot --nginx --non-interactive --redirect --agree-tos --email 'wp.monitoring.log@gmail.com'  {{ domain_args | join(' ') }}"
     vars:
       domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
 
