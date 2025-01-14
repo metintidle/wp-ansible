@@ -49,10 +49,10 @@
       become: yes
       when: not wp_cli_installed.stat.exists
 
-    # - name: Install WP MAIL SMTP Plugin
-    #   command: /usr/local/bin/wp plugin install wp-mail-smtp --activate
-    #   args:
-    #     chdir: /home/ec2-user/html
+    - name: Install WP MAIL SMTP Plugin
+      command: /usr/local/bin/wp plugin install wp-mail-smtp --activate
+      args:
+        chdir: /home/ec2-user/html
 
     - name: Add SMTP configuration to wp-config.php
       lineinfile:
