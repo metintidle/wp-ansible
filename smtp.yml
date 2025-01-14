@@ -1,23 +1,26 @@
 ---
 - name: Setup SMTP for Wordpress Press on Amazon Linux 2
   hosts: all
-  become: yes
+
 
   tasks:
     - name: Install Postfix
       command: yum install postfix -y
       ignore_errors: yes
+      become: yes
 
     - name: Start and enable Postfix service
       systemd:
         name: postfix
         state: started
         enabled: yes
+      become: yes
 
     - name: Check if Postfix is running
       command: systemctl status postfix
       register: postfix_status
       ignore_errors: yes
+      become: yes
 
     - name: Check if WP-CLI is already installed
       stat:
@@ -42,7 +45,9 @@
     - name: Display wp-cli.phar details
       debug:
         var: wp_cli_phar_details.stdout
+      become: yes
       when: not wp_cli_installed.stat.exists
+
 
     - name: Move WP-CLI to /usr/local/bin/wp
       command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
