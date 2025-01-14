@@ -1,0 +1,43 @@
+---
+- name: Setup SMTP for Wordpress Press on Amazon Linux 2
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Install Postfix
+      command: yum install postfix -y
+      ignore_errors: yes
+
+    - name: Start and enable Postfix service
+      systemd:
+        name: postfix
+        state: started
+        enabled: yes
+
+    - name: Check if Postfix is running
+      command: systemctl status postfix
+      register: postfix_status
+      ignore_errors: yes
+
+    - name: Install WP MAIL SMTP Plugin
+      command: wp plugin install wp-mail-smtp --activate
+      args:
+        chdir: /home/ec2-user/html
+
+    - name: Add SMTP configuration to wp-config.php
+      lineinfile:
+        path: /home/ec2-user/html/wp-config.php
+        line: "{{ item }}"
+        create: yes
+      with_items:
+        - "define('SMTP_USER', '{{username}}');"
+        - "define('SMTP_PASS', '{{password}}');"
+        - "define('SMTP_HOST', 'smtp.office365.com');"
+        - "define('SMTP_PORT', '587');"
+        - "define('SMTP_SECURE', 'tls');"
+
+    - name: check SMTP functionality
+      command: wp mail test "mahdi@itt.com.au" --subject="Test Email" --message="This is a test message."
+      args:
+        chdir: /home/ec2-user/html
+
