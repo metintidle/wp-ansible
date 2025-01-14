@@ -53,6 +53,11 @@
       become: yes
       when: not wp_cli_installed.stat.exists
 
+    - name: Check if the line define('SMTP_HOST', 'smtp.office365.com'); exists
+      command: grep -q "define('SMTP_HOST', 'smtp.office365.com');" /home/ec2-user/html/wp-config.php
+      register: smtp_host_check
+      ignore_errors: yes
+
     - name: Add SMTP configuration to wp-config.php
       lineinfile:
         path: /home/ec2-user/html/wp-config.php
@@ -64,11 +69,18 @@
         - "define('SMTP_HOST', 'smtp.office365.com');"
         - "define('SMTP_PORT', '587');"
         - "define('SMTP_SECURE', 'tls');"
+      when: smtp_host_check.rc != 0
+
+    - name: Check if WP MAIL SMTP Plugin is installed
+      stat:
+        path: /home/ec2-user/html/wp-content/plugins/wp-mail-smtp
+      register: wp_mail_smtp_installed
 
     - name: Install WP MAIL SMTP Plugin
       command: /usr/local/bin/wp plugin install wp-mail-smtp --activate
       args:
         chdir: /home/ec2-user/html
+      when: not wp_mail_smtp_installed.stat.exists
 
     - name: Set SMTP Configuration for WP SMTP Email plugin
       command: >
@@ -77,5 +89,4 @@
         chdir: /home/ec2-user/html
       environment:
         HOME: /home/ec2-user # Ensure the command runs under the correct user home
-
-
+      # when: wp_mail_smtp_installed.stat.exists
