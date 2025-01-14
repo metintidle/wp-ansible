@@ -19,6 +19,12 @@
       register: postfix_status
       ignore_errors: yes
 
+    - name: Check if WP-CLI is already installed
+      stat:
+        path: /usr/local/bin/wp
+      register: wp_cli_installed
+      become: yes
+
     - name: Download WP-CLI
       get_url:
           url: https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
@@ -43,10 +49,10 @@
       become: yes
       when: not wp_cli_installed.stat.exists
 
-    - name: Install WP MAIL SMTP Plugin
-      command: /usr/local/bin/wp plugin install wp-mail-smtp --activate
-      args:
-        chdir: /home/ec2-user/html
+    # - name: Install WP MAIL SMTP Plugin
+    #   command: /usr/local/bin/wp plugin install wp-mail-smtp --activate
+    #   args:
+    #     chdir: /home/ec2-user/html
 
     - name: Add SMTP configuration to wp-config.php
       lineinfile:
@@ -54,8 +60,8 @@
         line: "{{ item }}"
         create: yes
       with_items:
-        - "define('SMTP_USER', '{{username}}');"
-        - "define('SMTP_PASS', '{{password}}');"
+        - "define('SMTP_USER', '{{lookup('env', 'SMTP_USER')}}');"
+        - "define('SMTP_PASS', '{{lookup('env', 'SMTP_PASS')}}');"
         - "define('SMTP_HOST', 'smtp.office365.com');"
         - "define('SMTP_PORT', '587');"
         - "define('SMTP_SECURE', 'tls');"
