@@ -15,6 +15,18 @@ freeMemory=$(free -m | grep Mem | awk '{print int($4/$2*100)}')
 now=$(date)
 
 if [ $freeMemory -lt 20 ]; then
+
   echo "[$now]: $freeMemory% free Memory"
+  sudo systemctl restart php-fpm
+fi
+
+# Check if buffer or cache is taking more than 40% of RAM
+bufferCacheUsage=$(free -m | awk '/^Mem:/ {print int(($6+$7)/$2*100)}')
+now=$(date)
+
+if [ $bufferCacheUsage -gt 30 ]; then
+  sync
+  echo 1 >/proc/sys/vm/drop_caches
+  echo "[$now]: $bufferCacheUsage% of RAM is used by buffer/cache."
   sudo systemctl restart php-fpm
 fi
