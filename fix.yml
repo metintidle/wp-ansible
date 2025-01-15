@@ -16,6 +16,9 @@
         mode: 0755
       # when: not fpm_file.stat.exists
 
+    - name: remove file /var/log/fpm.log
+      command: rm -f /var/log/fpm.log
+
     - name: Create a swap file
       command: fallocate -l 1G /swapfile
       args:
