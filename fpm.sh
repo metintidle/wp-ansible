@@ -14,7 +14,7 @@ fi
 freeMemory=$(free -m | grep Mem | awk '{print int($4/$2*100)}')
 now=$(date)
 
-if [ $freeMemory -lt 20 ]; then
+if [ $freeMemory -lt 10 ]; then
 
   echo "[$now]: $freeMemory% free Memory"
   sudo systemctl restart php-fpm
