@@ -14,11 +14,42 @@
         src: fpm.sh
         dest: /home/ec2-user/fpm.sh
         mode: 0755
-      when: not fpm_file.stat.exists
+      # when: not fpm_file.stat.exists
 
-    - name: Add a cron job to run fpm.sh every minute
-      cron:
-        name: "Run fpm.sh every minute"
-        minute: "*"
-        job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
-      when: not fpm_file.stat.exists
+    - name: Create a swap file
+      command: fallocate -l 1G /swapfile
+      args:
+        creates: /swapfile
+
+    - name: Set up the swap file
+      command: mkswap /swapfile
+      when: ansible_facts['devices']['/swapfile'] is not defined
+
+    - name: Enable the swap file
+      command: swapon /swapfile
+      when: ansible_facts['devices']['/swapfile'] is not defined
+
+    - name: Add swap file to /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: '/swapfile none swap sw 0 0'
+        create: yes
+      when: ansible_facts['devices']['/swapfile'] is not defined
+
+    - name: Set correct permissions on swap file
+      file:
+        path: /swapfile
+        mode: '0600'
+        owner: root
+        group: root
+
+
+
+
+    # - name: Add a cron job to run fpm.sh every minute
+    #   cron:
+    #     name: "Run fpm.sh every minute"
+    #     minute: "*"
+    #     job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
+    #   when: not fpm_file.stat.exists
+
