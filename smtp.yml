@@ -53,8 +53,8 @@
       become: yes
       when: not wp_cli_installed.stat.exists
 
-    - name: Check if the line define('SMTP_HOST', 'smtp.office365.com'); exists
-      command: grep -q "define('SMTP_HOST', 'smtp.office365.com');" /home/ec2-user/html/wp-config.php
+    - name: Check if the  smtp.office365.com exists
+      command: grep -q "smtp.office365.com" /home/ec2-user/html/wp-config.php
       register: smtp_host_check
       ignore_errors: yes
 
@@ -84,7 +84,17 @@
 
     - name: Set SMTP Configuration for WP SMTP Email plugin
       command: >
-        wp option update wp_mail_smtp_options '{ "mail": { "mailer": "smtp", "smtp_host": "smtp.office365.com", "smtp_port": "587", "smtp_secure": "tls", "smtp_auth": true, "smtp_user": "{{lookup('env', 'SMTP_USER')}}", "smtp_pass": "{{lookup('env', 'SMTP_PASS')}}" } }'
+        wp option update wp_mail_smtp_options '{
+        "mail": {
+            "mailer": "smtp",
+            "smtp_host": "smtp.office365.com",
+            "smtp_port": "587",
+            "smtp_secure": "tls",
+            "smtp_auth": true,
+            "smtp_user": "{{lookup('env', 'SMTP_USER')}}",
+            "smtp_pass": "{{lookup('env', 'SMTP_PASS')}}"
+          }
+        }'
       args:
         chdir: /home/ec2-user/html
       environment:
