@@ -15,6 +15,14 @@
         dest: /home/ec2-user/fpm.sh
         mode: 0755
       # when: not fpm_file.stat.exists
+
+    - name: Add a cron job to run fpm.sh every minute
+      cron:
+        name: "Run fpm.sh every minute"
+        minute: "*"
+        job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
+      when: not fpm_file.stat.exists
+
     - name: Replace error_page line in nginx.conf
       lineinfile:
         path: /etc/nginx/nginx.conf
