@@ -15,6 +15,12 @@
         dest: /home/ec2-user/fpm.sh
         mode: 0755
       # when: not fpm_file.stat.exists
+    - name: Replace error_page line in nginx.conf
+      lineinfile:
+        path: /etc/nginx/nginx.conf
+        regexp: '^error_page'
+        line: 'error_page 404 /index.php;'
+        backup: yes
 
     - name: remove file /var/log/fpm.log
       command: rm -f /var/log/fpm.log
