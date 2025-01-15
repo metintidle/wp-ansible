@@ -133,3 +133,7 @@
       command: wp plugin install better-search-replace --activate
       args:
         chdir: /home/ec2-user/html
+    - name: Install All 404 Redirect to Homepage Plugin
+      command: wp plugin install all-404-redirect-to-homepage --activate
+      args:
+        chdir: /home/ec2-user/html
