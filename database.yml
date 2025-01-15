@@ -1,5 +1,5 @@
 ---
-- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+- name: Setup Database on Amazon Linux 2
   hosts: all
   become: yes
 
@@ -14,17 +14,17 @@
         state: started
         enabled: yes
 
-    - name: Secure MariaDB installation
-      command: mysql_secure_installation
-      args:
-        stdin: |
-          y
-          root
-          root
-          y
-          y
-          y
-          y
+    # - name: Secure MariaDB installation
+    #   command: mysql_secure_installation
+    #   args:
+    #     stdin: |
+    #       y
+    #       root
+    #       root
+    #       y
+    #       y
+    #       y
+    #       y
 
     - name: Check if MariaDB is running
       command: systemctl status mariadb
