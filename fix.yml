@@ -35,14 +35,14 @@
         path: "/home/ec2-user/html/wp-config.php"
         regexp: "^define\\('FS_METHOD',"
         line: "define('FS_METHOD', 'direct');"
-        backup: yes
+        # backup: yes
 
     - name: Set WordPress memory limit
       lineinfile:
         path: "/home/ec2-user/html/wp-config.php"
         regexp: "^define\\('WP_MEMORY_LIMIT',"
         line: "define('WP_MEMORY_LIMIT', '512M');"
-        backup: yes
+        # backup: yes
 
 
     - name: remove file /var/log/fpm.log
