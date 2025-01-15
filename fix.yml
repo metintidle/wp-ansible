@@ -30,20 +30,25 @@
       args:
         creates: /swapfile
 
+    - name: Check if swap is already enabled
+      command: swapon --show
+      register: swap_status
+      changed_when: false
+
     - name: Set up the swap file
       command: mkswap /swapfile
-      when: ansible_facts['devices']['/swapfile'] is not defined
+      when: swap_status.stdout == ""
 
     - name: Enable the swap file
       command: swapon /swapfile
-      when: ansible_facts['devices']['/swapfile'] is not defined
+      when: swap_status.stdout == ""
 
     - name: Add swap file to /etc/fstab
       lineinfile:
         path: /etc/fstab
         line: '/swapfile none swap sw 0 0'
         create: yes
-      when: ansible_facts['devices']['/swapfile'] is not defined
+      when: swap_status.stdout == ""
 
     - name: Set correct permissions on swap file
       file:
