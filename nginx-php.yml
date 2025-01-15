@@ -99,7 +99,7 @@
           location / {
               try_files $uri $uri/ /index.php?$args;
           }
-          error_page 400 401 402 403 404 405 500 501 502 503 504 /index.php;
+          error_page 404  /index.php;
 
     - name: Test Nginx configuration
       command: nginx -t
