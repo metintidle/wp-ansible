@@ -21,7 +21,7 @@ if [ $freeMemory -lt 10 ]; then
 fi
 
 # Check if buffer or cache is taking more than 40% of RAM
-bufferCacheUsage=$(free -m | awk '/^Mem:/ {print int(($6+$7)/$2*100)}')
+bufferCacheUsage=$(free -m | awk '/^Mem:/ {print int($6/$2*100)}')
 now=$(date)
 
 if [ $bufferCacheUsage -gt 30 ]; then
