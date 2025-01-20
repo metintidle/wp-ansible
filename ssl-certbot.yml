@@ -6,12 +6,12 @@
     domain_names:
     - "{{ domain_name | default('') }}"
     - "www.{{ domain_name | default('') }}"
-    - "{{ domain_name1 | default('') }}"
-    - "www.{{ domain_name1 | default('') }}"
-    - "{{ domain_name2 | default('') }}"
-    - "www.{{ domain_name2 | default('') }}"
-    - "{{ domain_name3 | default('') }}"
-    - "www.{{ domain_name3 | default('') }}"
+    # - "{{ domain_name1 | default('') }}"
+    # - "www.{{ domain_name1 | default('') }}"
+    # - "{{ domain_name2 | default('') }}"
+    # - "www.{{ domain_name2 | default('') }}"
+    # - "{{ domain_name3 | default('') }}"
+    # - "www.{{ domain_name3 | default('') }}"
 
   tasks:
   - name: find the domain name in nginx.conf
