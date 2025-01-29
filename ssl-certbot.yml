@@ -5,13 +5,9 @@
   vars:
     domain_names:
     - "{{ domain_name | default('') }}"
-    - "www.{{ domain_name | default('') }}"
     - "{{ domain_name1 | default('') }}"
-    - "www.{{ domain_name1 | default('') }}"
     - "{{ domain_name2 | default('') }}"
-    - "www.{{ domain_name2 | default('') }}"
     - "{{ domain_name3 | default('') }}"
-    - "www.{{ domain_name3 | default('') }}"
 
   tasks:
   - name: find the domain name in nginx.conf
@@ -23,7 +19,7 @@
       path: /etc/nginx/nginx.conf
       insertafter: '^\s*server_name\s*_;\s*$'
       block: |
-        server_name {{ domain_names | join(' ') }};
+        server_names: "{{ domain_names | select('match', '^[^\\s]+$') | select('string') | map('regex_replace', '^(.*)$', '\\1 www.\\1') | join(' ') }}"
     when: domain_name not in nginx_domain_names.stdout
 
   - name: Restart Nginx
@@ -59,7 +55,7 @@
     command: >
       certbot --nginx --non-interactive --agree-tos --email wp.monitoring.log@gmail.com {{ domain_args }}
     vars:
-      domain_args: "{{ domain_names | select('match', '^[^\\s]+$') | select('string') | map('regex_replace', '^', '-d ') | list | join(' ') }}"
+      domain_args: "{{ domain_names | select('match', '^[^\\s]+$') | select('string') | map('regex_replace', '^(.*)$', '-d \\1 -d www.\\1 ') | list | join(' ') }}"
     register: certbot_result
     changed_when: "'Congratulations' in certbot_result.stdout"
 
