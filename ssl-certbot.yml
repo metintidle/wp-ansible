@@ -6,12 +6,12 @@
     domain_names:
     - "{{ domain_name | default('') }}"
     - "www.{{ domain_name | default('') }}"
-    # - "{{ domain_name1 | default('') }}"
-    # - "www.{{ domain_name1 | default('') }}"
-    # - "{{ domain_name2 | default('') }}"
-    # - "www.{{ domain_name2 | default('') }}"
-    # - "{{ domain_name3 | default('') }}"
-    # - "www.{{ domain_name3 | default('') }}"
+    - "{{ domain_name1 | default('') }}"
+    - "www.{{ domain_name1 | default('') }}"
+    - "{{ domain_name2 | default('') }}"
+    - "www.{{ domain_name2 | default('') }}"
+    - "{{ domain_name3 | default('') }}"
+    - "www.{{ domain_name3 | default('') }}"
 
   tasks:
   - name: find the domain name in nginx.conf
@@ -49,11 +49,19 @@
     command: yum install certbot certbot-nginx -y
     when: not certbot_installed.stat.exists
 
-  - name: Construct Certbot command
-    set_fact:
-      certbot_command: "certbot --nginx --non-interactive --redirect --agree-tos --email 'wp.monitoring.log@gmail.com' {{ domain_args | join(' ') }}"
+  # - name: Construct Certbot command
+  #   set_fact:
+  #     certbot_command: "certbot --nginx --non-interactive --redirect --agree-tos --email 'wp.monitoring.log@gmail.com' {{ domain_args | join(' ') }}"
+  #   vars:
+  #     domain_args: "{{ domain_names | select('match', '^[^\\s]+$') | map('regex_replace', '^', '-d ') | list }}"
+
+  - name: Obtain Let's Encrypt SSL certificate
+    command: >
+      certbot --nginx --non-interactive --agree-tos --email wp.monitoring.log@gmail.com {{ domain_args }}
     vars:
-      domain_args: "{{ domain_names | map('regex_replace', '^', '-d ') | list }}"
+      domain_args: "{{ domain_names | select('match', '^[^\\s]+$') | select('string') | map('regex_replace', '^', '-d ') | list | join(' ') }}"
+    register: certbot_result
+    changed_when: "'Congratulations' in certbot_result.stdout"
 
   - name: Print Certbot command
     debug:
