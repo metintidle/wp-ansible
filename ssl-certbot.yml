@@ -14,12 +14,20 @@
     shell: "grep -oP 'server_name\\s+\\K[^;]+' /etc/nginx/nginx.conf"
     register: nginx_domain_names
 
+  - name: Set domain names with www subdomains
+    set_fact:
+      processed_domain_names: "{{ domain_names | select('match', '^[^\\s]+$') | select('string') | map('regex_replace', '^(.*)$', '\\1 www.\\1') | join(' ') }}"
+
+  - name: Print processed domain names
+    debug:
+      msg: "Processed domain names: {{ processed_domain_names }}"
+
   - name: Replace server_name in nginx.conf
     blockinfile:
       path: /etc/nginx/nginx.conf
       insertafter: '^\s*server_name\s*_;\s*$'
       block: |
-        server_names: "{{ domain_names | select('match', '^[^\\s]+$') | select('string') | map('regex_replace', '^(.*)$', '\\1 www.\\1') | join(' ') }}"
+        server_names: "{{ processed_domain_names }}"
     when: domain_name not in nginx_domain_names.stdout
 
   - name: Restart Nginx
