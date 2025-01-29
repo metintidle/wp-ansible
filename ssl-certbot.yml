@@ -23,7 +23,7 @@
       msg: "Processed domain names: {{ processed_domain_names }}"
 
   - name: Replace server_name in nginx.conf
-    blockinfile:
+    lineinfile:
       path: /etc/nginx/nginx.conf
       regexp: '^\s*server_name\s*_;\s*$'
       line: server_name "{{ processed_domain_names }}"
