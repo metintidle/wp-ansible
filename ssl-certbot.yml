@@ -25,9 +25,8 @@
   - name: Replace server_name in nginx.conf
     blockinfile:
       path: /etc/nginx/nginx.conf
-      insertafter: '^\s*server_name\s*_;\s*$'
-      block: |
-        server_names: "{{ processed_domain_names }}"
+      regexp: '^\s*server_name\s*_;\s*$'
+      line: server_name "{{ processed_domain_names }}"
     when: domain_name not in nginx_domain_names.stdout
 
   - name: Restart Nginx
