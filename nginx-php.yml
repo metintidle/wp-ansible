@@ -77,9 +77,9 @@
       with_items:
         - {
             regexp: "^upload_max_filesize =.*",
-            line: "upload_max_filesize = 128M",
+            line: "upload_max_filesize = 512M",
           }
-        - { regexp: "^post_max_size =.*", line: "post_max_size = 128M" }
+        - { regexp: "^post_max_size =.*", line: "post_max_size = 512M" }
 
     - name: Restart PHP-FPM and Nginx
       service:
