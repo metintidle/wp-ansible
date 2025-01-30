@@ -6,12 +6,16 @@
 
   tasks:
     - name: Install MySQL client
-      command: "yum install -y mysql-client"
+      command: "yum install -y mysql"
       become: yes
 
     - name: Create database for WordPress
       command: >
         mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} -e "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
+
+    - name: remove mysql
+      command: "yum remove -y mysql"
+      become: yes
 
     - name: Check if WP-CLI is already installed
       stat:
@@ -145,3 +149,4 @@
       command: wp plugin install all-404-redirect-to-homepage --activate
       args:
         chdir: /home/ec2-user/html
+
