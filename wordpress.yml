@@ -6,9 +6,8 @@
 
   tasks:
     - name: Install MySQL client
-      apt:
-        name: mysql-client
-        state: present
+      command: "yum install -y mysql-client"
+      become: yes
 
     - name: Create database for WordPress
       command: >
