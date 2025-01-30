@@ -5,6 +5,14 @@
    site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
 
   tasks:
+    - name : create database for wordpress
+      mysql_db:
+        name: "{{ db_name }}"
+        state: present
+        login_user: "{{ lookup('env', 'DB_USER') }}"
+        login_password: "{{ lookup('env', 'DB_PASS') }}"
+        login_host: "{{ lookup('env', 'DB_HOST') }}"
+
     - name: Check if WP-CLI is already installed
       stat:
         path: /usr/local/bin/wp
