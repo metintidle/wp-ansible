@@ -7,7 +7,7 @@
     # - name: Clean yum cache
     #   ansible.builtin.command:
     #     cmd: yum clean all
-    - name: check ssl directory exists
+    # - name: check ssl directory exists
 
     - name: Create SSL directory
       ansible.builtin.command:
