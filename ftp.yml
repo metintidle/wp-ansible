@@ -13,7 +13,8 @@
       ansible.builtin.command:
         cmd: mkdir -p /etc/ssl/private
     - command: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/vsftpd.pem -out /etc/ssl/private/vsftpd.pem -subj "/C=AU/ST=NSW/L=Wollongong/O={{organize}}/OU=Myftp/CN={{domain_name}}"
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/vsftpd.key -out /etc/ssl/private/vsftpd.pem -subj "/C=AU/ST=NSW/L=Wollongong/O={{organize}}/OU=Myftp/CN={{domain_name}}"
+
 
     - name: Install the latest version of vsftpd
       ansible.builtin.command:
