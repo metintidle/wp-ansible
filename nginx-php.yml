@@ -89,17 +89,24 @@
         - nginx
         - php-fpm
 
-    - name: Add location block to nginx.conf
-      blockinfile:
-        path: /etc/nginx/nginx.conf
-        insertafter: '^\s*root\s*/usr/share/nginx/html;'
-        block: |
-          client_max_body_size 512M;
-          index  index.php index.html index.htm;
-          location / {
-              try_files $uri $uri/ /index.php?$args;
-          }
-          error_page 404  /index.php;
+    - name: Copy nginx.confg
+      ansible.builtin.copy:
+        src: configs/nginx.confg
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    # - name: Add location block to nginx.conf
+    #   blockinfile:
+    #     path: /etc/nginx/nginx.conf
+    #     insertafter: '^\s*root\s*/usr/share/nginx/html;'
+    #     block: |
+    #       client_max_body_size 512M;
+    #       index  index.php index.html index.htm;
+    #       location / {
+    #           try_files $uri $uri/ /index.php?$args;
+    #       }
 
     - name: Test Nginx configuration
       command: nginx -t
