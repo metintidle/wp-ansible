@@ -5,29 +5,14 @@
    site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
 
   tasks:
+    - name: Install MySQL client
+      apt:
+        name: mysql-client
+        state: present
 
-    - name: check python version
-      command: python --version
-      register: python_version
-      become: yes
-    - name: Install required Python packages for MySQL
-      package:
-        name: python2-PyMySQL
-        state: present
-      when: python_version.stdout.find("Python 2") != -1
-    - name: Install required Python packages for MySQL
-      package:
-        name: python3-PyMySQL
-        state: present
-      when: python_version.stdout.find("Python 3") != -1
-      # become: yes
     - name: Create database for WordPress
-      mysql_db:
-        name: "{{ db_name }}"
-        state: present
-        login_user: "{{ lookup('env', 'DB_USER') }}"
-        login_password: "{{ lookup('env', 'DB_PASS') }}"
-        login_host: "{{ lookup('env', 'DB_HOST') }}"
+      command: >
+        mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} -e "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
 
     - name: Check if WP-CLI is already installed
       stat:
