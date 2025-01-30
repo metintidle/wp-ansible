@@ -4,9 +4,17 @@
   become: yes
 
   tasks:
-    - name: Clean yum cache
+    # - name: Clean yum cache
+    #   ansible.builtin.command:
+    #     cmd: yum clean all
+    - name: check ssl directory exists
+
+    - name: Create SSL directory
       ansible.builtin.command:
-        cmd: yum clean all
+        cmd: mkdir -p /etc/ssl/private
+    - name: Create SSL directory
+      ansible.builtin.command:
+        cmd:  openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/vsftpd.pem -out /etc/ssl/private/vsftpd.pem
 
     - name: Install the latest version of vsftpd
       ansible.builtin.command:
@@ -24,14 +32,14 @@
       ansible.builtin.systemd:
         name: vsftpd
         state: restarted
-        
+
     - name: Check if /sbin/nologin exists in /etc/shells
       ansible.builtin.command:
         cmd: grep -c '^/sbin/nologin$' /etc/shells
       register: nologin_check
       changed_when: false
       failed_when: nologin_check.rc not in [0, 1]
-      
+
     - name: Add /sbin/nologin to /etc/shells
       ansible.builtin.lineinfile:
         path: /etc/shells
@@ -60,7 +68,7 @@
         name: ftpuser
         groups: nginx
         append: yes
-    
+
     - name: change the owner of the webroot to ec2-user
       ansible.builtin.file:
         path: /usr/share/nginx/html
