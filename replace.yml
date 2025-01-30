@@ -1,0 +1,14 @@
+- name: Setup SSL on Amazon Linux
+  hosts: all
+  become: yes
+  vars:
+    domain_names:
+    - "{{ domain_name | default('') }}"
+
+  tasks:
+    - name: replace current ip with domaine name by wp cli
+      command: wp search-replace --dry-run --all-tables "http://{{ ansible_default_ipv4.address }}" "https://{{ domain_name }}"
+      args:
+        chdir: /home/ec2-user/html
+      ignore_errors: yes
+      where: cert_files.stdout is defined
