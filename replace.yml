@@ -7,7 +7,7 @@
   tasks:
     - name: Set
       set_fact:
-        wp_replace: /usr/local/bin/wp search-replace --dry-run --all-tables "http://{{ ansible_default_ipv4.address }}" "https://{{ domain_name }}"
+        wp_replace: /usr/local/bin/wp search-replace --dry-run --all-tables http://{{ ansible_default_ipv4.address }} https://{{ domain_name }}
 
     - name: Print  command
       debug:
