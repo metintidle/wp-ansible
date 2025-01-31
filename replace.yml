@@ -9,3 +9,8 @@
       command: /usr/local/bin/wp search-replace --dry-run --all-tables "http://{{ ansible_default_ipv4.address }}" "https://{{ domain_name }}"
       args:
         chdir: /home/ec2-user/html
+      register: wp_search_replace
+
+    - name: Display search-replace result
+      debug:
+        var: search_replace_result.stdout
