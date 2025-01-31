@@ -13,4 +13,4 @@
 
     - name: Display search-replace result
       debug:
-        var: search_replace_result.stdout
+        var: wp_search_replace.stdout
