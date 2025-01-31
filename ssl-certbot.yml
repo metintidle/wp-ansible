@@ -122,3 +122,30 @@
       var: wp_search_replace.stdout
     become: false
     become_user: ec2-user
+
+  - name: Check if Wordfence is installed
+    command: /usr/local/bin/wp plugin is-installed wordfence
+    args:
+      chdir: /home/ec2-user/html
+    register: wp_wordfence_installed
+    failed_when: false
+    become: false
+    become_user: ec2-user
+
+  - name: Activate Wordfence if installed
+    command: /usr/local/bin/wp plugin activate wordfence
+    args:
+      chdir: /home/ec2-user/html
+    when: wp_wordfence_installed.rc == 0
+    register: wp_wordfence_activated
+    become: false
+    become_user: ec2-user
+
+  - name: Install and activate Wordfence if not installed
+    command: /usr/local/bin/wp plugin install wordfence --activate
+    args:
+      chdir: /home/ec2-user/html
+    when: wp_wordfence_installed.rc != 0
+    register: wp_wordfence
+    become: false
+    become_user: ec2-user
