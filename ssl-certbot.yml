@@ -96,3 +96,19 @@
       name: nginx
       state: restarted
     when: nginx_test_result.rc == 0
+
+  - name: Fetch public IP address
+    uri:
+      url: http://checkip.amazonaws.com
+      return_content: yes
+    register: public_ip
+
+  - name: replace current ip with domaine name by wp cli
+    command: /usr/local/bin/wp search-replace --all-tables http://{{ public_ip.content | trim }} https://{{ domain_name }}
+    args:
+      chdir: /home/ec2-user/html
+    register: wp_search_replace
+
+  - name: Display search-replace result
+    debug:
+      var: wp_search_replace.stdout
