@@ -7,6 +7,6 @@
 
   tasks:
     - name: replace current ip with domaine name by wp cli
-      command: wp search-replace --dry-run --all-tables "http://{{ ansible_default_ipv4.address }}" "https://{{ domain_name }}"
+      command: /usr/local/bin/wp search-replace --dry-run --all-tables "http://{{ ansible_default_ipv4.address }}" "https://{{ domain_name }}"
       args:
         chdir: /home/ec2-user/html
