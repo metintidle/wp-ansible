@@ -10,6 +10,10 @@
     - "{{ domain_name3 | default('') }}"
 
   tasks:
+  - name: if domain name is not provided, exit
+    fail:
+      msg: "Please provide a domain name using --extra-vars 'domain_name=example.com'"
+    when: domain_names == ['']
   - name: find the domain name in nginx.conf
     shell: "grep -oP 'server_name\\s+\\K[^;]+' /etc/nginx/nginx.conf"
     register: nginx_domain_names
