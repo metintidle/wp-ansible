@@ -1,6 +1,5 @@
 - name: Setup SSL on Amazon Linux
   hosts: all
-  become: yes
   vars:
     domain_names:
     - "{{ domain_name | default('') }}"
