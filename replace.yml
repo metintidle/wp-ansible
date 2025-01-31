@@ -10,5 +10,3 @@
       command: wp search-replace --dry-run --all-tables "http://{{ ansible_default_ipv4.address }}" "https://{{ domain_name }}"
       args:
         chdir: /home/ec2-user/html
-      ignore_errors: yes
-      where: cert_files.stdout is defined
