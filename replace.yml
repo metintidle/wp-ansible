@@ -17,7 +17,7 @@
 
     - name: Set
       set_fact:
-        wp_replace: /usr/local/bin/wp search-replace --dry-run --all-tables http://{{ public_ip.content | trim }} https://{{ domain_name }}
+        wp_replace: /usr/local/bin/wp search-replace --all-tables http://{{ public_ip.content | trim }} https://{{ domain_name }}
 
     - name: Print  command
       debug:
