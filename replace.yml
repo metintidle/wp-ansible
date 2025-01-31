@@ -5,6 +5,16 @@
     - "{{ domain_name | default('') }}"
 
   tasks:
+    - name: Fetch public IP address
+      uri:
+        url: http://checkip.amazonaws.com
+        return_content: yes
+      register: public_ip
+
+    - name: print public ip
+      debug:
+      msg: "{{ public_ip.content | trim }}"
+
     - name: Set
       set_fact:
         wp_replace: /usr/local/bin/wp search-replace --dry-run --all-tables http://{{ ansible_default_ipv4.address }} https://{{ domain_name }}
