@@ -9,6 +9,10 @@
       set_fact:
         wp_replace: /usr/local/bin/wp search-replace --dry-run --all-tables "http://{{ ansible_default_ipv4.address }}" "https://{{ domain_name }}"
 
+    - name: Print  command
+      debug:
+        msg: "{{ wp_replace }}"
+
     - name: replace current ip with domaine name by wp cli
       command: "{{wp_replace}}"
       args:
