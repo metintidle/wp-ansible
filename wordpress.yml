@@ -121,7 +121,7 @@
       lineinfile:
         path: "/home/ec2-user/html/wp-config.php"
         regexp: "^define\\('WP_MEMORY_LIMIT',"
-        line: "define('WP_MEMORY_LIMIT', '512M');"
+        line: "define('WP_MEMORY_LIMIT', '128M');"
         backup: yes
 
 
