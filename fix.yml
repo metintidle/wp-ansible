@@ -16,6 +16,13 @@
         mode: 0755
       # when: not fpm_file.stat.exists
 
+    - name: Set WordPress memory limit
+      lineinfile:
+        path: "/home/ec2-user/html/wp-config.php"
+        regexp: "WP_MEMORY_LIMIT"
+        line: "define('WP_MEMORY_LIMIT', '128M');"
+        backup: yes
+
     - name: Add a cron job to run fpm.sh every minute
       cron:
         name: "Run fpm.sh every minute"
