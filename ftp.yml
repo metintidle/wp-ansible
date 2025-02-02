@@ -83,6 +83,11 @@
         line: "pasv_address={{ inventory_hostname }}"
         state: present
       notify: Restart vsftpd
+      
+    - name: Add writable permision  to files of webroot
+      ansible.builtin.command: find /home/ec2-user/html -type f -exec chmod 664 {} \;
+      args:
+        warn: false
 
     # - name: Update FTP user password
     #   ansible.builtin.user:
