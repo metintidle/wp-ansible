@@ -71,6 +71,8 @@
         name: ftpuser
         groups: nginx
         append: yes
+    - name: Change ownership of wp-config.php
+      ansible.builtin.command: chown ec2-user:root /home/ec2-user/html/wp-config.php
 
     - name: change the owner of the webroot to ec2-user
       ansible.builtin.file:
