@@ -90,14 +90,14 @@
       notify: Restart vsftpd
 
     - name: Add writable permission to files of webroot
-      ansible.builtin.command: find /home/ec2-user/html -type f -exec chmod 664 {} \;
+      ansible.builtin.command: find /home/ec2-user/html -type f -exec chmod 774 {} \;
       no_log: true
 
-    # - name: Update FTP user password
-    #   ansible.builtin.user:
-    #     name: ftpuser
-    #     password: "{{ ftp_password | password_hash('sha512') }}"
-    #     update_password: always
+    - name: Update FTP user password
+      ansible.builtin.user:
+        name: ftpuser
+        password: "{{ ftp_password | password_hash('sha512') }}"
+        update_password: always
 
   handlers:
     - name: Restart vsftpd
