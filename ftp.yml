@@ -77,8 +77,10 @@
         path: /usr/share/nginx/html
         owner: ec2-user
         group: nginx
-        mode: 0755
-
+        mode: 0775
+    - name: Print the inventory hostname
+      ansible.builtin.debug:
+        msg: "The inventory hostname is {{ inventory_hostname }}"
     - name: Ensure pasv_address is set in vsftpd.conf
       ansible.builtin.lineinfile:
         path: /etc/vsftpd/vsftpd.conf
