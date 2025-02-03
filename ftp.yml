@@ -9,10 +9,14 @@
     #     cmd: yum clean all
     # - name: check ssl directory exists
 
-    - name: Create SSL directory
-      ansible.builtin.command:
-        cmd: mkdir -p /etc/ssl/private
-    - command: >
+    - name: Create SSL directory if it does not exist
+      ansible.builtin.file:
+      path: /etc/ssl/private
+      state: directory
+      mode: '0755'
+
+    - name: Generate SSL certificate
+      ansible.builtin.command: >
         openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/vsftpd.key -out /etc/ssl/private/vsftpd.pem -subj "/C=AU/ST=NSW/L=Wollongong/O={{organize}}/OU=Myftp/CN={{domain_name}}"
 
 
@@ -83,7 +87,7 @@
         line: "pasv_address={{ inventory_hostname }}"
         state: present
       notify: Restart vsftpd
-      
+
     - name: Add writable permision  to files of webroot
       ansible.builtin.command: find /home/ec2-user/html -type f -exec chmod 664 {} \;
       args:
