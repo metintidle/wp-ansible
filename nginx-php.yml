@@ -175,6 +175,22 @@
         line: "extension=imagick.so"
         create: yes
 
+    - name: Add lines to php.ini for opcache settings
+      ansible.builtin.lineinfile:
+        path: /etc/php.ini
+        line: "{{ item }}"
+        create: yes
+      with_items:
+      - "[opcache]"
+      - "opcache.enable=1"
+      - "opcache.memory_consumption=64"
+      - "opcache.interned_strings_buffer=8"
+      - "opcache.max_accelerated_files=2000"
+      - "opcache.validate_timestamps=1"
+      - "opcache.revalidate_freq=60"
+      - "opcache.jit_buffer_size=32M"
+      - "opcache.jit=1235"
+
     - name: Restart PHP-FPM service
       service:
         name: php-fpm
