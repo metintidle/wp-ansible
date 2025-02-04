@@ -17,7 +17,10 @@
         name: nginx
         state: started
         enabled: yes
-
+    - name: create fastgc folder
+      ansible.builtin.command:
+        cmd: sudo mkdir -p /var/run/nginx-cache
+    
     - name: Check if Nginx is running
       command: systemctl status nginx
       register: nginx_status
@@ -77,9 +80,9 @@
       with_items:
         - {
             regexp: "^upload_max_filesize =.*",
-            line: "upload_max_filesize = 512M",
+            line: "upload_max_filesize = 300M",
           }
-        - { regexp: "^post_max_size =.*", line: "post_max_size = 512M" }
+        - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
 
     - name: Restart PHP-FPM and Nginx
       service:
@@ -174,22 +177,10 @@
         path: /etc/php.d/20-imagick.ini
         line: "extension=imagick.so"
         create: yes
-
-    - name: Add lines to php.ini for opcache settings
-      ansible.builtin.lineinfile:
-        path: /etc/php.ini
-        line: "{{ item }}"
-        create: yes
-      with_items:
-      - "[opcache]"
-      - "opcache.enable=1"
-      - "opcache.memory_consumption=64"
-      - "opcache.interned_strings_buffer=8"
-      - "opcache.max_accelerated_files=2000"
-      - "opcache.validate_timestamps=1"
-      - "opcache.revalidate_freq=60"
-      - "opcache.jit_buffer_size=32M"
-      - "opcache.jit=1235"
+    - name: install php opcache
+      ansible.builtin.command:
+        cmd: sudo yum install php-opcache
+    
 
     - name: Restart PHP-FPM service
       service:
