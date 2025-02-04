@@ -19,7 +19,10 @@
         enabled: yes
     - name: create fastgc folder
       ansible.builtin.command:
-        cmd: sudo mkdir -p /var/run/nginx-cache
+        cmd:>
+              sudo mkdir -p /var/run/nginx-cache
+              sudo chown -R ec2-user:nginx /var/cache/nginx/
+
     
     - name: Check if Nginx is running
       command: systemctl status nginx
