@@ -21,7 +21,8 @@
       ansible.builtin.command:
         cmd:>
               sudo mkdir -p /var/run/nginx-cache
-              sudo chown -R ec2-user:nginx /var/cache/nginx/
+              sudo chown -R ec2-user:nginx /var/run/nginx-cache
+              #/var/cache/nginx/
 
     
     - name: Check if Nginx is running
