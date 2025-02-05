@@ -33,6 +33,22 @@
              add_header X-Cache $upstream_cache_status;
          }
 
+   - name: Add cache control configuration to nginx.conf
+     ansible.builtin.lineinfile:
+       path: /etc/nginx/nginx.conf
+       insertafter: '^\s*root'
+       line: |
+         set $skip_cache 0;
+         if ($request_method = POST) {
+             set $skip_cache 1;      
+         }   
+         if ($query_string != "") {
+             set $skip_cache 1;
+         }   
+         if ($request_uri ~* "/wp-admin/|/xmlrpc.php|/modir") {
+             set $skip_cache 1;
+         }
+
    - name: Create nginx cache directory
      ansible.builtin.command:
        cmd: sudo mkdir -p /var/run/nginx-cache
