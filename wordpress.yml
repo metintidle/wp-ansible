@@ -149,4 +149,8 @@
       command: wp plugin install all-404-redirect-to-homepage --activate
       args:
         chdir: /home/ec2-user/html
+    - name: Install Nginx Helper Plugin
+      command: wp plugin install nginx-helper --activate
+      args:
+        chdir: /home/ec2-user/html
 
