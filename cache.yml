@@ -4,61 +4,43 @@
   become: yes
 
   tasks:
-   - name: Add fastcgi cache configuration to nginx.conf
-     ansible.builtin.lineinfile:
-       path: /etc/nginx/nginx.conf
-       insertafter: '^http {'
-       line: |
-         fastcgi_cache_path /var/run/nginx-cache levels=1:2 keys_zone=WORDPRESS:100m inactive=30d max_size=1g;
-         fastcgi_cache_key "$scheme$request_method$host$request_uri";
-         fastcgi_cache_use_stale error timeout updating http_500 http_503;
-         fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
-   - name: Add fastcgi cache configuration to nginx.conf
-     ansible.builtin.blockinfile:
-       path: /etc/nginx/nginx.conf
-       insertafter: '^\s*error_page'
-       block: |
-         location ~ \.php$ {
-             include fastcgi_params;
-             fastcgi_pass unix:/run/php-fpm/www.sock; # Adjust for your PHP version
-             fastcgi_index index.php;
-             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    - name: Add fastcgi cache configuration to nginx.conf
+      ansible.builtin.lineinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: '^http {'
+        line: |
+          fastcgi_cache_path /var/run/nginx-cache levels=1:2 keys_zone=WORDPRESS:100m inactive=30d max_size=1g;
+          fastcgi_cache_key "$scheme$request_method$host$request_uri";
+          fastcgi_cache_use_stale error timeout updating http_500 http_503;
+          fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
 
-             # Enable FastCGI Cache
-             fastcgi_cache WORDPRESS;
-             fastcgi_cache_valid 200 301 302 30d; # Cache for 1 month
-             fastcgi_cache_bypass $skip_cache;
-             fastcgi_no_cache $skip_cache;
-             add_header X-Cache $upstream_cache_status;
-         }
+    - name: Add cache control configuration to nginx.conf
+      ansible.builtin.lineinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: '^\\s*root'
+        line: |
+          set $skip_cache 0;
+          if ($request_method = POST) {
+              set $skip_cache 1;      
+          }   
+          if ($query_string != "") {
+              set $skip_cache 1;
+          }   
+          if ($request_uri ~* "/wp-admin/|/xmlrpc.php|/modir") {
+              set $skip_cache 1;
 
-   - name: Add cache control configuration to nginx.conf
-     ansible.builtin.lineinfile:
-       path: /etc/nginx/nginx.conf
-       insertafter: '^\s*root'
-       line: |
-         set $skip_cache 0;
-         if ($request_method = POST) {
-             set $skip_cache 1;      
-         }   
-         if ($query_string != "") {
-             set $skip_cache 1;
-         }   
-         if ($request_uri ~* "/wp-admin/|/xmlrpc.php|/modir") {
-             set $skip_cache 1;
-         }
+    - name: Create nginx cache directory
+      ansible.builtin.command:
+        cmd: sudo mkdir -p /var/run/nginx-cache
 
-   - name: Create nginx cache directory
-     ansible.builtin.command:
-       cmd: sudo mkdir -p /var/run/nginx-cache
+    - name: Change ownership of nginx cache directory
+      ansible.builtin.command:
+        cmd: sudo chown -R ec2-user:nginx /var/run/nginx-cache
 
-   - name: Change ownership of nginx cache directory
-     ansible.builtin.command:
-       cmd: sudo chown -R ec2-user:nginx /var/run/nginx-cache
-  - name: Restart PHP-FPM and Nginx
-    service:
-      name: "{{ item }}"
-      state: restarted
-    with_items:
-      - nginx
-      - php-fpm
+    - name: Restart PHP-FPM and Nginx
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - nginx
+        - php-fpm
