@@ -54,4 +54,11 @@
 
    - name: Change ownership of nginx cache directory
      ansible.builtin.command:
-       cmd: sudo chown -R ec2-user:nginx /var/cache/nginx/
+       cmd: sudo chown -R ec2-user:nginx /var/run/nginx-cache
+  - name: Restart PHP-FPM and Nginx
+    service:
+      name: "{{ item }}"
+      state: restarted
+    with_items:
+      - nginx
+      - php-fpm
