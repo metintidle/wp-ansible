@@ -4,7 +4,6 @@
   become: yes
 
   tasks:
-   - name : add fastcg to nginx
    - name: Add fastcgi cache configuration to nginx.conf
      ansible.builtin.lineinfile:
        path: /etc/nginx/nginx.conf
