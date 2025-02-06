@@ -125,7 +125,7 @@
       register: nginx_cache_dir
 
     - name: Create nginx cache directory and set ownership
-      ansible.builtin.command: >
+      ansible.builtin.shell: >
         sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
       when: nginx_cache_dir.stat.exists == False
 
