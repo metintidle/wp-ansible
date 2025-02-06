@@ -28,6 +28,26 @@
           }   
           if ($request_uri ~* "/wp-admin/|/xmlrpc.php|/modir") {
               set $skip_cache 1;
+          }
+    
+     - name: Add location block to nginx.conf
+      ansible.builtin.lineinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: '^\\s*error_page'
+        line: |
+            location ~ \.php$ {
+              include fastcgi_params;
+              fastcgi_pass unix:/run/php-fpm/www.sock; # Adjust for your PHP version
+              fastcgi_index index.php;
+              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+
+              # Enable FastCGI Cache
+              fastcgi_cache WORDPRESS;
+              fastcgi_cache_valid 200 301 302 1m; # Cache for 1 min
+              fastcgi_cache_bypass $skip_cache;
+              fastcgi_no_cache $skip_cache;
+              add_header X-Cache $upstream_cache_status;
+          }
 
     - name: Create nginx cache directory
       ansible.builtin.command:
