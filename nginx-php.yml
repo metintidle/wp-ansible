@@ -112,7 +112,6 @@
         state: restarted
       when: nginx_test_result.rc == 0
 
-
     - name: Add ec2-user to nginx group
       user:
         name: ec2-user
@@ -192,10 +191,11 @@
         state: restarted
 
     ## Path: fix.yml
-    - name: Check if fpm.sh exists
+    - name: fpm
       stat:
         path: /home/ec2-user/fpm.sh
       register: fpm_file
+      tags: fpm
 
     - name: Copy file to remote server
       copy:
