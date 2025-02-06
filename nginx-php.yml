@@ -115,7 +115,7 @@
 
     - name: Copy nginx.confg
       ansible.builtin.copy:
-        src: configs/nginx.confg
+        src: configs/nginx.config
         dest: /etc/nginx/nginx.conf
         owner: root
         group: root
