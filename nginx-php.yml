@@ -113,32 +113,27 @@
       when: nginx_test_result.rc == 0
 
 
-    - name: Copy nginx.confg
-      ansible.builtin.copy:
-        src: configs/nginx.config
-        dest: /etc/nginx/nginx.conf
-        owner: root
-        group: root
-        mode: 644
-
-
     - name: Add ec2-user to nginx group
       user:
         name: ec2-user
         groups: nginx
         append: yes
 
-    - name: Create nginx cache directory and set ownership
-      ansible.builtin.command: >
-          sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
+    - name: Check if nginx cache directory exists
+      ansible.builtin.stat:
+        path: /var/run/nginx-cache
+      register: nginx_cache_dir
 
     - name: Create nginx cache directory and set ownership
       ansible.builtin.command: >
         sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
+      when: nginx_cache_dir.stat.exists == False
+
+
 
     - name: Copy nginx.confg
       ansible.builtin.copy:
-        src: configs/nginx.confg
+        src: configs/nginx.config
         dest: /etc/nginx/nginx.conf
         owner: root
         group: root
