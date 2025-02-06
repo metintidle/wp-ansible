@@ -17,14 +17,7 @@
         name: nginx
         state: started
         enabled: yes
-    - name: create fastgc folder
-      ansible.builtin.command:
-        cmd:>
-              sudo mkdir -p /var/run/nginx-cache
-              sudo chown -R ec2-user:nginx /var/run/nginx-cache
-              #/var/cache/nginx/
 
-    
     - name: Check if Nginx is running
       command: systemctl status nginx
       register: nginx_status
@@ -96,13 +89,6 @@
         - nginx
         - php-fpm
 
-    - name: Copy nginx.confg
-      ansible.builtin.copy:
-        src: configs/nginx.confg
-        dest: /etc/nginx/nginx.conf
-        owner: root
-        group: root
-        mode: 0644
 
     # - name: Add location block to nginx.conf
     #   blockinfile:
@@ -132,6 +118,24 @@
         groups: nginx
         append: yes
 
+    - name: Check if nginx cache directory exists
+      ansible.builtin.stat:
+        path: /var/run/nginx-cache
+      register: nginx_cache_dir
+
+    - name: Create nginx cache directory and set ownership
+      ansible.builtin.shell: >
+        sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
+      when: nginx_cache_dir.stat.exists == False
+
+    - name: Copy nginx.confg
+      ansible.builtin.copy:
+        src: configs/nginx.config
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: 644
+
     - name: Create symbolic link from web server’s document root to home directory
       file:
         src: /usr/share/nginx/html
@@ -154,11 +158,6 @@
       with_items:
         - php-fpm
         - nginx
-
-    - name: Copy file to remote server
-      copy:
-        src: info.php  # Ensure this file is in your repository under 'files' directory.
-        dest: /home/ec2-user/html/info.php
 
     - name: Change ownership of WordPress files to ec2-user and nginx
       file:
@@ -183,8 +182,8 @@
         create: yes
     - name: install php opcache
       ansible.builtin.command:
-        cmd: sudo yum install php-opcache
-    
+        cmd: sudo yum install php-opcache -y
+
 
     - name: Restart PHP-FPM service
       service:
@@ -192,10 +191,11 @@
         state: restarted
 
     ## Path: fix.yml
-    - name: Check if fpm.sh exists
+    - name: fpm
       stat:
         path: /home/ec2-user/fpm.sh
       register: fpm_file
+      tags: fpm
 
     - name: Copy file to remote server
       copy:
