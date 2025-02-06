@@ -17,14 +17,7 @@
         name: nginx
         state: started
         enabled: yes
-    - name: create fastgc folder
-      ansible.builtin.command:
-        cmd:>
-              sudo mkdir -p /var/run/nginx-cache
-              sudo chown -R ec2-user:nginx /var/run/nginx-cache
-              #/var/cache/nginx/
 
-    
     - name: Check if Nginx is running
       command: systemctl status nginx
       register: nginx_status
@@ -96,13 +89,6 @@
         - nginx
         - php-fpm
 
-    - name: Copy nginx.confg
-      ansible.builtin.copy:
-        src: configs/nginx.confg
-        dest: /etc/nginx/nginx.conf
-        owner: root
-        group: root
-        mode: 0644
 
     # - name: Add location block to nginx.conf
     #   blockinfile:
@@ -126,11 +112,45 @@
         state: restarted
       when: nginx_test_result.rc == 0
 
+
+    - name: Copy nginx.confg
+      ansible.builtin.copy:
+        src: configs/nginx.confg
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: 644
+
+
     - name: Add ec2-user to nginx group
       user:
         name: ec2-user
         groups: nginx
         append: yes
+
+    - name: Create nginx cache directory and set ownership
+      ansible.builtin.command: >
+          sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
+
+    - name: Create nginx cache directory and set ownership
+      ansible.builtin.command: >
+        sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
+
+    - name: Copy nginx.confg
+      ansible.builtin.copy:
+        src: configs/nginx.confg
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: 644
+
+    # - name: Copy nginx.confg for migration
+    #   ansible.builtin.copy:
+    #     src: configs/nginx-static.confg
+    #     dest: /etc/nginx/nginx.conf
+    #     owner: root
+    #     group: root
+    #     mode: 644
 
     - name: Create symbolic link from web server’s document root to home directory
       file:
@@ -155,10 +175,10 @@
         - php-fpm
         - nginx
 
-    - name: Copy file to remote server
-      copy:
-        src: info.php  # Ensure this file is in your repository under 'files' directory.
-        dest: /home/ec2-user/html/info.php
+    # - name: Copy file to remote server
+    #   copy:
+    #     src: info.php  # Ensure this file is in your repository under 'files' directory.
+    #     dest: /home/ec2-user/html/info.php
 
     - name: Change ownership of WordPress files to ec2-user and nginx
       file:
@@ -184,7 +204,7 @@
     - name: install php opcache
       ansible.builtin.command:
         cmd: sudo yum install php-opcache
-    
+
 
     - name: Restart PHP-FPM service
       service:
