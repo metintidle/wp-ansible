@@ -137,14 +137,6 @@
         group: root
         mode: 644
 
-    # - name: Copy nginx.confg for migration
-    #   ansible.builtin.copy:
-    #     src: configs/nginx-static.config
-    #     dest: /etc/nginx/nginx.conf
-    #     owner: root
-    #     group: root
-    #     mode: 644
-
     - name: Create symbolic link from web server’s document root to home directory
       file:
         src: /usr/share/nginx/html
@@ -167,11 +159,6 @@
       with_items:
         - php-fpm
         - nginx
-
-    # - name: Copy file to remote server
-    #   copy:
-    #     src: info.php  # Ensure this file is in your repository under 'files' directory.
-    #     dest: /home/ec2-user/html/info.php
 
     - name: Change ownership of WordPress files to ec2-user and nginx
       file:
@@ -196,7 +183,7 @@
         create: yes
     - name: install php opcache
       ansible.builtin.command:
-        cmd: sudo yum install php-opcache
+        cmd: sudo yum install php-opcache -y
 
 
     - name: Restart PHP-FPM service
