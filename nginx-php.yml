@@ -129,8 +129,6 @@
         sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
       when: nginx_cache_dir.stat.exists == False
 
-
-
     - name: Copy nginx.confg
       ansible.builtin.copy:
         src: configs/nginx.config
@@ -141,7 +139,7 @@
 
     # - name: Copy nginx.confg for migration
     #   ansible.builtin.copy:
-    #     src: configs/nginx-static.confg
+    #     src: configs/nginx-static.config
     #     dest: /etc/nginx/nginx.conf
     #     owner: root
     #     group: root
