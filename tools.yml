@@ -1,0 +1,43 @@
+- name: Install btop on Amazon Linux 2
+  hosts: all
+  become: yes
+  tasks:
+  
+    - name: Ensure dependencies are installed
+      yum:
+        name:
+          - tar
+          - gzip
+          - wget
+        state: present
+
+    - name: Download btop latest release
+      get_url:
+        url: "https://github.com/aristocratos/btop/releases/latest/download/btop-x86_64-linux-musl.tbz"
+        dest: "/tmp/btop.tbz"
+
+    - name: Extract btop binary
+      command: "tar xvf /tmp/btop.tbz -C /tmp"
+      args:
+        creates: "/tmp/btop"
+
+    - name: Move btop to /usr/local/bin
+      command: "mv /tmp/btop/bin/btop /usr/local/bin/btop"
+      args:
+        removes: "/tmp/btop"
+
+    - name: Set permissions for btop
+      file:
+        path: "/usr/local/bin/btop"
+        mode: "0755"
+        owner: root
+        group: root
+
+    - name: Verify btop installation
+      command: "/usr/local/bin/btop --version"
+      register: btop_version
+      ignore_errors: yes
+
+    - name: Display btop version
+      debug:
+        msg: "btop version: {{ btop_version.stdout }}"
