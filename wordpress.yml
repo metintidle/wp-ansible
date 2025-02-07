@@ -155,3 +155,9 @@
       args:
         chdir: /home/ec2-user/html
 
+    - name: install SQLite Object Cache plugin
+      command: wp plugin install sqlite-object-cache --activate
+      args:
+        chdir: /home/ec2-user/html
+
+
