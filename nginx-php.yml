@@ -43,7 +43,12 @@
           - php-pear
           - php-devel
           - php-gd
+          - php-sqlite3
         state: present
+
+    - name: Start and enable php ignbinary
+      ansible.builtin.command:
+       cmd: sudo pecl install igbinary
 
     - name: Ensure pexpect is installed
       pip:
