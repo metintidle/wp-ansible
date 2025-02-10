@@ -7,7 +7,7 @@
     - community.general
 
   vars:
-    ftp_password: "{{ 30 | random | password_hash('sha512') }}"
+    ftp_password: "{{ lookup('community.general.password', 'length=30') }}"
 
   tasks:
     - name: Print the generated FTP password
@@ -68,7 +68,7 @@
         state: present
         groups: nginx
         shell: /sbin/nologin
-        password: "{{ ftp_password }}"
+        password: "{{ ftp_password | password_hash('sha512') }}"
       when: ftpuser_exists.failed
 
     - name: Ensure ftpuser is in nginx group
@@ -106,7 +106,7 @@
     - name: Update FTP user password
       ansible.builtin.user:
         name: ftpuser
-        password: "{{ ftp_password }}"
+        password: "{{ ftp_password | password_hash('sha512') }}"
         update_password: always
 
   handlers:
