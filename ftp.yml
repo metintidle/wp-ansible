@@ -8,7 +8,7 @@
 
   tasks:
     - name: Generate a random password
-      community.general.password:
+      ansible.builtin.password:
         length: 30
       register: generated_password
 
