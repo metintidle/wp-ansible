@@ -93,18 +93,7 @@
       with_items:
         - nginx
         - php-fpm
-
-
-    # - name: Add location block to nginx.conf
-    #   blockinfile:
-    #     path: /etc/nginx/nginx.conf
-    #     insertafter: '^\s*root\s*/usr/share/nginx/html;'
-    #     block: |
-    #       client_max_body_size 512M;
-    #       index  index.php index.html index.htm;
-    #       location / {
-    #           try_files $uri $uri/ /index.php?$args;
-    #       }
+      tags: restart
 
     - name: Test Nginx configuration
       command: nginx -t
