@@ -3,11 +3,16 @@
   hosts: all
   become: yes
 
+  collections:
+    - community.general
+
+  vars:
+    ftp_password: "{{ lookup('community.general.password', 'length=30') }}"
+
   tasks:
-    # - name: Clean yum cache
-    #   ansible.builtin.command:
-    #     cmd: yum clean all
-    # - name: check ssl directory exists
+    - name: Print the generated FTP password
+      ansible.builtin.debug:
+        msg: "The generated FTP password is {{ ftp_password }}"
 
     - name: Create SSL directory if it does not exist
       ansible.builtin.file:
@@ -17,7 +22,7 @@
 
     - name: Generate SSL certificate
       ansible.builtin.command: >
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/vsftpd.key -out /etc/ssl/private/vsftpd.pem -subj "/C=AU/ST=NSW/L=Wollongong/O={{organize}}/OU=Myftp/CN={{domain_name}}"
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/vsftpd.key -out /etc/ssl/private/vsftpd.pem -subj "/C=AU/ST=NSW/L/Wollongong/O={{organize}}/OU=Myftp/CN={{domain_name}}"
 
     - name: Install the latest version of vsftpd
       ansible.builtin.command:
@@ -57,7 +62,7 @@
       register: ftpuser_exists
       ignore_errors: yes
 
-    - name: Create FTP user with out home directory and add to nginx group
+    - name: Create FTP user without home directory and add to nginx group
       ansible.builtin.user:
         name: ftpuser
         state: present
@@ -71,18 +76,21 @@
         name: ftpuser
         groups: nginx
         append: yes
+
     - name: Change ownership of wp-config.php
       ansible.builtin.command: chown ec2-user:nginx /home/ec2-user/html/wp-config.php
 
-    - name: change the owner of the webroot to ec2-user
+    - name: Change the owner of the webroot to ec2-user
       ansible.builtin.file:
         path: /usr/share/nginx/html
         owner: ec2-user
         group: nginx
         mode: 0775
+
     - name: Print the inventory hostname
       ansible.builtin.debug:
         msg: "The inventory hostname is {{ inventory_hostname }}"
+
     - name: Ensure pasv_address is set in vsftpd.conf
       ansible.builtin.lineinfile:
         path: /etc/vsftpd/vsftpd.conf
