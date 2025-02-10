@@ -3,16 +3,21 @@
   hosts: all
   become: yes
 
-  collections:
-    - community.general
+  # collections:
+  #   - community.general
 
-  vars:
-    ftp_password: "{{ lookup('community.general.password', 'length=30') }}"
+  # vars:
+  #   ftp_password: "{{ lookup('ansible.builtin.password', 'length=30') }}"
 
   tasks:
-    - name: Print the generated FTP password
-      ansible.builtin.debug:
-        msg: "The generated FTP password is {{ ftp_password }}"
+    - name: Generate a random password
+      community.general.password:
+        length: 30
+      register: generated_password
+
+    - name: Display the generated password
+      debug:
+        msg: "Generated Password: {{ generated_password.password }}"
 
     - name: Create SSL directory if it does not exist
       ansible.builtin.file:
