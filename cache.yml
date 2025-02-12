@@ -18,12 +18,14 @@
         state: present
     - name: install ignbinary
       ansible.builtin.command:
-        cmd: sudo pecl install igbinary
+        cmd: sudo pecl install igbinary -y
 
     - name: install SQLite Object Cache
       command: wp plugin install sqlite-object-cache --activate
       args:
-       chdir: /home/ec2-user/html
+      chdir: /home/ec2-user/html
+      become: no    
+
     - name: Add fastcgi cache configuration to nginx.conf
       ansible.builtin.copy:
         src: configs/file_cache.conf
