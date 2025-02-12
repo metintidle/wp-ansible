@@ -122,13 +122,28 @@
         sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
       when: nginx_cache_dir.stat.exists == False
 
-    - name: Copy nginx.confg
+    - name: Get total memory
+      ansible.builtin.shell: cat /proc/meminfo | grep MemTotal | awk '{print $2}'
+      register: total_memory
+      changed_when: false
+
+    - name: Copy nginx.config for low memory
       ansible.builtin.copy:
         src: configs/nginx.config
         dest: /etc/nginx/nginx.conf
         owner: root
         group: root
-        mode: 644
+        mode: '0644'
+      when: (total_memory.stdout|int / 1024) < 900  # Less than 1GB
+
+    - name: Copy nginx-static.config for higher memory
+      ansible.builtin.copy:
+        src: configs/nginx-static.config 
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: (total_memory.stdout|int / 1024) >= 900  # 1GB or more
 
     - name: Create symbolic link from web server’s document root to home directory
       file:
