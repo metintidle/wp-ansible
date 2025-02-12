@@ -4,6 +4,13 @@
   become: yes
 
   tasks:
+    - name: Get total memory
+      ansible.builtin.shell: cat /proc/meminfo | grep MemTotal | awk '{print $2}'
+      register: total_memory
+      changed_when: false
+    - name : print total memory
+      debug:
+        var: total_memory.stdout
     - name: install php-sqlite3
       yum:
         name:
