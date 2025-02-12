@@ -19,9 +19,15 @@
           - php-sqlite3
         state: present
 
-    - name: install ignbinary
-      ansible.builtin.command:
-        cmd: sudo pecl install igbinary -y
+    - name: Check if igbinary is installed
+      shell: pecl list | grep igbinary
+      register: igbinary_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install igbinary
+      ansible.builtin.shell: echo "\n" | pecl install igbinary
+      when: igbinary_check.rc != 0
 
     - name: install SQLite Object Cache
       command: wp plugin install sqlite-object-cache --activate
