@@ -8,14 +8,17 @@
       ansible.builtin.shell: cat /proc/meminfo | grep MemTotal | awk '{print $2}'
       register: total_memory
       changed_when: false
-    - name : print total memory
+
+    - name: print total memory
       debug:
         var: total_memory.stdout
+
     - name: install php-sqlite3
       yum:
         name:
           - php-sqlite3
         state: present
+
     - name: install ignbinary
       ansible.builtin.command:
         cmd: sudo pecl install igbinary -y
@@ -23,7 +26,7 @@
     - name: install SQLite Object Cache
       command: wp plugin install sqlite-object-cache --activate
       args:
-      chdir: /home/ec2-user/html
+        chdir: /home/ec2-user/html
       become: no    
 
     - name: Add fastcgi cache configuration to nginx.conf
@@ -32,7 +35,7 @@
         dest: /etc/nginx/conf.d/fastcgi_cache_file.conf
         owner: root
         group: root
-        mode: 0644
+        mode: '0644'
 
     - name: Add cache control configuration to nginx.conf
       ansible.builtin.copy:
