@@ -33,7 +33,7 @@
       command: wp plugin install sqlite-object-cache --activate
       args:
         chdir: /home/ec2-user/html
-      become: no    
+      become: no
 
     - name: Add fastcgi cache configuration to nginx.conf
       ansible.builtin.copy:
@@ -61,6 +61,14 @@
     - name: Change ownership of nginx cache directory
       ansible.builtin.command:
         cmd: sudo chmod -R 774 /var/run/nginx-cache
+
+    - name: Create cron job to change ownership of nginx cache directory
+      cron:
+        name: "Change ownership of nginx cache directory"
+        minute: "0"
+        hour: "*/6"
+        user: root
+        job: "chown -R ec2-user:nginx /var/run/nginx-cache && chmod -R 774 /var/run/nginx-cache"
 
     - name: Restart PHP-FPM and Nginx
       ansible.builtin.service:

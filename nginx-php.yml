@@ -122,6 +122,14 @@
         sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
       when: nginx_cache_dir.stat.exists == False
 
+    - name: Create cron job to change ownership of nginx cache directory
+      cron:
+        name: "Change ownership of nginx cache directory"
+        minute: "0"
+        hour: "*/6"
+        user: root
+        job: "chown -R ec2-user:nginx /var/run/nginx-cache && chmod -R 774 /var/run/nginx-cache"
+
     - name: Get total memory
       ansible.builtin.shell: cat /proc/meminfo | grep MemTotal | awk '{print $2}'
       register: total_memory
@@ -138,7 +146,7 @@
 
     - name: Copy nginx-static.config for higher memory
       ansible.builtin.copy:
-        src: configs/nginx-static.config 
+        src: configs/nginx-static.config
         dest: /etc/nginx/nginx.conf
         owner: root
         group: root
@@ -189,6 +197,8 @@
         path: /etc/php.d/20-imagick.ini
         line: "extension=imagick.so"
         create: yes
+
+
     - name: install php opcache
       ansible.builtin.command:
         cmd: sudo yum install php-opcache -y
