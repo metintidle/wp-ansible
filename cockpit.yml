@@ -1,5 +1,0 @@
-
-sudo apt install cockpit
-sudo systemctl start cockpit
-sudo systemctl enable cockpit
-sudo ufw allow 9090/tcp
