@@ -68,7 +68,7 @@
         minute: "0"
         hour: "*/6"
         user: root
-        job: "chown -R ec2-user:nginx /var/run/nginx-cache && chmod -R 774 /var/run/nginx-cache"
+        job: "chmod -R 774 /var/run/nginx-cache"
 
     - name: Restart PHP-FPM and Nginx
       ansible.builtin.service:
