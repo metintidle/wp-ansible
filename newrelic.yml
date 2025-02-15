@@ -49,7 +49,7 @@
       debug:
         msg: "The NEWRELIC_API_KEY is: {{ lookup('env', 'NEWRELIC_API_KEY') }}"
 
-    - name : Print new_relic_config
+    - name: Print new_relic_config
       debug:
         msg: "{{ new_relic_config }}"
         
@@ -59,4 +59,10 @@
         dest: /etc/newrelic-infra.yml
         mode: '0640'
       notify: restart newrelic-infra
+
+  handlers:
+    - name: restart newrelic-infra
+      service:
+        name: newrelic-infra
+        state: restarted
 
