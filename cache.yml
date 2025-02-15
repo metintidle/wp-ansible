@@ -69,6 +69,12 @@
         hour: "*/6"
         user: root
         job: "chmod -R 774 /var/run/nginx-cache"
+        
+    - name: install nginx helper plugin
+      command: wp plugin install nginx-helper --activate
+      args:
+        chdir: /home/ec2-user/html
+      become: no
 
     - name: Restart PHP-FPM and Nginx
       ansible.builtin.service:
