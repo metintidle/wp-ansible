@@ -33,7 +33,7 @@
 
     - name: Print display name
       debug:
-        msg: "Display Name: {{ display_name }}"
+        msg: "Display Name: {{ nslookup_result.stdout_lines }}"
 
     - name: Configure New Relic agent
       copy:
