@@ -30,7 +30,11 @@
       register: whois_lookup
       ignore_errors: yes
 
-    - name: Print display name
+    - name: Extract name with first_seen
+      set_fact:
+        first_seen_name: "{{ whois_lookup.json.result | json_query('[?first_seen].name') | first }}"
+
+    - name: Print first seen name
       debug:
-        msg: "{{ whois_lookup.json }}"
+        msg: "The name with the first_seen value is: {{ first_seen_name }}"
 
