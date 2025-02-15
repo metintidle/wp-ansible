@@ -10,24 +10,6 @@
       NEW_RELIC_DISPLAY_NAME: "{{ domian_name }}"
 
   tasks:
-    - name: Check if New Relic agent is installed
-      command: yum list installed newrelic-infra
-      register: newrelic_check
-      ignore_errors: yes
-      changed_when: false
-
-    - name: Add New Relic repository
-      get_url:
-        url: https://download.newrelic.com/infrastructure_agent/linux/yum/el/7/x86_64/newrelic-infra.repo
-        dest: /etc/yum.repos.d/newrelic-infra.repo
-        mode: '0644'
-      when: newrelic_check.rc != 0
-
-    - name: Install New Relic Infrastructure agent
-      yum:
-        name: newrelic-infra
-        state: present
-      when: newrelic_check.rc != 0
 
     - name: Get domain info from whoisxmlapi
       uri:
@@ -44,21 +26,39 @@
     - name: Print first seen name
       debug:
         msg: "The name with the first_seen value is: {{ domian_name }}"
+    
+    - name: Set New Relic configuration as environment variable
+      set_fact:
+        new_relic_env: |
+          NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY') }}"
+          NEW_RELIC_ACCOUNT_ID: "4521772"
+          NEW_RELIC_REGION: "US"
+          NEW_RELIC_DISPLAY_NAME: "{{ domian_name }}"
 
-    - name: Print NEWRELIC_API_KEY
-      debug:
-        msg: "The NEWRELIC_API_KEY is: {{ lookup('env', 'NEWRELIC_API_KEY') }}"
+    - name: Check if New Relic agent is installed
+      command: yum list installed newrelic-infra
+      register: newrelic_check
+      ignore_errors: yes
+      changed_when: false
+      environment:
+        NEW_RELIC_CONFIG: "{{ new_relic_env }}"
 
-    - name: Print new_relic_config
-      debug:
-        msg: "{{ new_relic_config }}"
-        
-    - name: Save New Relic configuration
-      copy:
-        content: "{{ new_relic_config }}"
-        dest: /etc/newrelic-infra.yml
-        mode: '0640'
-      notify: restart newrelic-infra
+    - name: Add New Relic repository
+      get_url:
+        url: https://download.newrelic.com/infrastructure_agent/linux/yum/el/7/x86_64/newrelic-infra.repo
+        dest: /etc/yum.repos.d/newrelic-infra.repo
+        mode: '0644'
+      when: newrelic_check.rc != 0
+      environment:
+        NEW_RELIC_CONFIG: "{{ new_relic_env }}"
+
+    - name: Install New Relic Infrastructure agent
+      yum:
+        name: newrelic-infra
+        state: present
+      when: newrelic_check.rc != 0
+      environment:
+        NEW_RELIC_CONFIG: "{{ new_relic_env }}"
 
   handlers:
     - name: restart newrelic-infra
