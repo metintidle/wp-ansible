@@ -22,19 +22,18 @@
         state: present
       when: newrelic_check.rc != 0
 
-    - name: Get DNS name (using dig)
-      shell: "dig -x {{ inventory_hostname }} +short || host {{ inventory_hostname }} || echo {{ inventory_hostname }}"
-      register: dns_lookup
+    - name: Get domain name from IP
+      command: nslookup {{ inventory_hostname }}
+      register: nslookup_result
       ignore_errors: yes
-      changed_when: false
 
     - name: Set display name variable
       set_fact:
-        display_name: "{{ dns_lookup.stdout.strip('.') if dns_lookup.stdout != '' else ansible_default_ipv4.address }}"
+        display_name: "{{ nslookup_result.stdout_lines[-1].split('=')[-1] | trim if nslookup_result.rc == 0 else inventory_hostname }}"
 
     - name: Print display name
       debug:
-        msg: "Display Name: {{ display_name }}"
+        msg: "Display Name: {{ nslookup_result.stdout_lines }}"
 
   #   - name: Configure New Relic agent
   #     copy:
