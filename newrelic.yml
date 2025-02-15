@@ -42,9 +42,11 @@
         sudo NEW_RELIC_API_KEY={{ new_relic_api_key }} NEW_RELIC_ACCOUNT_ID={{ new_relic_account_id }} NEW_RELIC_REGION={{ new_relic_region }} NEW_RELIC_DISPLAY_NAME={{ domain_name }} /usr/local/bin/newrelic install -n nginx-open-source-integration -y
 
     - name: Add display_name to New Relic configuration
-      lineinfile:
+      blockinfile:
         path: /etc/newrelic-infra.yml
-        line: "display_name: {{ domain_name }}"
+        block: |
+          display_name: {{ domain_name }}
+        insertafter: BOF
         create: yes
 
   handlers:
