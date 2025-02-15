@@ -22,23 +22,6 @@
         state: present
       when: newrelic_check.rc != 0
 
-    - name: Get domain info from ip-api
-      uri:
-        url: "http://ip-api.com/json/{{ ansible_default_ipv4.address }}"
-        method: GET
-        return_content: yes
-      register: ip_lookup
-      ignore_errors: yes
-
-    - name: Fallback to ipapi.is if first lookup fails
-      uri:
-        url: "https://api.ipapi.is/{{ inventory_hostname }}"
-        method: GET
-        return_content: yes
-      register: ip_fallback
-      when: ip_lookup.failed or ip_lookup.status != 200
-      ignore_errors: yes
-
     - name: Get domain info from whoisxmlapi
       uri:
         url: "https://reverse-ip.whoisxmlapi.com/api/v1?apiKey=at_HpqvR65g3xvos1KV4LEnVI75Khc2G&ip={{ ansible_default_ipv4.address }}"
@@ -58,21 +41,4 @@
     - name: Print display name
       debug:
         msg: "Display Name: {{ display_name }}"
-
-  #   - name: Configure New Relic agent
-  #     copy:
-  #       content: |
-  #         NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY')  }}"
-  #         NEW_RELIC_ACCOUNT_ID: "4521772"
-  #         NEW_RELIC_REGION: "US"
-  #         NEW_RELIC_DISPLAY_NAME: "{{ display_name }}"
-  #       dest: /etc/newrelic-infra.yml
-  #       mode: '0640'
-  #     notify: restart newrelic-infra
-
-  # handlers:
-  #   - name: restart newrelic-infra
-  #     service:
-  #       name: newrelic-infra
-  #       state: restarted
 
