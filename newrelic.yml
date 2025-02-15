@@ -34,8 +34,7 @@
       set_fact:
         display_name: >-
           {{ 
-            whois_lookup.json.result[0].name if (not whois_lookup.failed and whois_lookup.status == 200 and whois_lookup.json.result is defined and whois_lookup.json.result | length > 0)
-            else ansible_default_ipv4.address
+            whois_lookup
           }}
 
     - name: Print display name
