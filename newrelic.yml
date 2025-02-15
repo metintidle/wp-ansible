@@ -23,7 +23,7 @@
       when: newrelic_check.rc != 0
 
     - name: Get DNS name (using dig)
-      shell: "dig -x {{ ansible_default_ipv4.address }} +short || host {{ ansible_default_ipv4.address }} || echo {{ ansible_default_ipv4.address }}"
+      shell: "dig -x {{ inventory_hostname }} +short || host {{ inventory_hostname }} || echo {{ inventory_hostname }}"
       register: dns_lookup
       ignore_errors: yes
       changed_when: false
