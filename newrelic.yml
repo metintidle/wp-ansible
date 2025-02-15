@@ -35,20 +35,20 @@
       debug:
         msg: "Display Name: {{ nslookup_result.stdout_lines }}"
 
-    - name: Configure New Relic agent
-      copy:
-        content: |
-          NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY')  }}"
-          NEW_RELIC_ACCOUNT_ID: "4521772"
-          NEW_RELIC_REGION: "US"
-          NEW_RELIC_DISPLAY_NAME: "{{ display_name }}"
-        dest: /etc/newrelic-infra.yml
-        mode: '0640'
-      notify: restart newrelic-infra
+  #   - name: Configure New Relic agent
+  #     copy:
+  #       content: |
+  #         NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY')  }}"
+  #         NEW_RELIC_ACCOUNT_ID: "4521772"
+  #         NEW_RELIC_REGION: "US"
+  #         NEW_RELIC_DISPLAY_NAME: "{{ display_name }}"
+  #       dest: /etc/newrelic-infra.yml
+  #       mode: '0640'
+  #     notify: restart newrelic-infra
 
-  handlers:
-    - name: restart newrelic-infra
-      service:
-        name: newrelic-infra
-        state: restarted
+  # handlers:
+  #   - name: restart newrelic-infra
+  #     service:
+  #       name: newrelic-infra
+  #       state: restarted
 
