@@ -23,9 +23,13 @@
       set_fact:
         display_name: "{{ nslookup_result.stdout_lines[-1].split('=')[-1] | trim if nslookup_result.rc == 0 else inventory_hostname }}"
 
+    - name: Print display name
+      debug:
+        msg: "Display Name: {{ display_name }}"
+
     - name: Configure New Relic agent
       template:
-        src: templates/newrelic-infra.yml.j2
+        src: "{{ playbook_dir }}/templates/newrelic-infra.yml.j2"
         dest: /etc/newrelic-infra.yml
         mode: '0640'
       vars:
