@@ -1,13 +1,19 @@
 - name: Install New Relic
   hosts: all
-  roles:
-    - role: newrelic.newrelic_install
-  vars:
-    targets:
-      - infrastructure
-      - logs
-      - nginx
-  pre_tasks:
+  become: yes
+  
+  tasks:
+    - name: Add New Relic repository
+      get_url:
+        url: https://download.newrelic.com/infrastructure_agent/linux/yum/el/7/x86_64/newrelic-infra.repo
+        dest: /etc/yum.repos.d/newrelic-infra.repo
+        mode: '0644'
+
+    - name: Install New Relic Infrastructure agent
+      yum:
+        name: newrelic-infra
+        state: present
+
     - name: Get domain name from IP
       command: nslookup {{ ansible_default_ipv4.address }}
       register: nslookup_result
@@ -17,8 +23,18 @@
       set_fact:
         display_name: "{{ nslookup_result.stdout_lines[-1].split('=')[-1] | trim if nslookup_result.rc == 0 else inventory_hostname }}"
 
-  environment:
-    NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY')  }}"
-    NEW_RELIC_ACCOUNT_ID: "4521772"
-    NEW_RELIC_REGION: "US"
-    NEW_RELIC_DISPLAY_NAME: "{{ display_name }}"
+    - name: Configure New Relic agent
+      template:
+        src: templates/newrelic-infra.yml.j2
+        dest: /etc/newrelic-infra.yml
+        mode: '0640'
+      vars:
+        license_key: "{{ lookup('env', 'NEWRELIC_API_KEY') }}"
+        display_name: "{{ display_name }}"
+      notify: restart newrelic-infra
+
+  handlers:
+    - name: restart newrelic-infra
+      service:
+        name: newrelic-infra
+        state: restarted
