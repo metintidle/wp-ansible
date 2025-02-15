@@ -1,7 +1,14 @@
 - name: Install New Relic
   hosts: all
   become: yes
-  
+
+  vars:
+    new_relic_config: |
+      NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY') }}"
+      NEW_RELIC_ACCOUNT_ID: "4521772"
+      NEW_RELIC_REGION: "US"
+      NEW_RELIC_DISPLAY_NAME: "{{ domian_name }}"
+
   tasks:
     - name: Check if New Relic agent is installed
       command: yum list installed newrelic-infra
@@ -32,9 +39,24 @@
 
     - name: Extract name with first_seen
       set_fact:
-        first_seen_name: "{{ whois_lookup.json.result | json_query('[?first_seen].name') | first }}"
+        domian_name: "{{ whois_lookup.json.result | json_query('[?first_seen].name') | first }}"
 
     - name: Print first seen name
       debug:
-        msg: "The name with the first_seen value is: {{ first_seen_name }}"
+        msg: "The name with the first_seen value is: {{ domian_name }}"
+
+    - name: Print NEWRELIC_API_KEY
+      debug:
+        msg: "The NEWRELIC_API_KEY is: {{ lookup('env', 'NEWRELIC_API_KEY') }}"
+
+    - name : Print new_relic_config
+      debug:
+        msg: "{{ new_relic_config }}"
+        
+    - name: Save New Relic configuration
+      copy:
+        content: "{{ new_relic_config }}"
+        dest: /etc/newrelic-infra.yml
+        mode: '0640'
+      notify: restart newrelic-infra
 
