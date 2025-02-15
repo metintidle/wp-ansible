@@ -1,6 +1,6 @@
 {
   "ansible.python.interpreterPath": "c:\\Users\\mehdi\\scoop\\apps\\python\\current\\python.exe",
-  "CodeGPT.apiKey": "Ollama",
+  "CodeGPT.apiKey": "LM Studio",
   "gitdoc.enabled": true,
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 1000,
