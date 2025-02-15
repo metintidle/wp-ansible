@@ -1,0 +1,6 @@
+// keybindings.json
+{
+    "key": "cmd+s",
+    "command": "extension.conventionalCommits",
+    "when": "editorTextFocus"
+}
