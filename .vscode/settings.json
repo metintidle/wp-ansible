@@ -1,5 +1,5 @@
 {
   "ansible.python.interpreterPath": "c:\\Users\\mehdi\\scoop\\apps\\python\\current\\python.exe",
   "CodeGPT.apiKey": "Ollama",
-  "gitdoc.enabled": true
+  "gitdoc.enabled": false
 }

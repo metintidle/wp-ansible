@@ -36,13 +36,14 @@
         msg: "Display Name: {{ display_name }}"
 
     - name: Configure New Relic agent
-      template:
-        src: "{{ playbook_dir }}/templates/newrelic-infra.yml.j2"
+      copy:
+        content: |
+          NEW_RELIC_API_KEY: {{ lookup('env', 'NEWRELIC_API_KEY')  }}
+          NEW_RELIC_ACCOUNT_ID: "4521772"
+          NEW_RELIC_REGION: "US"
+          NEW_RELIC_DISPLAY_NAME: {{ display_name }}
         dest: /etc/newrelic-infra.yml
         mode: '0640'
-      vars:
-        license_key: "{{ lookup('env', 'NEWRELIC_API_KEY') }}"
-        display_name: "{{ display_name }}"
       notify: restart newrelic-infra
 
   handlers:
@@ -50,3 +51,10 @@
       service:
         name: newrelic-infra
         state: restarted
+
+
+  environment:
+    NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY')  }}"
+    NEW_RELIC_ACCOUNT_ID: "4521772"
+    NEW_RELIC_REGION: "US"
+    NEW_RELIC_DISPLAY_NAME: "{{ display_name }}"
