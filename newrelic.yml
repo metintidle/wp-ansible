@@ -1,14 +1,11 @@
 - name: Install New Relic
   hosts: all
   become: yes
-
   vars:
-    new_relic_config: |
-      NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY') }}"
-      NEW_RELIC_ACCOUNT_ID: "4521772"
-      NEW_RELIC_REGION: "US"
-      NEW_RELIC_DISPLAY_NAME: "{{ domian_name }}"
-
+      new_relic_api_key: "{{ lookup('env', 'NEWRELIC_API_KEY') }}"
+      new_relic_account_id: "4521772"
+      new_relic_region: "US"
+      new_relic_display_name: "{{ domian_name }}"
   tasks:
 
     - name: Get domain info from whoisxmlapi
@@ -21,48 +18,39 @@
 
     - name: Extract name with first_seen
       set_fact:
-        domian_name: "{{ whois_lookup.json.result | json_query('[?first_seen].name') | first }}"
+        domain_name: "{{ whois_lookup.json.result | json_query('[?first_seen].name') | first }}"
 
     - name: Print first seen name
       debug:
-        msg: "The name with the first_seen value is: {{ domian_name }}"
-    
-    - name: Set New Relic configuration as environment variable
-      set_fact:
-        new_relic_env: |
-          NEW_RELIC_API_KEY: "{{ lookup('env', 'NEWRELIC_API_KEY') }}"
-          NEW_RELIC_ACCOUNT_ID: "4521772"
-          NEW_RELIC_REGION: "US"
-          NEW_RELIC_DISPLAY_NAME: "{{ domian_name }}"
+        msg: "The name with the first_seen value is: {{ domain_name }}"
+   
 
-    - name: Check if New Relic agent is installed
-      command: yum list installed newrelic-infra
-      register: newrelic_check
-      ignore_errors: yes
-      changed_when: false
-      environment:
-        NEW_RELIC_CONFIG: "{{ new_relic_env }}"
-
-    - name: Add New Relic repository
+    - name: Download New Relic CLI install script
       get_url:
-        url: https://download.newrelic.com/infrastructure_agent/linux/yum/el/7/x86_64/newrelic-infra.repo
-        dest: /etc/yum.repos.d/newrelic-infra.repo
-        mode: '0644'
-      when: newrelic_check.rc != 0
-      environment:
-        NEW_RELIC_CONFIG: "{{ new_relic_env }}"
+        url: "https://download.newrelic.com/install/newrelic-cli/scripts/install.sh"
+        dest: "/tmp/install_newrelic.sh"
+        mode: '0755'
 
-    - name: Install New Relic Infrastructure agent
-      yum:
-        name: newrelic-infra
-        state: present
-      when: newrelic_check.rc != 0
-      environment:
-        NEW_RELIC_CONFIG: "{{ new_relic_env }}"
+    - name: Run New Relic CLI install script
+      shell: |
+        bash /tmp/install_newrelic.sh
+      args:
+        creates: /usr/local/bin/newrelic
+
+    - name: Install New Relic Nginx integration
+      shell: |
+        sudo NEW_RELIC_API_KEY={{ new_relic_api_key }} NEW_RELIC_ACCOUNT_ID={{ new_relic_account_id }} NEW_RELIC_REGION={{ new_relic_region }} NEW_RELIC_DISPLAY_NAME={{ domain_name }} /usr/local/bin/newrelic install -n nginx-open-source-integration -y
+
+    - name: Add display_name to New Relic configuration
+      lineinfile:
+        path: /etc/newrelic-infra.yml
+        line: "display_name: {{ domain_name }}"
+        create: yes
 
   handlers:
     - name: restart newrelic-infra
       service:
         name: newrelic-infra
         state: restarted
+    
 
