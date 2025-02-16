@@ -34,7 +34,7 @@
 
     - name: Append memory to domain name
       set_fact:
-        domain_name_with_memory: "{{ domain_name }}-{{ total_memory_gb | round(2) }}GB"
+        domain_name_with_memory: "{{ domain_name }}-RAM_{{ total_memory_gb | round(2) }}GB"
         # To use megabytes instead, uncomment the following line and comment the above line
         # domain_name_with_memory: "{{ domain_name }}-{{ total_memory_mb | round(2) }}MB"
 
