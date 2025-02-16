@@ -11,5 +11,6 @@
   "conventionalCommits.autoCommit": true,
   "conventionalCommits.gitmoji": true,
   "conventionalCommits.promptCI": false,
-  "conventionalCommits.promptScopes": false
+  "conventionalCommits.promptScopes": false,
+  "terminal.integrated.fontSize": 16  // Add this line to change the terminal font size
 }
