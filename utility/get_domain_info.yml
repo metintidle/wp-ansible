@@ -10,3 +10,7 @@
 - name: Extract name with first_seen
   set_fact:
     domain_name: "{{ whois_lookup.json.result | json_query('[?first_seen].name') | first }}"
+
+- name: Generate organize_name by removing substrings
+  set_fact:
+    organize_name: "{{ domain_name | replace('.com.au', '') | replace('.com', '') | replace('.au', '') }}"

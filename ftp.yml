@@ -8,14 +8,14 @@
 
   tasks:
     - name: Include get_domain_info tasks
-      include_tasks: ./utility/get_domain_info.yml
+      include_tasks: ./utility/get_domain_info.yml #return domain_name , organize_name
     
     - name: Include get_domain_info tasks
       include_tasks: ./utility/get_pass.yml
 
     - name: Display the generated password
       debug:
-        msg: "Generated Password: {{ generated_password }}"
+        msg: "Generated Password: {{ generated_password }} {{organize_name}}"
 
     - name: Create SSL directory if it does not exist
       ansible.builtin.file:
