@@ -1,4 +1,16 @@
 {
-  "ansible.python.interpreterPath": "c:\\Users\\mehdi\\scoop\\apps\\python\\current\\python.exe",
-  "CodeGPT.apiKey": "Ollama"
+  "ansible.python.interpreterPath": "/Users/meti/Projects/wp-ansible/wp/bin/python",
+  "CodeGPT.apiKey": "LM Studio",
+  "gitdoc.enabled": true,
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "git.enableSmartCommit": true,
+  "git.postCommitCommand": "sync",
+  "git.autofetch": true,
+  "gitlens.hovers.enabled": true,
+  "conventionalCommits.autoCommit": true,
+  "conventionalCommits.gitmoji": true,
+  "conventionalCommits.promptCI": false,
+  "conventionalCommits.promptScopes": false,
+  "terminal.integrated.fontSize": 16  // Add this line to change the terminal font size
 }

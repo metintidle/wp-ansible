@@ -112,46 +112,13 @@
         groups: nginx
         append: yes
 
-    - name: Check if nginx cache directory exists
-      ansible.builtin.stat:
-        path: /var/run/nginx-cache
-      register: nginx_cache_dir
-
-    - name: Create nginx cache directory and set ownership
-      ansible.builtin.shell: >
-        sudo mkdir -p /var/run/nginx-cache && sudo chown -R ec2-user:nginx /var/run/nginx-cache
-      when: nginx_cache_dir.stat.exists == False
-
-    - name: Create cron job to change ownership of nginx cache directory
-      cron:
-        name: "Change ownership of nginx cache directory"
-        minute: "0"
-        hour: "*/6"
-        user: root
-        job: "chown -R ec2-user:nginx /var/run/nginx-cache && chmod -R 774 /var/run/nginx-cache"
-
-    - name: Get total memory
-      ansible.builtin.shell: cat /proc/meminfo | grep MemTotal | awk '{print $2}'
-      register: total_memory
-      changed_when: false
-
-    - name: Copy nginx.config for low memory
+    - name: Copy nginx.config 
       ansible.builtin.copy:
         src: configs/nginx.config
         dest: /etc/nginx/nginx.conf
         owner: root
         group: root
         mode: '0644'
-      when: (total_memory.stdout|int / 1024) < 900  # Less than 1GB
-
-    - name: Copy nginx-static.config for higher memory
-      ansible.builtin.copy:
-        src: configs/nginx-static.config
-        dest: /etc/nginx/nginx.conf
-        owner: root
-        group: root
-        mode: '0644'
-      when: (total_memory.stdout|int / 1024) >= 900  # 1GB or more
 
     - name: Create symbolic link from web server’s document root to home directory
       file:

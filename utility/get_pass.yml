@@ -1,0 +1,13 @@
+# get_pass.yml
+- name: Generate a random password
+  uri:
+    url: https://password.ninja/api/password?minPassLength=20&numAtEnd=1&lettersForSymbols=5&randCapitals=true&symbols=true&lettersForNumbers=30
+    method: GET
+    return_content: yes
+  register: generated_password
+
+- name: Extract the generated password
+  set_fact:
+    generated_password: "{{ generated_password.content | replace('\"', '')}}"
+
+

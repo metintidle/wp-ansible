@@ -1,0 +1,16 @@
+# get_domain_info.yml
+- name: Get domain info from whoisxmlapi
+  uri:
+    url: "https://reverse-ip.whoisxmlapi.com/api/v1?apiKey=at_HpqvR65g3xvos1KV4LEnVI75Khc2G&ip={{ inventory_hostname }}"
+    method: GET
+    return_content: yes
+  register: whois_lookup
+  ignore_errors: yes
+
+- name: Extract name with first_seen
+  set_fact:
+    domain_name: "{{ whois_lookup.json.result | json_query('[?first_seen].name') | first }}"
+
+- name: Generate organize_name by removing substrings
+  set_fact:
+    organize_name: "{{ domain_name | replace('.com.au', '') | replace('.com', '') | replace('.au', '') }}"

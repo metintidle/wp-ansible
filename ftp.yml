@@ -7,14 +7,15 @@
     - community.general
 
   tasks:
-    - name: Generate a random password
-      ansible.builtin.password:
-        length: 30
-      register: generated_password
+    - name: Include get_domain_info tasks
+      include_tasks: ./utility/get_domain_info.yml #return domain_name , organize_name
+    
+    - name: Include get_domain_info tasks
+      include_tasks: ./utility/get_pass.yml
 
     - name: Display the generated password
       debug:
-        msg: "Generated Password: {{ generated_password.password }}"
+        msg: "Generated Password: {{ generated_password }}"
 
     - name: Create SSL directory if it does not exist
       ansible.builtin.file:
@@ -70,7 +71,7 @@
         state: present
         groups: nginx
         shell: /sbin/nologin
-        password: "{{ generated_password.password | password_hash('sha512') }}"
+        password: "{{ generated_password | password_hash('sha512') }}"
       when: ftpuser_exists.failed
 
     - name: Ensure ftpuser is in nginx group
@@ -108,7 +109,7 @@
     - name: Update FTP user password
       ansible.builtin.user:
         name: ftpuser
-        password: "{{ generated_password.password | password_hash('sha512') }}"
+        password: "{{ generated_password | password_hash('sha512') }}"
         update_password: always
 
   handlers:
