@@ -1,5 +1,5 @@
 {
-  "ansible.python.interpreterPath": "c:\\Users\\mehdi\\scoop\\apps\\python\\current\\python.exe",
+  "ansible.python.interpreterPath": "/Users/meti/Projects/wp-ansible/wp/bin/python",
   "CodeGPT.apiKey": "LM Studio",
   "gitdoc.enabled": true,
   "files.autoSave": "afterDelay",
