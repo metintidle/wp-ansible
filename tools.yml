@@ -3,6 +3,13 @@
   become: yes
   tasks:
   
+    - name: Include get_domain_info tasks
+      include_tasks: ./utility/get_domain_info.yml
+
+    - name: Display the extracted domain name
+      debug:
+        msg: "Domain Name: {{ domain_name }}"
+
     - name: Ensure dependencies are installed
       yum:
         name:
