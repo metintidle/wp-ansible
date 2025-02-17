@@ -15,7 +15,7 @@
 
     - name: Display the generated password
       debug:
-        msg: "Generated Password: {{ generated_password }}"
+        msg: "{{ generated_password }}"
 
     - name: Check if btop is installed
       command: "which btop"
