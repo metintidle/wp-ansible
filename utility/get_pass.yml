@@ -5,5 +5,8 @@
     method: GET
     return_content: yes
   register: generated_password
+- name: Extract the generated password
+  set_fact:
+    generated_password: "{{ generated_password.json.content }}"
 
 
