@@ -1,0 +1,5 @@
+ # get_pass.yml
+- name: Generate a random password
+  cmd: https://password.ninja/api/password?minPassLength=20&numAtEnd=1&lettersForSymbols=5&randCapitals=true&symbols=true&lettersForNumbers=30
+  register: generated_password
+

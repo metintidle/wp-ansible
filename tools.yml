@@ -10,6 +10,13 @@
       debug:
         msg: "Domain Name: {{ domain_name }}"
 
+    - name: Include get_domain_info tasks
+      include_tasks: ./utility/get_pass.yml
+      
+    - name: Display the generated password
+      debug:
+        msg: "Generated Password: {{ generated_password }}"
+
     - name: Ensure dependencies are installed
       yum:
         name:
