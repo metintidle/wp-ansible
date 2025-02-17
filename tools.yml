@@ -8,7 +8,7 @@
 
     - name: Display the extracted domain name
       debug:
-        msg: "Domain Name: {{ domain_name }}"
+        msg: "Domain Name: {{ domain_name }}  {{organize_name}}"
 
     - name: Include get_domain_info tasks
       include_tasks: ./utility/get_pass.yml

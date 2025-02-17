@@ -15,7 +15,7 @@
 
     - name: Display the generated password
       debug:
-        msg: "Generated Password: {{ generated_password }} {{organize_name}}"
+        msg: "Generated Password: {{ generated_password }}"
 
     - name: Create SSL directory if it does not exist
       ansible.builtin.file:
