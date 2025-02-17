@@ -8,8 +8,7 @@
 
   tasks:
     - name: Generate a random password
-      ansible.builtin.password:
-        length: 30
+      cmd: https://password.ninja/api/password?minPassLength=10&capitals=true
       register: generated_password
 
     - name: Display the generated password
