@@ -8,6 +8,6 @@
 
 - name: Extract the generated password
   set_fact:
-    generated_password: "{{ generated_password.content }}"
+    generated_password: "{{ generated_password.content | replace('\"', '')}}"
 
 
