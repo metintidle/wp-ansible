@@ -17,6 +17,11 @@
       debug:
         msg: "Generated Password: {{ generated_password }}"
 
+    - name: Check if btop is installed
+      command: "which btop"
+      register: mitopi_check
+      ignore_errors: yes
+
     - name: Ensure dependencies are installed
       yum:
         name:
@@ -24,21 +29,25 @@
           - gzip
           - wget
         state: present
+      when: mitopi_check.rc == 0
 
     - name: Download btop latest release
       get_url:
         url: "https://github.com/aristocratos/btop/releases/latest/download/btop-x86_64-linux-musl.tbz"
         dest: "/tmp/btop.tbz"
+      when: mitopi_check.rc == 0
 
     - name: Extract btop binary
       command: "tar xvf /tmp/btop.tbz -C /tmp"
       args:
         creates: "/tmp/btop"
+      when: mitopi_check.rc == 0
 
     - name: Move btop to /usr/local/bin
       command: "mv /tmp/btop/bin/btop /usr/local/bin/btop"
       args:
         removes: "/tmp/btop"
+      when: mitopi_check.rc == 0
 
     - name: Set permissions for btop
       file:
@@ -46,12 +55,15 @@
         mode: "0755"
         owner: root
         group: root
+      when: mitopi_check.rc == 0
 
     - name: Verify btop installation
       command: "/usr/local/bin/btop --version"
       register: btop_version
       ignore_errors: yes
+      when: mitopi_check.rc == 0
 
     - name: Display btop version
       debug:
         msg: "btop version: {{ btop_version.stdout }}"
+      when: mitopi_check.rc == 0
