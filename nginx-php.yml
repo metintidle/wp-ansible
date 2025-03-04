@@ -44,6 +44,7 @@
           - php-devel
           - php-gd
           - php-sqlite3
+          - php-zip
         state: present
 
     - name: Start and enable php ignbinary

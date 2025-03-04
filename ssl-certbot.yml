@@ -90,6 +90,16 @@
       job: "certbot renew --quiet"
       state: present
 
+  - name: Create a bash file in /etc/letsencrypt/renewal-hooks/post/
+    ansible.builtin.copy:
+      dest: /etc/letsencrypt/renewal-hooks/post/renewal_script.sh
+      content: |
+        #!/bin/bash
+        echo "Renewal script executed"
+      mode: '0755'
+      owner: root
+      group: root
+
   - name: Test Nginx configuration
     command: nginx -t
     register: nginx_test_result
