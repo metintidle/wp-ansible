@@ -88,14 +88,6 @@
   - name: Start certbot-renew.timer
     command: systemctl start certbot-renew.timer
 
-  # - name: Add a cron job to renew Certbot certificates twice a day as root
-  #   cron:
-  #     name: "Renew Certbot certificates"
-  #     minute: "30"
-  #     hour: "2,14"
-  #     job: "certbot renew --quiet"
-  #     state: present
-
   - name: Create a bash file in /etc/letsencrypt/renewal-hooks/post/
     ansible.builtin.copy:
       dest: /etc/letsencrypt/renewal-hooks/post/renewal_script.sh
@@ -139,7 +131,7 @@
     become: false
     become_user: ec2-user
 
-   - name: Check if Wordfence is installed
+  - name: Check if Wordfence is installed
     command: /usr/local/bin/wp plugin is-installed wordfence
     args:
       chdir: /home/ec2-user/html
@@ -148,7 +140,7 @@
     become: false
     become_user: ec2-user
 
-   - name: Activate Wordfence if installed
+  - name: Activate Wordfence if installed
     command: /usr/local/bin/wp plugin activate wordfence
     args:
       chdir: /home/ec2-user/html
@@ -157,7 +149,7 @@
     become: false
     become_user: ec2-user
 
-   - name: Install and activate Wordfence if not installed
+  - name: Install and activate Wordfence if not installed
     command: /usr/local/bin/wp plugin install wordfence --activate
     args:
       chdir: /home/ec2-user/html
