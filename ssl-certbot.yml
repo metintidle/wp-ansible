@@ -82,13 +82,19 @@
     command: "{{ certbot_command }}"
     when: not cert_file.stat.exists or not key_file.stat.exists
 
-  - name: Add a cron job to renew Certbot certificates twice a day as root
-    cron:
-      name: "Renew Certbot certificates"
-      minute: "30"
-      hour: "2,14"
-      job: "certbot renew --quiet"
-      state: present
+  - name: Enable certbot-renew.timer
+    command: systemctl enable certbot-renew.timer
+
+  - name: Start certbot-renew.timer
+    command: systemctl start certbot-renew.timer
+
+  # - name: Add a cron job to renew Certbot certificates twice a day as root
+  #   cron:
+  #     name: "Renew Certbot certificates"
+  #     minute: "30"
+  #     hour: "2,14"
+  #     job: "certbot renew --quiet"
+  #     state: present
 
   - name: Create a bash file in /etc/letsencrypt/renewal-hooks/post/
     ansible.builtin.copy:
@@ -111,51 +117,51 @@
       state: restarted
     when: nginx_test_result.rc == 0
 
-  # - name: Fetch public IP address
-  #   uri:
-  #     url: http://checkip.amazonaws.com
-  #     return_content: yes
-  #   register: public_ip
-  #   become: false
-  #   become_user: ec2-user
+  - name: Fetch public IP address
+    uri:
+      url: http://checkip.amazonaws.com
+      return_content: yes
+    register: public_ip
+    become: false
+    become_user: ec2-user
 
-  # - name: replace current ip with domaine name by wp cli
-  #   command: /usr/local/bin/wp search-replace --all-tables http://{{ public_ip.content | trim }} https://{{ domain_name }}
-  #   args:
-  #     chdir: /home/ec2-user/html
-  #   register: wp_search_replace
-  #   become: false
-  #   become_user: ec2-user
+  - name: replace current ip with domaine name by wp cli
+    command: /usr/local/bin/wp search-replace --all-tables http://{{ public_ip.content | trim }} https://{{ domain_name }}
+    args:
+      chdir: /home/ec2-user/html
+    register: wp_search_replace
+    become: false
+    become_user: ec2-user
 
-  # - name: Display search-replace result
-  #   debug:
-  #     var: wp_search_replace.stdout
-  #   become: false
-  #   become_user: ec2-user
+  - name: Display search-replace result
+    debug:
+      var: wp_search_replace.stdout
+    become: false
+    become_user: ec2-user
 
-  # - name: Check if Wordfence is installed
-  #   command: /usr/local/bin/wp plugin is-installed wordfence
-  #   args:
-  #     chdir: /home/ec2-user/html
-  #   register: wp_wordfence_installed
-  #   failed_when: false
-  #   become: false
-  #   become_user: ec2-user
+   - name: Check if Wordfence is installed
+    command: /usr/local/bin/wp plugin is-installed wordfence
+    args:
+      chdir: /home/ec2-user/html
+    register: wp_wordfence_installed
+    failed_when: false
+    become: false
+    become_user: ec2-user
 
-  # - name: Activate Wordfence if installed
-  #   command: /usr/local/bin/wp plugin activate wordfence
-  #   args:
-  #     chdir: /home/ec2-user/html
-  #   when: wp_wordfence_installed.rc == 0
-  #   register: wp_wordfence_activated
-  #   become: false
-  #   become_user: ec2-user
+   - name: Activate Wordfence if installed
+    command: /usr/local/bin/wp plugin activate wordfence
+    args:
+      chdir: /home/ec2-user/html
+    when: wp_wordfence_installed.rc == 0
+    register: wp_wordfence_activated
+    become: false
+    become_user: ec2-user
 
-  # - name: Install and activate Wordfence if not installed
-  #   command: /usr/local/bin/wp plugin install wordfence --activate
-  #   args:
-  #     chdir: /home/ec2-user/html
-  #   when: wp_wordfence_installed.rc != 0
-  #   register: wp_wordfence
-  #   become: false
-  #   become_user: ec2-user
+   - name: Install and activate Wordfence if not installed
+    command: /usr/local/bin/wp plugin install wordfence --activate
+    args:
+      chdir: /home/ec2-user/html
+    when: wp_wordfence_installed.rc != 0
+    register: wp_wordfence
+    become: false
+    become_user: ec2-user
