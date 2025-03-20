@@ -53,8 +53,7 @@
       ignore_errors: yes
 
     - name: Start and enable php igbinary
-      ansible.builtin.command:
-      cmd: sudo pecl install igbinary
+      ansible.builtin.command: sudo pecl install igbinary
       when: igbinary_check.rc != 0
 
     - name: Ensure pexpect is installed
