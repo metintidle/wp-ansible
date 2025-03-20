@@ -47,9 +47,15 @@
           - php-zip
         state: present
 
-    - name: Start and enable php ignbinary
+    - name: Check if igbinary is already installed
+      command: pecl list | grep igbinary
+      register: igbinary_check
+      ignore_errors: yes
+
+    - name: Start and enable php igbinary
       ansible.builtin.command:
-       cmd: sudo pecl install igbinary
+      cmd: sudo pecl install igbinary
+      when: igbinary_check.rc != 0
 
     - name: Ensure pexpect is installed
       pip:
@@ -113,7 +119,7 @@
         groups: nginx
         append: yes
 
-    - name: Copy nginx.config 
+    - name: Copy nginx.config
       ansible.builtin.copy:
         src: configs/nginx.config
         dest: /etc/nginx/nginx.conf
