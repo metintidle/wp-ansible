@@ -78,6 +78,14 @@
       path: /etc/letsencrypt/live/{{domain_name}}/privkey.pem
     register: key_file
 
+  - name: Debug SSL certificate file status
+    debug:
+      var: cert_file
+
+  - name: Debug SSL private key file status
+    debug:
+      var: key_file
+
   - name: Run Certbot command
     command: "{{ certbot_command }}"
     when: not cert_file.stat.exists or not key_file.stat.exists
