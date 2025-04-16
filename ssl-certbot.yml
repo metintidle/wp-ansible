@@ -80,11 +80,11 @@
 
   - name: Debug SSL certificate file status
     debug:
-      var: cert_file
+      var: cert_file.stat.exists
 
   - name: Debug SSL private key file status
     debug:
-      var: key_file
+      var: key_file.stat.exists
 
   - name: Run Certbot command
     command: "{{ certbot_command }}"
