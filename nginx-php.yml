@@ -92,6 +92,13 @@
           }
         - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
 
+    - name: Increase PHP memory limit
+      lineinfile:
+        path: /etc/php.ini
+        line: "memory_limit = 256M"
+        insertafter: EOF
+      become: yes
+
     - name: Restart PHP-FPM and Nginx
       service:
         name: "{{ item }}"
