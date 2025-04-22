@@ -4,96 +4,11 @@
   become: yes
 
   tasks:
-    - name: Check if fpm.sh exists
-      stat:
-        path: /home/ec2-user/fpm.sh
-      register: fpm_file
 
-    - name: Copy file to remote server
-      copy:
-        src: fpm.sh
-        dest: /home/ec2-user/fpm.sh
-        mode: 0755
-      # when: not fpm_file.stat.exists
-
-    - name: Set WordPress memory limit
+    - name: Increase PHP memory limit
       lineinfile:
-        path: "/home/ec2-user/html/wp-config.php"
-        regexp: "WP_MEMORY_LIMIT"
-        line: "define('WP_MEMORY_LIMIT', '128M');"
-        backup: yes
-
-    - name: Add a cron job to run fpm.sh every minute
-      cron:
-        name: "Run fpm.sh every minute"
-        minute: "*"
-        job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
-      when: not fpm_file.stat.exists
-
-    # - name: Replace error_page line in nginx.conf
-    #   lineinfile:
-    #     path: /etc/nginx/nginx.conf
-    #     regexp: '^error_page'
-    #     line: 'error_page 404 /index.php;'
-    #     backup: yes
-
-    # - name: Fix WordPress FTP error
-    #   lineinfile:
-    #     path: "/home/ec2-user/html/wp-config.php"
-    #     regexp: "^define\\('FS_METHOD',"
-    #     line: "define('FS_METHOD', 'direct');"
-    #     # backup: yes
-
-    # - name: Set WordPress memory limit
-    #   lineinfile:
-    #     path: "/home/ec2-user/html/wp-config.php"
-    #     regexp: "^define\\('WP_MEMORY_LIMIT',"
-    #     line: "define('WP_MEMORY_LIMIT', '512M');"
-        # backup: yes
-
-
-    - name: remove file /var/log/fpm.log
-      command: rm -f /var/log/fpm.log
-
-    - name: Create a swap file
-      command: fallocate -l 1G /swapfile
-      args:
-        creates: /swapfile
-
-    - name: Check if swap is already enabled
-      command: swapon --show
-      register: swap_status
-      changed_when: false
-
-    - name: Set up the swap file
-      command: mkswap /swapfile
-      when: swap_status.stdout == ""
-
-    - name: Enable the swap file
-      command: swapon /swapfile
-      when: swap_status.stdout == ""
-
-    - name: Add swap file to /etc/fstab
-      lineinfile:
-        path: /etc/fstab
-        line: '/swapfile none swap sw 0 0'
-        create: yes
-      when: swap_status.stdout == ""
-
-    - name: Set correct permissions on swap file
-      file:
-        path: /swapfile
-        mode: '0600'
-        owner: root
-        group: root
-
-
-
-
-    # - name: Add a cron job to run fpm.sh every minute
-    #   cron:
-    #     name: "Run fpm.sh every minute"
-    #     minute: "*"
-    #     job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
-    #   when: not fpm_file.stat.exists
+        path: /etc/php.ini
+        line: "memory_limit = 256M"
+        insertafter: EOF
+      become: yes
 
