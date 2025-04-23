@@ -133,7 +133,7 @@
         group: root
         mode: '0644'
 
-    - name: add security.conf to nginx
+    - name: add security
       ansible.builtin.copy:
         src: configs/security.conf
         dest: /etc/nginx/conf.d/security.conf
