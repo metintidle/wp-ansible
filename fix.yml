@@ -19,4 +19,11 @@
         owner: root
         group: root
         mode: '0644'
+    - name: Restart PHP-FPM and Nginx
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - php-fpm
+        - nginx
 
