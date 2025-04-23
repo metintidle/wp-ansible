@@ -133,13 +133,14 @@
         group: root
         mode: '0644'
 
-    - name: Copy nginx.config
+    - name: add security.conf to nginx
       ansible.builtin.copy:
-        src: configs/security.config
+        src: configs/security.conf
         dest: /etc/nginx/conf.d/security.conf
         owner: root
         group: root
         mode: '0644'
+      tags: security
 
     - name: Create symbolic link from web server’s document root to home directory
       file:
