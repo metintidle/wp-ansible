@@ -142,14 +142,14 @@
         mode: '0644'
       tags: security
 
-    - name: add security rules
-      ansible.builtin.copy:
-        src: configs/security-rules.conf
-        dest: /etc/nginx/default.d/security.conf
-        owner: root
-        group: root
-        mode: '0644'
-      tags: security
+    # - name: add security rules
+    #   ansible.builtin.copy:
+    #     src: configs/security-rules.conf
+    #     dest: /etc/nginx/default.d/security.conf
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+    #   tags: security
 
     - name: Create symbolic link from web server’s document root to home directory
       file:
