@@ -11,4 +11,11 @@
         line: "memory_limit = 256M"
         insertafter: EOF
       become: yes
+    - name: Copy nginx.config
+      ansible.builtin.copy:
+        src: configs/security.config
+        dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
 
