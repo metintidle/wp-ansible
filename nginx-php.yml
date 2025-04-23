@@ -127,7 +127,7 @@
 
     - name: Copy nginx.config
       ansible.builtin.copy:
-        src: configs/nginx.config
+        src: configs/nginx.conf
         dest: /etc/nginx/nginx.conf
         owner: root
         group: root
@@ -135,8 +135,17 @@
 
     - name: add security
       ansible.builtin.copy:
-        src: configs/security.conf
+        src: configs/security-general.conf
         dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+      tags: security
+
+    - name: add security rules
+      ansible.builtin.copy:
+        src: configs/security-rules.conf
+        dest: /etc/nginx/default.d/security.conf
         owner: root
         group: root
         mode: '0644'
