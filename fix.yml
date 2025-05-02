@@ -8,17 +8,150 @@
     - name: Increase PHP memory limit
       lineinfile:
         path: /etc/php.ini
-        line: "memory_limit = 256M"
+        line: "memory_limit = 96M"
         insertafter: EOF
       become: yes
 
-    - name: Copy nginx.config
-      ansible.builtin.copy:
-        src: configs/security.conf
-        dest: /etc/nginx/conf.d/security.conf
-        owner: root
-        group: root
-        mode: '0644'
+    - name: Update PHP realpath cache size
+      lineinfile:
+        path: /etc/php.ini
+        line: "realpath_cache_size = 1024k"
+        state: present
+      become: yes
+
+    - name: Update PHP realpath cache TTL
+      lineinfile:
+        path: /etc/php.ini
+        line: "realpath_cache_ttl = 300"
+        state: present
+      become: yes
+
+    - name: Set PHP session storage to memory
+      lineinfile:
+        path: /etc/php.ini
+        line: "session.save_path = \"/tmp\""
+        state: present
+      become: yes
+
+    - name: Update PHP-FPM process manager to dynamic
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^pm ='
+        line: "pm = dynamic"
+        state: present
+      become: yes
+
+    - name: Set PHP-FPM max children to 3
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^pm.max_children ='
+        line: "pm.max_children = 3"
+        state: present
+      become: yes
+
+    - name: Set PHP-FPM start servers to 1
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^pm.start_servers ='
+        line: "pm.start_servers = 1"
+        state: present
+      become: yes
+
+    - name: Set PHP-FPM min spare servers to 1
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^pm.min_spare_servers ='
+        line: "pm.min_spare_servers = 1"
+        state: present
+      become: yes
+
+    - name: Set PHP-FPM max spare servers to 2
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^pm.max_spare_servers ='
+        line: "pm.max_spare_servers = 2"
+        state: present
+      become: yes
+
+    - name: Set PHP-FPM max requests to 500
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: '^pm.max_requests ='
+        line: "pm.max_requests = 500"
+        state: present
+      become: yes
+
+    - name: Set OPcache memory consumption
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini
+        regexp: '^opcache.memory_consumption ='
+        line: "opcache.memory_consumption = 64"
+        state: present
+      become: yes
+
+    - name: Set OPcache interned strings buffer
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini
+        regexp: '^opcache.interned_strings_buffer ='
+        line: "opcache.interned_strings_buffer = 4"
+        state: present
+      become: yes
+
+    - name: Set OPcache max accelerated files
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini
+        regexp: '^opcache.max_accelerated_files ='
+        line: "opcache.max_accelerated_files = 2000"
+        state: present
+      become: yes
+
+    - name: Set OPcache revalidation frequency
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini
+        regexp: '^opcache.revalidate_freq ='
+        line: "opcache.revalidate_freq = 300"
+        state: present
+      become: yes
+
+    - name: Disable OPcache save comments
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini
+        regexp: '^opcache.save_comments ='
+        line: "opcache.save_comments = 0"
+        state: present
+      become: yes
+
+    - name: Set OPcache max file size
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini
+        regexp: '^opcache.max_file_size ='
+        line: "opcache.max_file_size = 1M"
+        state: present
+      become: yes
+
+    - name: Disable OPcache huge code pages
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini
+        regexp: '^opcache.huge_code_pages ='
+        line: "opcache.huge_code_pages = 0"
+        state: present
+      become: yes
+
+    # - name: Copy nginx.config
+    #   ansible.builtin.copy:
+    #     src: configs/security.conf
+    #     dest: /etc/nginx/conf.d/security.conf
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+
+    - name: Copy file to remote server
+      copy:
+        src: fpm.sh
+        dest: /home/ec2-user/fpm.sh
+        mode: 0755
+        force: yes
+
     - name: Restart PHP-FPM and Nginx
       service:
         name: "{{ item }}"
