@@ -92,6 +92,13 @@
           }
         - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
 
+    - name: Increase PHP memory limit
+      lineinfile:
+        path: /etc/php.ini
+        line: "memory_limit = 256M"
+        insertafter: EOF
+      become: yes
+
     - name: Restart PHP-FPM and Nginx
       service:
         name: "{{ item }}"
@@ -120,11 +127,29 @@
 
     - name: Copy nginx.config
       ansible.builtin.copy:
-        src: configs/nginx.config
+        src: configs/nginx.conf
         dest: /etc/nginx/nginx.conf
         owner: root
         group: root
         mode: '0644'
+
+    - name: add security
+      ansible.builtin.copy:
+        src: configs/security-general.conf
+        dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+      tags: security
+
+    # - name: add security rules
+    #   ansible.builtin.copy:
+    #     src: configs/security-rules.conf
+    #     dest: /etc/nginx/default.d/security.conf
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+    #   tags: security
 
     - name: Create symbolic link from web server’s document root to home directory
       file:

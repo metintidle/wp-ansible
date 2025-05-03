@@ -68,19 +68,27 @@
     debug:
       msg: "{{ certbot_command }}"
 
-  - name: Check if SSL certificate file exists
-    stat:
-      path: /etc/letsencrypt/live/{{domain_name}}/fullchain.pem
-    register: cert_file
+  # - name: Check if SSL certificate file exists
+  #   stat:
+  #     path: /etc/letsencrypt/live/{{domain_name}}/fullchain.pem
+  #   register: cert_file
 
-  - name: Check if SSL private key file exists
-    stat:
-      path: /etc/letsencrypt/live/{{domain_name}}/privkey.pem
-    register: key_file
+  # - name: Check if SSL private key file exists
+  #   stat:
+  #     path: /etc/letsencrypt/live/{{domain_name}}/privkey.pem
+  #   register: key_file
+
+  # - name: Debug SSL certificate file status
+  #   debug:
+  #     var: cert_file.stat.exists
+
+  # - name: Debug SSL private key file status
+  #   debug:
+  #     var: key_file.stat.exists
 
   - name: Run Certbot command
     command: "{{ certbot_command }}"
-    when: not cert_file.stat.exists or not key_file.stat.exists
+    # when: not cert_file.stat.exists or not key_file.stat.exists
 
   - name: Check if the cron job for Certbot exists
     shell: "crontab -l | grep -q 'certbot renew --quiet'"

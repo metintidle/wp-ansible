@@ -16,3 +16,7 @@ PORTS:
 5. ftp.yml
 6. tools.yml
 7. newrelic.yml
+
+# HOW TO START FROM A SPECIAL TASK
+
+![alt text](docs/semaphore.png)
