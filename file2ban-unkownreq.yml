@@ -1,0 +1,79 @@
+- name: Configure fail2ban for nginx protection
+  hosts: all
+  become: true
+  tasks:
+    - name: Ensure fail2ban is installed
+      yum:
+        name: fail2ban
+        state: present
+
+    - name: Create custom filter for PHP URL attacks
+      copy:
+        dest: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
+        content: |
+          [Definition]
+          failregex = ^<HOST> - .* "(GET|POST|HEAD) .*\.php.*" (404|403|400) .*$
+                      ^<HOST> - .* "(GET|POST|HEAD) .*shell.*\.php.*" .*$
+                      ^<HOST> - .* "(GET|POST|HEAD) .*wp-content.*\.php.*" .*$
+                      ^<HOST> - .* "(GET|POST|HEAD) .*wp-admin.*\.php.*" .*$
+                      ^ \[error\] \d+#\d+: \*\d+ .*script.*\.php.*client: <HOST>, server: .*$
+          ignoreregex =
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create custom filter for unknown script errors
+      copy:
+        dest: /etc/fail2ban/filter.d/nginx-unknown-script.conf
+        content: |
+          [Definition]
+          failregex = ^ \[error\] \d+#\d+: \*\d+ FastCGI sent in stderr: "Primary script unknown" while reading response header from upstream, client: <HOST>, server: .*$
+          ignoreregex =
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Configure fail2ban jail for PHP URL attacks
+      copy:
+        dest: /etc/fail2ban/jail.d/nginx-php-url-hack.conf
+        content: |
+          [nginx-php-url-hack]
+          enabled = true
+          filter = nginx-php-url-hack
+          port = http,https
+          logpath = /var/log/nginx/error.log
+          maxretry = 2
+          bantime = 86400  # 24 hours in seconds
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Configure fail2ban jail for unknown script errors
+      copy:
+        dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+        content: |
+          [nginx-unknown-script]
+          enabled = true
+          filter = nginx-unknown-script
+          port = http,https
+          logpath = /var/log/nginx/error.log
+          maxretry = 2
+          bantime = 86400  # 24 hours in seconds
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart fail2ban service
+      systemd:
+        name: fail2ban
+        state: restarted
+        enabled: yes
+
+    - name: Check fail2ban status
+      command: fail2ban-client status
+      register: fail2ban_status
+      changed_when: false
+
+    - name: Display fail2ban status
+      debug:
+        var: fail2ban_status.stdout_lines

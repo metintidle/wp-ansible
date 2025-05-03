@@ -1,0 +1,106 @@
+---
+- name: Install and configure Fail2Ban
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install Fail2Ban
+      package:
+        name: fail2ban
+        state: present
+
+    - name: Create Nginx filter configuration
+      copy:
+        dest: /etc/fail2ban/filter.d/nginx-wp.conf
+        content: |
+          [Definition]
+          failregex = ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+          ignoreregex =
+
+    - name: Create WordPress filter configuration
+      copy:
+        dest: /etc/fail2ban/filter.d/wordpress.conf
+        content: |
+          [Definition]
+          failregex = ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
+          ignoreregex =
+
+    - name: Create Nginx jail configuration
+      copy:
+        dest: /etc/fail2ban/jail.d/nginx-wp.conf
+        content: |
+          [nginx-wp]
+          enabled = true
+          port = http,https
+          filter = nginx-wp
+          logpath = /var/log/nginx/access.log
+          maxretry = 3
+          bantime = 3600
+          findtime = 600
+
+    - name: Create WordPress jail configuration
+      copy:
+        dest: /etc/fail2ban/jail.d/wordpress.conf
+        content: |
+          [wordpress]
+          enabled = true
+          port = http,https
+          filter = wordpress
+          logpath = /var/log/nginx/access.log
+          maxretry = 3
+          bantime = 3600
+          findtime = 600
+
+    - name: Create custom action configuration
+      copy:
+        dest: /etc/fail2ban/action.d/nginx-wp.conf
+        content: |
+          [Definition]
+          actionstart = 
+          actionstop = 
+          actioncheck = 
+          actionban = iptables -I INPUT -s <ip> -j DROP
+          actionunban = iptables -D INPUT -s <ip> -j DROP
+
+    - name: Ensure Fail2Ban service is enabled and started
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    - name: Create Fail2Ban local configuration
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          bantime = 3600
+          findtime = 600
+          maxretry = 3
+          banaction = iptables-multiport
+          backend = auto
+
+          [sshd]
+          enabled = true
+
+          [nginx-wp]
+          enabled = true
+          port = http,https
+          filter = nginx-wp
+          logpath = /var/log/nginx/access.log
+          maxretry = 3
+          bantime = 3600
+          findtime = 600
+
+          [wordpress]
+          enabled = true
+          port = http,https
+          filter = wordpress
+          logpath = /var/log/nginx/access.log
+          maxretry = 3
+          bantime = 3600
+          findtime = 600 
