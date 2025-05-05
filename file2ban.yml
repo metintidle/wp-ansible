@@ -3,6 +3,14 @@
   hosts: all
   become: yes
   tasks:
+    - name: Upload security configuration file
+      ansible.builtin.copy:
+        src: configs/security.conf
+        dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Install Fail2Ban
       package:
         name: fail2ban
@@ -99,9 +107,9 @@
         dest: /etc/fail2ban/action.d/nginx-wp.conf
         content: |
           [Definition]
-          actionstart = 
-          actionstop = 
-          actioncheck = 
+          actionstart =
+          actionstop =
+          actioncheck =
           actionban = iptables -I INPUT -s <ip> -j DROP
           actionunban = iptables -D INPUT -s <ip> -j DROP
         owner: root
@@ -163,4 +171,4 @@
 
     - name: Display fail2ban status
       debug:
-        var: fail2ban_status.stdout_lines 
+        var: fail2ban_status.stdout_lines
