@@ -137,6 +137,24 @@
         state: present
       become: yes
 
+    - name: replace fpm.sh file
+      copy:
+        src: fpm.sh
+        dest: /home/ec2-user/fpm.sh
+        mode: 0755
+        force: yes
+
+    - name: Add a cron job to run fpm.sh every 5 minutes
+      cron:
+        name: "Run fpm.sh every 5 minutes"
+        minute: "*/5"
+        job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
+
+    - name : installs bc
+      yum:
+        name: bc
+        state: present
+
     # - name: Copy nginx.config
     #   ansible.builtin.copy:
     #     src: configs/security.conf
