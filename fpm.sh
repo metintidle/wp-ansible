@@ -1,32 +1,38 @@
-#!/bin/sh
-#get the numbeŕ of cupu cores
-cores=$(nproc)
+#!/bin/bash
 
-load=$(awk '{print $1}' </proc/loadavg)
-cpuUsage=$(echo | awk -v c="${cores}" -v l="${load}" '{print l*100/c}' | awk -F. '{print $1}')
-now=$(date)
+SERVICE="php-fpm"
+SOCKET="/run/php-fpm/www.sock"
+MAX_LOAD=1.5   # Adjust based on your CPU core count (1.0 = 100% of 1 core)
+MAX_MEM_MB=450 # Restart if memory used exceeds this (leave headroom)
+WAIT_BEFORE_RESTART=30
+LOG_FILE="/var/log/fpm-monitor.log"
 
-if [ $cpuUsage -ge 90 ]; then
-  echo "[$now]: $cpuUsage% is using by CPU."
-  sudo systemctl restart php-fpm
-fi
+timestamp() {
+  date +"%Y-%m-%d %H:%M:%S"
+}
 
-freeMemory=$(free -m | grep Mem | awk '{print int($4/$2*100)}')
-now=$(date)
+# Get current system load (1 min average)
+CURRENT_LOAD=$(awk '{print $1}' /proc/loadavg)
 
-if [ $freeMemory -lt 10 ]; then
+# Get memory used in MB
+USED_MEM_MB=$(free -m | awk '/Mem:/ {print $3}')
 
-  echo "[$now]: $freeMemory% free Memory"
-  sudo systemctl restart php-fpm
-fi
+# Check if load or memory is too high
+if (($(echo "$CURRENT_LOAD > $MAX_LOAD" | bc -l))) || [ "$USED_MEM_MB" -gt "$MAX_MEM_MB" ]; then
+  echo "$(timestamp) - High load or memory: load=$CURRENT_LOAD, mem=${USED_MEM_MB}MB. Waiting $WAIT_BEFORE_RESTART sec..." >"$LOG_FILE"
 
-# Check if buffer or cache is taking more than 40% of RAM
-bufferCacheUsage=$(free -m | awk '/^Mem:/ {print int($6/$2*100)}')
-now=$(date)
+  sleep $WAIT_BEFORE_RESTART
 
-if [ $bufferCacheUsage -gt 30 ]; then
-  sync
-  echo 1 >/proc/sys/vm/drop_caches
-  echo "[$now]: $bufferCacheUsage% of RAM is used by buffer/cache."
-  sudo systemctl restart php-fpm
+  # Re-check memory and load
+  CURRENT_LOAD=$(awk '{print $1}' /proc/loadavg)
+  USED_MEM_MB=$(free -m | awk '/Mem:/ {print $3}')
+
+  if (($(echo "$CURRENT_LOAD > $MAX_LOAD" | bc -l))) || [ "$USED_MEM_MB" -gt "$MAX_MEM_MB" ]; then
+    echo "$(timestamp) - Restarting $SERVICE: load=$CURRENT_LOAD, mem=${USED_MEM_MB}MB." >"$LOG_FILE"
+    systemctl restart "$SERVICE"
+  else
+    echo "$(timestamp) - Resources normalized after wait. No restart needed." >"$LOG_FILE"
+  fi
+else
+  echo "$(timestamp) - System healthy: load=$CURRENT_LOAD, mem=${USED_MEM_MB}MB." >"$LOG_FILE"
 fi
