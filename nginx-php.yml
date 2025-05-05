@@ -224,7 +224,7 @@
     - name: Add a cron job to run fpm.sh every minute
       cron:
         name: "Run fpm.sh every minute"
-        minute: "*"
+        minute: "*/5"
         job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
       when: not fpm_file.stat.exists
 
