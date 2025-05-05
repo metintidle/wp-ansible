@@ -81,6 +81,10 @@
         state: present
       become: yes
 
+    - name: install php opcache
+      ansible.builtin.command:
+      cmd: sudo yum install php-opcache -y
+
     - name: Set OPcache memory consumption
       lineinfile:
         path: /etc/php.d/10-opcache.ini
@@ -144,16 +148,17 @@
         mode: 0755
         force: yes
 
+    - name: installs bc
+      yum:
+        name: bc
+        state: present
+
     - name: Add a cron job to run fpm.sh every 5 minutes
       cron:
         name: "Run fpm.sh every 5 minutes"
         minute: "*/5"
         job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
 
-    - name : installs bc
-      yum:
-        name: bc
-        state: present
 
     - name: uplaod wordfnece nginx configs/nginx.conf
       copy:
