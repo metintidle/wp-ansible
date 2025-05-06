@@ -1,5 +1,5 @@
 ---
-- name: Setup FTP on Amazon Linux
+- name: Install PHP-SQLite3, Configure Object Cache and Fast CGI Cache for Nginx on Amazon Linux
   hosts: all
   become: yes
 
@@ -41,7 +41,7 @@
         dest: /etc/nginx/conf.d/fastcgi_cache_file.conf
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Add cache control configuration to nginx.conf
       ansible.builtin.copy:
@@ -69,7 +69,7 @@
         hour: "*/6"
         user: root
         job: "chmod -R 774 /var/run/nginx-cache"
-        
+
     - name: install nginx helper plugin
       command: wp plugin install nginx-helper --activate
       args:
