@@ -1,0 +1,114 @@
+---
+- name: Install and Configure CrowdSec for WordPress
+  hosts: wordpress_servers
+  become: yes
+  tasks:
+    - name: Add CrowdSec repository
+      shell: >
+        curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.rpm.sh | bash
+      args:
+        warn: false
+
+    - name: Install CrowdSec
+      yum:
+        name: crowdsec
+        state: present
+
+    - name: Install firewall bouncer for iptables
+      yum:
+        name: crowdsec-firewall-bouncer-iptables
+        state: present
+
+    - name: Install required packages for testing
+      yum:
+        name: ngrep
+        state: present
+
+    - name: Enable CrowdSec service
+      systemd:
+        name: crowdsec
+        enabled: yes
+        state: started
+
+    - name: Enable CrowdSec firewall bouncer
+      systemd:
+        name: crowdsec-firewall-bouncer
+        enabled: yes
+        state: started
+
+    - name: Install WordPress specific collection
+      shell: cscli collections install crowdsecurity/wordpress
+      register: wordpress_collection
+      changed_when: "'Nothing to do.' not in wordpress_collection.stdout"
+
+    - name: Install WordPress XML-RPC brute force protection
+      shell: cscli scenarios install crowdsecurity/http-bf-wordpress_bf_xmlrpc
+      register: wordpress_xmlrpc
+      changed_when: "'Nothing to do.' not in wordpress_xmlrpc.stdout"
+
+    - name: Reload CrowdSec to apply new configurations
+      systemd:
+        name: crowdsec
+        state: reloaded
+
+    - name: Check if CrowdSec is properly connected to the central API
+      shell: cscli capi status
+      register: capi_status
+      changed_when: false
+      failed_when: "'You can successfully interact with Central API (CAPI)' not in capi_status.stdout"
+
+    - name: Create backup of nginx.conf if it doesn't exist
+      copy:
+        src: /etc/nginx/nginx.conf
+        dest: /etc/nginx/nginx.conf.backup
+        remote_src: yes
+        force: no
+
+    # Optional: Configure Nginx to log proper client IP when behind a proxy
+    - name: Configure Nginx for proper IP logging when behind a proxy
+      blockinfile:
+        path: /etc/nginx/nginx.conf
+        insertafter: "http {"
+        block: |
+          # Set real IP if behind a proxy
+          set_real_ip_from 10.0.0.0/8;
+          set_real_ip_from 172.16.0.0/12;
+          set_real_ip_from 192.168.0.0/16;
+          real_ip_header X-Forwarded-For;
+          real_ip_recursive on;
+      notify: Reload Nginx
+
+    # Optional: Add specific WordPress security headers
+    - name: Add WordPress security headers to Nginx
+      blockinfile:
+        path: /etc/nginx/default.d/security.conf
+        create: yes
+        block: |
+          # Security headers
+          add_header X-Frame-Options "SAMEORIGIN" always;
+          add_header X-XSS-Protection "1; mode=block" always;
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header Referrer-Policy "no-referrer-when-downgrade" always;
+          add_header Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';" always;
+          add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+          
+          # Deny access to sensitive WordPress files
+          location ~ /\.(?!well-known) {
+              deny all;
+          }
+          
+          location ~* /(?:wp-config.php|readme.html|license.txt) {
+              deny all;
+          }
+          
+          # Disable PHP execution in uploads directory
+          location ~* /(?:uploads|files)/.*\.php$ {
+              deny all;
+          }
+      notify: Reload Nginx
+
+  handlers:
+    - name: Reload Nginx
+      systemd:
+        name: nginx
+        state: reloaded
