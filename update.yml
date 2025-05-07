@@ -1,5 +1,5 @@
 - name: WordPress Core and Plugin Updates
-  hosts: your_target_hosts
+  hosts: all
   become: yes
   vars:
     wordpress_path: "~/html"
