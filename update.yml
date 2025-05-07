@@ -4,6 +4,7 @@
   vars:
     wordpress_path: "/home/ec2-user/html"
     allow_root: "--allow-root"
+    wp_cli_path: "/usr/local/bin/wp"
 
   tasks:
     - name: Check if WordPress directory exists
@@ -17,35 +18,42 @@
       when: not wp_dir.stat.exists
 
     - name: Get core updater lock
-      command: "wp option get core_updater.lock {{ allow_root }}"
+      command: "{{ wp_cli_path }} option get core_updater.lock {{ allow_root }}"
       register: lock_status
       ignore_errors: yes
+      args:
+        chdir: "{{ wordpress_path }}"
 
-    - name: Convert timestamp
-      command: "date -d @1746542091"
+    - name: Convert lock timestamp if it exists
+      command: "date -d @{{ lock_status.stdout }}"
       register: timestamp_result
+      when: lock_status.stdout is defined and lock_status.stdout != "" and lock_status.stdout | isdigit
+
+    - name: Debug wp_cli_path before delete lock
+      debug:
+        msg: "Value of wp_cli_path is: {{ wp_cli_path }}"
 
     - name: Delete core updater lock
-      command: "wp option delete core_updater.lock {{ allow_root }}"
+      command: "{{ wp_cli_path }} option delete core_updater.lock {{ allow_root }}"
       args:
         chdir: "{{ wordpress_path }}"
       register: delete_lock
       ignore_errors: yes
 
     - name: Update WordPress core
-      command: "wp core update {{ allow_root }}"
+      command: "{{ wp_cli_path }} core update {{ allow_root }}"
       args:
         chdir: "{{ wordpress_path }}"
       register: core_update
 
     - name: Update all plugins
-      command: "wp plugin update --all {{ allow_root }}"
+      command: "{{ wp_cli_path }} plugin update --all {{ allow_root }}"
       args:
         chdir: "{{ wordpress_path }}"
       register: plugin_update
 
     - name: Update all themes
-      command: "wp theme update --all {{ allow_root }}"
+      command: "{{ wp_cli_path }} theme update --all {{ allow_root }}"
       args:
         chdir: "{{ wordpress_path }}"
       register: theme_update
