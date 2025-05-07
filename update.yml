@@ -2,7 +2,7 @@
   hosts: all
   become: yes
   vars:
-    wordpress_path: "~/html"
+    wordpress_path: "/home/ec2-user/html"
     allow_root: "--allow-root"
 
   tasks:
