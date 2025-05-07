@@ -17,30 +17,13 @@
         msg: "WordPress directory not found at {{ wordpress_path }}"
       when: not wp_dir.stat.exists
 
-    - name: Get core updater lock
-      command: "{{ wp_cli_path }} option get core_updater.lock {{ allow_root }}"
-      register: lock_status
-      ignore_errors: yes
-      args:
-        chdir: "{{ wordpress_path }}"
-
-    - name: Convert lock timestamp if it exists
-      command: "date -d @{{ lock_status.stdout }}"
-      register: timestamp_result
-      when: lock_status.rc == 0 and lock_status.stdout is defined and lock_status.stdout != "" and lock_status.stdout is match('^[0-9]+$')
-
-    - name: Debug wp_cli_path before delete lock
-      debug:
-        msg: "Value of wp_cli_path is: {{ wp_cli_path }}"
-      when: lock_status.rc == 0
-
-    - name: Delete core updater lock
+    - name: Ensure core updater lock is removed
       command: "{{ wp_cli_path }} option delete core_updater.lock {{ allow_root }}"
       args:
         chdir: "{{ wordpress_path }}"
-      register: delete_lock
-      ignore_errors: yes
-      when: lock_status.rc == 0
+      register: delete_lock_status
+      ignore_errors: yes # Keep for general robustness
+      changed_when: "'Deleted option' in delete_lock_status.stdout"
 
     - name: Update WordPress core
       command: "{{ wp_cli_path }} core update {{ allow_root }}"
