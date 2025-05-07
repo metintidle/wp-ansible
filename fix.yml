@@ -144,7 +144,7 @@
 
     - name: replace fpm.sh file
       copy:
-        src: shells/fpm.sh
+        src: bash/fpm.sh
         dest: /home/ec2-user/fpm.sh
         mode: 0755
         force: yes

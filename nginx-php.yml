@@ -216,7 +216,7 @@
 
     - name: Copy file to remote server
       copy:
-        src: fpm.sh
+        src: bash/fpm.sh
         dest: /home/ec2-user/fpm.sh
         mode: 0755
       # when: not fpm_file.stat.exists
