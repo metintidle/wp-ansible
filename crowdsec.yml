@@ -6,8 +6,6 @@
     - name: Add CrowdSec repository
       shell: >
         curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.rpm.sh | bash
-      args:
-        warn: false
 
     - name: Install CrowdSec
       yum:
