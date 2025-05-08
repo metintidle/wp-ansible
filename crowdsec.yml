@@ -3,6 +3,14 @@
   hosts: all
   become: yes
   tasks:
+
+    - name: Upload security configuration file
+      ansible.builtin.copy:
+        src: configs/security.conf
+        dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
     - name: Add CrowdSec repository
       shell: >
         curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.rpm.sh | bash
