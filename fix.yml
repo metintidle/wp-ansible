@@ -82,10 +82,8 @@
       become: yes
 
     - name: Install php-opcache using yum module
-      ansible.builtin.yum:
-        name: php-opcache
-        state: present
-      become: yes
+      ansible.builtin.command:
+        cmd: sudo yum install php-opcache -y # Indent 'cmd' under the module name
 
     - name: Set OPcache memory consumption
       lineinfile:
