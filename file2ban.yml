@@ -36,7 +36,7 @@
         dest: /etc/fail2ban/filter.d/nginx-unknown-script.conf
         content: |
           [Definition]
-          failregex = ^ \[error\] \d+#\d+: \*\d+ FastCGI sent in stderr: "Primary script unknown" while reading response header from upstream, client: <HOST>, server: .*$
+          failregex = ^.*Primary script unknown.*client: <HOST>.*$
           ignoreregex =
         owner: root
         group: root
