@@ -82,8 +82,9 @@
       become: yes
 
     - name: Install php-opcache using yum module
-      ansible.builtin.command:
-        cmd: sudo yum install php-opcache -y # Indent 'cmd' under the module name
+      ansible.builtin.yum:
+        name: php-opcache
+        state: present
       become: yes
 
     - name: Set OPcache memory consumption
@@ -160,14 +161,6 @@
         minute: "*/5"
         job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
 
-
-    - name: uplaod wordfnece
-      copy:
-        src: configs/wordfence.conf
-        dest: /etc/nginx/conf.d/wordfence.conf
-        owner: root
-        group: root
-        mode: '0644'
 
     - name: Restart PHP-FPM and Nginx
       service:
