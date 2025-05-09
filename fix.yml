@@ -159,6 +159,10 @@
         minute: "*/5"
         job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
 
+    - name: Remove the cron job for fpm.sh
+      cron:
+        name: "Run fpm.sh every minute"
+        state: absent
 
     - name: Restart PHP-FPM and Nginx
       service:
