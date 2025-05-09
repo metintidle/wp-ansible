@@ -12,9 +12,8 @@
         mode: '0644'
 
     - name: Install Fail2Ban
-      package:
-        name: fail2ban
-        state: present
+      ansible.builtin.command:
+        cmd: sudo yum install fail2ban -y
 
     - name: Create Nginx PHP URL attack filter configuration
       copy:
