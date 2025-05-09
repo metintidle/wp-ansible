@@ -3,14 +3,13 @@
   hosts: all
   become: yes
   tasks:
-
     - name: Upload security configuration file
       ansible.builtin.copy:
         src: configs/security.conf
         dest: /etc/nginx/conf.d/security.conf
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
     - name: Add CrowdSec repository
       shell: >
         curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.rpm.sh | bash
@@ -85,7 +84,7 @@
       notify: Reload Nginx
 
     - name: enroll the host in the CrowdSec Central API
-      shell: cscli console enroll -e context {{ lookup('env', 'CROWD_SEC') }}cmaer5un90007k008m20x7f9t --name {{ domain_name }}
+      shell: cscli console enroll -e context {{ lookup('env', 'CROWD_SEC') }} --name {{ domain_name }}
       register: enroll_result
       changed_when: "'You are already enrolled' not in enroll_result.stdout and 'You have been successfully enrolled' in enroll_result.stdout"
 
@@ -108,4 +107,8 @@
     - name: Reload Nginx
       systemd:
         name: nginx
+        state: reloaded
+    - name: Reload CrowdSec to apply new configurations
+      systemd:
+        name: crowdsec
         state: reloaded
