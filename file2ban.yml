@@ -172,3 +172,12 @@
     - name: Display fail2ban status
       debug:
         var: fail2ban_status.stdout_lines
+
+    - name: Restart Fail2Ban service
+      service:
+        name: fail2ban
+        state: restarted
+    - name: Restart Nginx service
+      service:
+        name: nginx
+        state: restarted
