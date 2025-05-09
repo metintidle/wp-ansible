@@ -84,34 +84,10 @@
           real_ip_recursive on;
       notify: Reload Nginx
 
-    # Optional: Add specific WordPress security headers
-    - name: Add WordPress security headers to Nginx
-      blockinfile:
-        path: /etc/nginx/default.d/security.conf
-        create: yes
-        block: |
-          # Security headers
-          add_header X-Frame-Options "SAMEORIGIN" always;
-          add_header X-XSS-Protection "1; mode=block" always;
-          add_header X-Content-Type-Options "nosniff" always;
-          add_header Referrer-Policy "no-referrer-when-downgrade" always;
-          add_header Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';" always;
-          add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
-          # Deny access to sensitive WordPress files
-          location ~ /\.(?!well-known) {
-              deny all;
-          }
-
-          location ~* /(?:wp-config.php|readme.html|license.txt) {
-              deny all;
-          }
-
-          # Disable PHP execution in uploads directory
-          location ~* /(?:uploads|files)/.*\.php$ {
-              deny all;
-          }
-      notify: Reload Nginx
+    - name: enroll the host in the CrowdSec Central API
+      shell: cscli console enroll -e context {{ lookup('env', 'CROWD_SEC') }}cmaer5un90007k008m20x7f9t --name {{ domain_name }}
+      register: enroll_result
+      changed_when: "'You are already enrolled' not in enroll_result.stdout and 'You have been successfully enrolled' in enroll_result.stdout"
 
     # - name: Disable specific CrowdSec scenarios
     #   ansible.builtin.shell: "cscli scenarios remove {{ item }} --force"
