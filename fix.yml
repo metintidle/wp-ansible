@@ -149,9 +149,8 @@
         force: yes
 
     - name: installs bc
-      yum:
-        name: bc
-        state: present
+      ansible.builtin.command:
+        cmd: sudo yum install bc -y # Indent 'cmd' under the module name
 
     - name: Add a cron job to run fpm.sh every 5 minutes
       cron:
