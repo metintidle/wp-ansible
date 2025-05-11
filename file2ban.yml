@@ -15,88 +15,52 @@
       ansible.builtin.command:
         cmd: yum install fail2ban -y
 
-    - name: Create Nginx PHP URL attack filter configuration
-      copy:
+    - name: Upload Nginx PHP URL attack filter configuration
+      ansible.builtin.copy:
+        src: security/filter/nginx-php-url-hack.conf
         dest: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
-        content: |
-          [Definition]
-          failregex = ^<HOST> - .* "(GET|POST|HEAD) .*\.php.*" (404|403|400) .*$
-                      ^<HOST> - .* "(GET|POST|HEAD) .*shell.*\.php.*" .*$
-                      ^<HOST> - .* "(GET|POST|HEAD) .*wp-content.*\.php.*" .*$
-                      ^<HOST> - .* "(GET|POST|HEAD) .*wp-admin.*\.php.*" .*$
-                      ^ \[error\] \d+#\d+: \*\d+ .*script.*\.php.*client: <HOST>, server: .*$
-          ignoreregex =
         owner: root
         group: root
         mode: '0644'
 
     - name: Create Nginx unknown script filter configuration
-      copy:
+      ansible.builtin.copy:
+        src: security/filter/nginx-unknown-script.conf
         dest: /etc/fail2ban/filter.d/nginx-unknown-script.conf
-        content: |
-          [Definition]
-          failregex = ^.*Primary script unknown.*client: <HOST>.*$
-          ignoreregex =
         owner: root
         group: root
         mode: '0644'
 
-    - name: Create WordPress filter configuration
-      copy:
-        dest: /etc/fail2ban/filter.d/wordpress.conf
-        content: |
-          [Definition]
-          failregex = ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
-                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
-                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
-                    ^<HOST> -.*"(GET|POST|HEAD).*" (404|403|400) .*$
-          ignoreregex =
+    - name: Create None WordPress Requests filter configuration
+      ansible.builtin.copy:
+        src: security/filter/non-wordpress-requests.conf
+        dest: /etc/fail2ban/filter.d/non-wordpress-requests.conf
         owner: root
         group: root
-        mode: '0644'
+        mode: '0644'  
 
+  
+    
     - name: Configure fail2ban jail for PHP URL attacks
-      copy:
+      ansible.builtin.copy:
+        src: security/jail/nginx-php-url-hack.conf
         dest: /etc/fail2ban/jail.d/nginx-php-url-hack.conf
-        content: |
-          [nginx-php-url-hack]
-          enabled = true
-          filter = nginx-php-url-hack
-          port = http,https
-          logpath = /var/log/nginx/error.log
-          maxretry = 2
-          bantime = 86400  # 24 hours in seconds
         owner: root
         group: root
         mode: '0644'
+
+    - name: Configure fail2ban jail for None WordPress Requests
+      ansible.builtin.copy:
+        src: security/jail/non-wordpress-requests.conf
+        dest: /etc/fail2ban/jail.d/non-wordpress-requests.conf
+        owner: root
+        group: root
+        mode: '0644'   
 
     - name: Configure fail2ban jail for unknown script errors
-      copy:
+      ansible.builtin.copy:
+        src: security/jail/nginx-unknown-script.conf
         dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
-        content: |
-          [nginx-unknown-script]
-          enabled = true
-          filter = nginx-unknown-script
-          port = http,https
-          logpath = /var/log/nginx/error.log
-          maxretry = 2
-          bantime = 86400  # 24 hours in seconds
-        owner: root
-        group: root
-        mode: '0644'
-
-    - name: Create WordPress jail configuration
-      copy:
-        dest: /etc/fail2ban/jail.d/wordpress.conf
-        content: |
-          [wordpress]
-          enabled = true
-          port = http,https
-          filter = wordpress
-          logpath = /var/log/nginx/access.log
-          maxretry = 3
-          bantime = 3600
-          findtime = 600
         owner: root
         group: root
         mode: '0644'
@@ -126,39 +90,15 @@
         dest: /etc/fail2ban/jail.local
         content: |
           [DEFAULT]
+          ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
           bantime = 3600
           findtime = 600
           maxretry = 3
           banaction = iptables-multiport
           backend = auto
-
           [sshd]
           enabled = true
 
-          [nginx-php-url-hack]
-          enabled = true
-          filter = nginx-php-url-hack
-          port = http,https
-          logpath = /var/log/nginx/error.log
-          maxretry = 2
-          bantime = 86400
-
-          [nginx-unknown-script]
-          enabled = true
-          filter = nginx-unknown-script
-          port = http,https
-          logpath = /var/log/nginx/error.log
-          maxretry = 2
-          bantime = 86400
-
-          [wordpress]
-          enabled = true
-          port = http,https
-          filter = wordpress
-          logpath = /var/log/nginx/access.log
-          maxretry = 3
-          bantime = 3600
-          findtime = 600
         owner: root
         group: root
         mode: '0644'
