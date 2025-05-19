@@ -2,6 +2,8 @@
 - name: Install PHP-SQLite3, Configure Object Cache and Fast CGI Cache for Nginx on Amazon Linux
   hosts: all
   become: yes
+  vars:
+    nginx_cache_dir: /var/cache/nginx
 
   tasks:
     - name: Get total memory
@@ -53,14 +55,15 @@
 
     - name: Create nginx cache directory
       ansible.builtin.command:
-        cmd: sudo mkdir -p /var/run/nginx-cache
+        cmd: sudo mkdir -p {{ nginx_cache_dir }}
 
     - name: Change ownership of nginx cache directory
       ansible.builtin.command:
-        cmd: sudo chown -R nginx:nginx /var/run/nginx-cache
+        cmd: sudo chown -R nginx:nginx {{ nginx_cache_dir }}
+
     - name: Change ownership of nginx cache directory
       ansible.builtin.command:
-        cmd: sudo chmod -R 774 /var/run/nginx-cache
+        cmd: sudo chmod -R 774 {{ nginx_cache_dir }}
 
     - name: Important Create cron job to change ownership of nginx cache directory
       cron:
@@ -68,13 +71,19 @@
         minute: "0"
         hour: "*/6"
         user: root
-        job: "chmod -R 774 /var/run/nginx-cache"
+        job: "chmod -R 774 {{ nginx_cache_dir }}"
 
     - name: install nginx helper plugin
       command: wp plugin install nginx-helper --activate
       args:
         chdir: /home/ec2-user/html
       become: no
+
+    - name: Set WordPress memory limit
+      lineinfile:
+      path: "/home/ec2-user/html/wp-config.php"
+      line: "define('RT_WP_NGINX_HELPER_CACHE_PATH', '{{ nginx_cache_dir}}');"
+      insertafter: EOF
 
     - name: Restart PHP-FPM and Nginx
       ansible.builtin.service:
