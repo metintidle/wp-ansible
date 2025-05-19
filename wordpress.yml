@@ -154,10 +154,6 @@
       args:
         chdir: /home/ec2-user/html
 
-    - name: install nginx helper plugin
-      command: wp plugin install nginx-helper --activate
-      args:
-        chdir: /home/ec2-user/html
 
     # - name: install SQLite Object Cache plugin
     #   command: wp plugin install sqlite-object-cache --activate
