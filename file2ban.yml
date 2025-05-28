@@ -3,6 +3,21 @@
   hosts: all
   become: yes
   tasks:
+    - name: Allow SSH connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTP connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTPS connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
     - name: Upload security configuration file
       ansible.builtin.copy:
         src: configs/security.conf
@@ -37,10 +52,10 @@
         dest: /etc/fail2ban/filter.d/non-wordpress-requests.conf
         owner: root
         group: root
-        mode: '0644'  
+        mode: '0644'
 
-  
-    
+
+
     - name: Configure fail2ban jail for PHP URL attacks
       ansible.builtin.copy:
         src: security/jail/nginx-php-url-hack.conf
@@ -55,7 +70,7 @@
         dest: /etc/fail2ban/jail.d/non-wordpress-requests.conf
         owner: root
         group: root
-        mode: '0644'   
+        mode: '0644'
 
     - name: Configure fail2ban jail for unknown script errors
       ansible.builtin.copy:
