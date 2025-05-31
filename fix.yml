@@ -5,6 +5,17 @@
   vars:
       nginx_cache_dir: /var/cache/nginx
   tasks:
+    - name: Install Nginx Cache Plugin
+      command: wp plugin install nginx-cache --activate
+      args:
+        chdir: /home/ec2-user/html
+        
+    - name: remove Nginx Helper plugin
+      command: wp plugin delete nginx-helper
+      args:
+        chdir: /home/ec2-user/html
+      ignore_errors: yes
+
     - name: Remove old nginx cache directory ownership cron job
       cron:
         name: "Change ownership of nginx cache directory"
