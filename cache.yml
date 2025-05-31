@@ -72,6 +72,16 @@
         hour: "*/6"
         user: root
         job: "chmod -R 774 {{ nginx_cache_dir }}"
+    - name: Create cron job to change nginx cache directory ownership
+      cron:
+        name: "Change nginx-cache directory ownership"
+        minute: "*"
+        hour: "*/6"
+        day: "*"
+        month: "*"
+        weekday: "*"
+        user: root
+        job: "chown -R ec2-user:nginx /var/run/nginx-cache"
 
     - name: install nginx helper plugin
       command: wp plugin install nginx-helper --activate
