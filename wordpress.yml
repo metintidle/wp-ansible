@@ -117,12 +117,16 @@
         backup: yes
       when: not wp_config_exists.stat.exists
 
-    # - name: Set WordPress memory limit
-    #   lineinfile:
-    #     path: "/home/ec2-user/html/wp-config.php"
-    #     regexp: "^define\\('WP_MEMORY_LIMIT',"
-    #     line: "define('WP_MEMORY_LIMIT', '128M');"
-    #     backup: yes
+    - name: Set WordPress memory limit
+      blockinfile:
+        path: /home/ec2-user/html/wp-config.php
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: 'DB_COLLATE'
+        block: |
+          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
+              define( 'WP_MEMORY_LIMIT', '128M' );
+          }
+      backup: yes
 
 
     - name: Install WordPress
