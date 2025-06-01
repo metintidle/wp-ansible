@@ -156,7 +156,7 @@
 
     - name: add security
       ansible.builtin.copy:
-        src: configs/security-general.conf
+        src: configs/security/general.conf
         dest: /etc/nginx/conf.d/security.conf
         owner: root
         group: root
