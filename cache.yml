@@ -4,6 +4,7 @@
   become: yes
   vars:
     nginx_cache_dir: /var/cache/nginx
+    old_nginx_cache_dir: /var/run/nginx-cache
 
   tasks:
     - name: Get total memory
@@ -37,6 +38,11 @@
         chdir: /home/ec2-user/html
       become: no
 
+    - name: Install Nginx Cache Plugin
+      command: wp plugin install nginx-cache --activate
+      args:
+        chdir: /home/ec2-user/html
+
     - name: Add fastcgi cache configuration to nginx.conf
       ansible.builtin.copy:
         src: configs/file_cache.conf
@@ -57,7 +63,7 @@
       ansible.builtin.command:
         cmd: sudo mkdir -p {{ nginx_cache_dir }}
 
-    - name: Change ownership of nginx cache directory
+    - name: Change ownership of nginx cache directory to nginx user
       ansible.builtin.command:
         cmd: sudo chown -R nginx:nginx {{ nginx_cache_dir }}
 
@@ -65,35 +71,15 @@
       ansible.builtin.command:
         cmd: sudo chmod -R 774 {{ nginx_cache_dir }}
 
-    - name: Important Create cron job to change ownership of nginx cache directory
+    - name: Create cron job to set ownership and permissions of nginx cache directory
       cron:
-        name: "Change ownership of nginx cache directory"
-        minute: "0"
-        hour: "*/6"
-        user: root
-        job: "chmod -R 774 {{ nginx_cache_dir }}"
-    - name: Create cron job to change nginx cache directory ownership
-      cron:
-        name: "Change nginx-cache directory ownership"
-        minute: "*"
-        hour: "*/6"
+        name: "Set nginx cache directory permissions"
+        minute: "*/5"
+        hour: "*"
         day: "*"
         month: "*"
         weekday: "*"
-        user: root
-        job: "chown -R ec2-user:nginx /var/run/nginx-cache"
-
-    - name: install nginx helper plugin
-      command: wp plugin install nginx-helper --activate
-      args:
-        chdir: /home/ec2-user/html
-      become: no
-
-    - name: Set WordPress memory limit
-      lineinfile:
-      path: "/home/ec2-user/html/wp-config.php"
-      line: "define('RT_WP_NGINX_HELPER_CACHE_PATH', '{{ nginx_cache_dir}}');"
-      insertafter: EOF
+        job: "sudo chown -R ec2-user:nginx {{ nginx_cache_dir }} && sudo chmod -R 774 {{ nginx_cache_dir }}"
 
     - name: Restart PHP-FPM and Nginx
       ansible.builtin.service:
