@@ -62,6 +62,11 @@
         state: absent
         user: root
 
+    - name: Remove old nginx cache directory and contents
+      ansible.builtin.file:
+        path: "{{ old_nginx_cache_dir }}"
+        state: absent
+
     - name: Add fastcgi cache configuration to nginx.conf
       ansible.builtin.copy:
         src: configs/file_cache.conf
@@ -82,8 +87,7 @@
         day: "*"
         month: "*"
         weekday: "*"
-        user: root
-        job: "chown -R ec2-user:nginx {{ nginx_cache_dir }} && chmod -R 774 {{ nginx_cache_dir }}"
+        job: "sudo chown -R ec2-user:nginx {{ nginx_cache_dir }} && sudo  chmod -R 774 {{ nginx_cache_dir }}"
 
     - name: Remove WordPress Fail2Ban filter
       ansible.builtin.file:
@@ -99,6 +103,22 @@
       ansible.builtin.copy:
           src: security/jail/nginx-unknown-script.conf
           dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+          owner: root
+          group: root
+          mode: '0644'
+
+    - name: Disable fail2ban jail for Nginx PHP Url hack
+      ansible.builtin.copy:
+          src: security/jail/nginx-php-url-hack.conf
+          dest: /etc/fail2ban/jail.d/nginx-php-url-hack.conf
+          owner: root
+          group: root
+          mode: '0644'
+
+    - name: Disable fail2ban jail for None Wordpress requests
+      ansible.builtin.copy:
+          src: security/jail/non-wordpress-requests.conf
+          dest: /etc/fail2ban/jail.d/non-wordpress-requests.conf
           owner: root
           group: root
           mode: '0644'
