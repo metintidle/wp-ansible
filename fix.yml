@@ -39,7 +39,7 @@
           if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
               define( 'WP_MEMORY_LIMIT', '128M' );
           }
-      become_user: ec2-user
+      become_user: no
 
     - name: Install Nginx Cache Plugin
       ansible.builtin.command:
