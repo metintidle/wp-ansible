@@ -29,15 +29,15 @@
         regexp: '.*WP_MEMORY_LIMIT.*'
         state: absent
 
-    # - name: Set WordPress memory limit
-    #   ansible.builtin.blockinfile:
-    #     path: "/home/ec2-user/html/wp-config.php"
-    #     marker: "# {mark} WP_MEMORY_LIMIT block"
-    #     insertafter: "DB_COLLATE"
-    #     block: |
-    #       if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
-    #           define( 'WP_MEMORY_LIMIT', '128M' );
-    #       }
+    - name: Set WordPress memory limit
+      ansible.builtin.blockinfile:
+        path: "/home/ec2-user/html/wp-config.php"
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: "DB_COLLATE"
+        block: |
+          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
+              define( 'WP_MEMORY_LIMIT', '128M' );
+          }
 
     - name: Install Nginx Cache Plugin
       ansible.builtin.command:
