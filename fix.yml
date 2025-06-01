@@ -28,6 +28,7 @@
         path: /home/ec2-user/html/wp-config.php
         regexp: '.*WP_MEMORY_LIMIT.*'
         state: absent
+      become_user: ec2-user
 
     - name: Set WordPress memory limit
       ansible.builtin.blockinfile:
@@ -38,12 +39,14 @@
           if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
               define( 'WP_MEMORY_LIMIT', '128M' );
           }
+      become_user: ec2-user
 
     - name: Install Nginx Cache Plugin
       ansible.builtin.command:
         cmd: /usr/local/bin/wp plugin install nginx-cache --activate
       args:
         chdir: /home/ec2-user/html
+      become_user: ec2-user
 
     - name: remove Nginx Helper plugin
       ansible.builtin.command:
@@ -51,6 +54,7 @@
       args:
         chdir: /home/ec2-user/html
       ignore_errors: yes
+      become_user: ec2-user
 
     - name: Remove old nginx cache directory ownership cron job
       ansible.builtin.cron:
