@@ -32,13 +32,13 @@
     - name: Set WordPress memory limit
       blockinfile:
         path: /home/ec2-user/html/wp-config.php
-        marker: "# {mark} ANSIBLE MANAGED BLOCK"
-        insertbefore: "/* That's all, stop editing!"
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: 'DB_COLLATE'
         block: |
           if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
               define( 'WP_MEMORY_LIMIT', '128M' );
           }
-        state: present
+
 
     - name: Install Nginx Cache Plugin
       command: wp plugin install nginx-cache --activate
