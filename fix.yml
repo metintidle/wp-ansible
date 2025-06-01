@@ -41,13 +41,13 @@
 
     - name: Install Nginx Cache Plugin
       ansible.builtin.command:
-        cmd: wp plugin install nginx-cache --activate
+        cmd: /usr/local/bin/wp plugin install nginx-cache --activate
       args:
         chdir: /home/ec2-user/html
 
     - name: remove Nginx Helper plugin
       ansible.builtin.command:
-        cmd: wp plugin delete nginx-helper
+        cmd: /usr/local/bin/wp plugin delete nginx-helper
       args:
         chdir: /home/ec2-user/html
       ignore_errors: yes
