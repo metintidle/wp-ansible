@@ -28,7 +28,6 @@
         path: /home/ec2-user/html/wp-config.php
         regexp: '.*WP_MEMORY_LIMIT.*'
         state: absent
-      become_user: ec2-user
 
     - name: Set WordPress memory limit
       ansible.builtin.blockinfile:
