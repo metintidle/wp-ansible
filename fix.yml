@@ -24,35 +24,36 @@
       changed_when: false
 
     - name: Remove unconditional WP_MEMORY_LIMIT definition
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /home/ec2-user/html/wp-config.php
         regexp: '.*WP_MEMORY_LIMIT.*'
         state: absent
 
-    # - name: Set WordPress memory limit
-    #   blockinfile:
-    #     path: /home/ec2-user/html/wp-config.php
-    #     marker: "# {mark} WP_MEMORY_LIMIT block"
-    #     insertafter: 'DB_COLLATE'
-    #     block: |
-    #       if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
-    #           define( 'WP_MEMORY_LIMIT', '128M' );
-    #       }
-
+    - name: Set WordPress memory limit
+      ansible.builtin.blockinfile:
+        path: /home/ec2-user/html/wp-config.php
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: 'DB_COLLATE'
+        block: |
+          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
+              define( 'WP_MEMORY_LIMIT', '128M' );
+          }
 
     - name: Install Nginx Cache Plugin
-      command: wp plugin install nginx-cache --activate
+      ansible.builtin.command:
+        cmd: wp plugin install nginx-cache --activate
       args:
         chdir: /home/ec2-user/html
 
     - name: remove Nginx Helper plugin
-      command: wp plugin delete nginx-helper
+      ansible.builtin.command:
+        cmd: wp plugin delete nginx-helper
       args:
         chdir: /home/ec2-user/html
       ignore_errors: yes
 
     - name: Remove old nginx cache directory ownership cron job
-      cron:
+      ansible.builtin.cron:
         name: "Change ownership of nginx cache directory"
         state: absent
         user: root
@@ -70,7 +71,7 @@
         cmd: sudo mkdir -p {{ nginx_cache_dir }}
         
     - name: Create cron job to set ownership and permissions of nginx cache directory
-      cron:
+      ansible.builtin.cron:
         name: "Set nginx cache directory permissions"
         minute: "*/5"
         hour: "*"
@@ -79,7 +80,6 @@
         weekday: "*"
         user: root
         job: "chown -R ec2-user:nginx {{ nginx_cache_dir }} && chmod -R 774 {{ nginx_cache_dir }}"
-
 
     - name: Remove WordPress Fail2Ban filter
       ansible.builtin.file:
