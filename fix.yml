@@ -3,13 +3,31 @@
   hosts: all
   become: yes
   vars:
-      nginx_cache_dir: /var/cache/nginx
+      nginx_cache_dir: /var/run/nginx-cache
   tasks:
+
+    - name: Remove unconditional WP_MEMORY_LIMIT definition
+      lineinfile:
+        path: /home/ec2-user/html/wp-config.php
+        regexp: '.*WP_MEMORY_LIMIT.*'
+        state: absent
+
+    - name: Set WordPress memory limit
+      blockinfile:
+        path: /home/ec2-user/html/wp-config.php
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: 'DB_COLLATE'
+        block: |
+          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
+              define( 'WP_MEMORY_LIMIT', '128M' );
+          }
+
+
     - name: Install Nginx Cache Plugin
       command: wp plugin install nginx-cache --activate
       args:
         chdir: /home/ec2-user/html
-        
+
     - name: remove Nginx Helper plugin
       command: wp plugin delete nginx-helper
       args:
@@ -34,3 +52,33 @@
         job: "chown -R ec2-user:nginx {{ nginx_cache_dir }} && chmod -R 774 {{ nginx_cache_dir }}"
 
 
+    - name: Remove WordPress Fail2Ban filter
+      ansible.builtin.file:
+        path: /etc/fail2ban/filter.d/wordpress.conf
+        state: absent
+
+    - name: Remove WordPress Fail2Ban jail
+      ansible.builtin.file:
+        path: /etc/fail2ban/jail.d/wordpress.conf
+        state: absent
+
+    - name: Configure fail2ban jail for None WordPress Requests
+      ansible.builtin.copy:
+          src: security/jail/nginx-unknown-script.conf
+          dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+          owner: root
+          group: root
+          mode: '0644'
+    
+    - name: Configure fail2ban jail for None WordPress Requests
+      ansible.builtin.copy:
+          src: security/jail.local
+          dest: /etc/fail2ban/jail.local
+          owner: root
+          group: root
+          mode: '0644'
+
+    - name: Restart Fail2Ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted
