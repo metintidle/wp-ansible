@@ -56,6 +56,11 @@
       ansible.builtin.command: sudo pecl install igbinary
       when: igbinary_check.rc != 0
 
+    - name: Install Python pip
+      dnf:
+        name: python3-pip
+        state: present
+
     - name: Ensure pexpect is installed
       pip:
         name: pexpect
