@@ -264,7 +264,7 @@
         name: bc
         state: present
 
-    - name: Install cronie for cron functionality
+    - name: Install cronie
       yum:
         name: cronie
         state: present
