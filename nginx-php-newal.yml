@@ -268,6 +268,16 @@
       dnf:
         name: bc
         state: present
+    - name: Install cronie
+      yum:
+        name: cronie
+        state: present
+
+    - name: Start and enable cronie service
+      systemd:
+        name: crond
+        state: started
+        enabled: yes
 
     - name: Add a cron job to run fpm.sh every 5 minutes
       cron:
@@ -276,42 +286,5 @@
         job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
       # when: not fpm_file.stat.exists # This condition might need adjustment if we always want to ensure the cron job
 
-    - name: Remove the old cron job for fpm.sh (every minute)
-      cron:
-        name: "Run fpm.sh every minute"
-        state: absent
 
-    - name: remove file /var/log/fpm.log
-      command: rm -f /var/log/fpm.log
 
-    - name: Create a swap file
-      command: fallocate -l 1G /swapfile
-      args:
-        creates: /swapfile
-
-    - name: Check if swap is already enabled
-      command: swapon --show
-      register: swap_status
-      changed_when: false
-
-    - name: Set up the swap file
-      command: mkswap /swapfile
-      when: swap_status.stdout == ""
-
-    - name: Enable the swap file
-      command: swapon /swapfile
-      when: swap_status.stdout == ""
-
-    - name: Add swap file to /etc/fstab
-      lineinfile:
-        path: /etc/fstab
-        line: '/swapfile none swap sw 0 0'
-        create: yes
-      when: swap_status.stdout == ""
-
-    - name: Set correct permissions on swap file
-      file:
-        path: /swapfile
-        mode: '0600'
-        owner: root
-        group: root
