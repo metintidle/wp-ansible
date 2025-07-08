@@ -40,7 +40,7 @@
   - name: Alternative - Write properly formatted key directly
     copy:
       content: |
-        {{ source_private_key_raw | replace('\\n', '\n') | regex_replace('(-----BEGIN RSA PRIVATE KEY-----)', '\\1\n') | regex_replace('(-----END RSA PRIVATE KEY-----)', '\n\\1') | regex_replace('(.{64})', '\\1\n') | regex_replace('\n+', '\n') }}
+        {{ source_private_key_raw }}
       dest: "{{ private_key_path }}.alt"
       mode: '0600'
     delegate_to: localhost
@@ -69,7 +69,7 @@
         mv "{{ private_key_path }}.alt" "{{ private_key_path }}"
       else
         echo "Original file is not empty, keeping it"
-        rm -f "{{ private_key_path }}.alt"
+        # rm -f "{{ private_key_path }}.alt"
       fi
       chmod 600 "{{ private_key_path }}"
     delegate_to: localhost
