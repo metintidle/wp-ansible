@@ -1,5 +1,5 @@
 - name: Download WordPress files from remote server
-  hosts: all  # This runs on target servers
+  hosts: all # This runs on target servers
   gather_facts: false
 
   vars:
@@ -11,38 +11,22 @@
   tasks:
   - name: Write SSH private key for source server on localhost
     copy:
-      content: "{{ source_private_key_raw | replace('\\n', '\n') }}"
+      content: "{{ source_private_key_raw | replace('\\n', '\n')}}"
       dest: "{{ private_key_path }}"
       mode: '0600'
     delegate_to: localhost
     run_once: true
 
+  - name: Copy private key formatting script
+    copy:
+      src: bash/privatekey.sh
+      dest: /tmp/privatekey.sh
+      mode: '0755'
+    delegate_to: localhost
+    run_once: true
+
   - name: Fix private key format with proper newlines
-    shell: |
-      # Read the key and format it properly
-      key_content=$(cat "{{ private_key_path }}")
-
-      # Debug: show what we read
-      echo "Original key content length: ${#key_content}"
-
-      # Remove any existing newlines and spaces, then format properly
-      echo "$key_content" | tr -d '\n\r' | \
-      sed 's/-----BEGIN RSA PRIVATE KEY-----/-----BEGIN RSA PRIVATE KEY-----\n/' | \
-      sed 's/-----END RSA PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----/' | \
-      sed 's/\(.\{64\}\)/\1\n/g' | \
-      sed '/^$/d' > "{{ private_key_path }}.tmp"
-
-      # Debug: show what we created
-      echo "Formatted key content:"
-      cat "{{ private_key_path }}.tmp"
-      echo "Formatted key file size: $(wc -c < '{{ private_key_path }}.tmp')"
-
-      # Move the file
-      mv "{{ private_key_path }}.tmp" "{{ private_key_path }}"
-      chmod 600 "{{ private_key_path }}"
-
-      # Verify the final file
-      echo "Final file size: $(wc -c < '{{ private_key_path }}')"
+    shell: /tmp/privatekey.sh "{{ private_key_path }}"
     delegate_to: localhost
     run_once: true
     register: format_debug
@@ -133,9 +117,9 @@
   - name: Display SSH test result
     debug:
       msg:
-        - "SSH test return code: {{ ssh_test.rc }}"
-        - "SSH test stdout: {{ ssh_test.stdout }}"
-        - "SSH test stderr: {{ ssh_test.stderr }}"
+      - "SSH test return code: {{ ssh_test.rc }}"
+      - "SSH test stdout: {{ ssh_test.stdout }}"
+      - "SSH test stderr: {{ ssh_test.stderr }}"
     delegate_to: localhost
     run_once: true
 
@@ -159,8 +143,8 @@
       dest: "/usr/share/nginx/html/"
       delete: yes
       rsync_opts:
-        - "--exclude=.git"
-        - "--exclude=*.log"
+      - "--exclude=.git"
+      - "--exclude=*.log"
       mode: pull
     delegate_to: localhost
     vars:
