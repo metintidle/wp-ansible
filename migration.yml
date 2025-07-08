@@ -31,50 +31,6 @@
     run_once: true
     register: format_debug
 
-  - name: Show formatting debug output
-    debug:
-      var: format_debug.stdout_lines
-    # delegate_to: localhost
-    run_once: true
-
-  - name: Verify private key format
-    shell: |
-      head -1 "{{ private_key_path }}"
-      tail -1 "{{ private_key_path }}"
-    # delegate_to: localhost
-    run_once: true
-    register: key_check
-
-  - name: Display key format check
-    debug:
-      var: key_check.stdout_lines
-    # delegate_to: localhost
-    run_once: true
-
-  - name: Print private key file content
-    shell: cat "{{ private_key_path }}"
-    # delegate_to: localhost
-    run_once: true
-    register: key_content
-
-  - name: Display private key content
-    debug:
-      var: key_content.stdout_lines
-    # delegate_to: localhost
-    run_once: true
-
-  - name: Test SSH connection to source server
-    shell: |
-      ssh -i "{{ private_key_path }}" \
-          -o StrictHostKeyChecking=no \
-          -o UserKnownHostsFile=/dev/null \
-          -o ConnectTimeout=10 \
-          "{{ source_user }}@{{ source_host_ip }}" \
-          "echo 'SSH connection successful'"
-    # delegate_to: localhost
-    run_once: true
-    register: ssh_test
-    ignore_errors: yes
 
   - name: Display SSH test result
     debug:
@@ -85,25 +41,24 @@
     # delegate_to: localhost
     run_once: true
 
-  - name: Verify key permissions and ownership
-    shell: |
-      ls -la "{{ private_key_path }}"
-      file "{{ private_key_path }}"
-    # delegate_to: localhost
-    run_once: true
-    register: key_info
+  # - name: Verify key permissions and ownership
+  #   shell: |
+  #     ls -la "{{ private_key_path }}"
+  #     file "{{ private_key_path }}"
+  #   # delegate_to: localhost
+  #   run_once: true
+  #   register: key_info
 
-  - name: Display key info
-    debug:
-      var: key_info.stdout_lines
-    # delegate_to: localhost
-    run_once: true
+  # - name: Display key info
+  #   debug:
+  #     var: key_info.stdout_lines
+  #   # delegate_to: localhost
+  #   run_once: true
 
   - name: Download WordPress files from source server
     synchronize:
       src: "{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
       dest: "/usr/share/nginx/html/"
-      delete: yes
       rsync_opts:
       - "--exclude=.git"
       - "--exclude=*.log"
@@ -114,23 +69,24 @@
       ansible_user: "{{ source_user }}"
       ansible_ssh_private_key_file: "{{ private_key_path }}"
       ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    become: true
 
-  - name: Download WordPress files from source server
-    shell: |
-      rsync -avz --delete \
-        --exclude='.git' \
-        --exclude='*.log' \
-        -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-        "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
-        "/usr/share/nginx/html/"
-    register: rsync_result
+  # - name: Download WordPress files from source server
+  #   shell: |
+  #     rsync -avz --delete \
+  #       --exclude='.git' \
+  #       --exclude='*.log' \
+  #       -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+  #       "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
+  #       "/usr/share/nginx/html/"
+  #   register: rsync_result
 
-  - name: Display rsync result
-    debug:
-      msg:
-        - "Rsync return code: {{ rsync_result.rc }}"
-        - "Rsync stdout: {{ rsync_result.stdout }}"
-        - "Rsync stderr: {{ rsync_result.stderr }}"
+  # - name: Display rsync result
+  #   debug:
+  #     msg:
+  #       - "Rsync return code: {{ rsync_result.rc }}"
+  #       - "Rsync stdout: {{ rsync_result.stdout }}"
+  #       - "Rsync stderr: {{ rsync_result.stderr }}"
 
   - name: Fix ownership after download
     file:
