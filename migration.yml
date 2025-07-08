@@ -22,6 +22,9 @@
       # Read the key and format it properly
       key_content=$(cat {{ private_key_path }})
 
+      # Debug: show what we read
+      echo "Original key content length: ${#key_content}"
+
       # Remove any existing newlines and spaces, then format properly
       echo "$key_content" | tr -d '\n\r' | \
       sed 's/-----BEGIN RSA PRIVATE KEY-----/-----BEGIN RSA PRIVATE KEY-----\n/' | \
@@ -29,7 +32,61 @@
       sed 's/\(.\{64\}\)/\1\n/g' | \
       sed '/^$/d' > {{ private_key_path }}.tmp
 
-      cp {{ private_key_path }}.tmp {{ private_key_path }}
+      # Debug: show what we created
+      echo "Formatted key content:"
+      cat {{ private_key_path }}.tmp
+      echo "Formatted key file size: $(wc -c < {{ private_key_path }}.tmp)"
+
+      # Move the file
+      mv {{ private_key_path }}.tmp {{ private_key_path }}
+      chmod 600 {{ private_key_path }}
+
+      # Verify the final file
+      echo "Final file size: $(wc -c < {{ private_key_path }})"
+    delegate_to: localhost
+    run_once: true
+    register: format_debug
+
+  - name: Show formatting debug output
+    debug:
+      var: format_debug.stdout_lines
+    delegate_to: localhost
+    run_once: true
+
+  - name: Alternative - Write properly formatted key directly
+    copy:
+      content: |
+        {{ source_private_key_raw | replace('\\n', '\n') | regex_replace('(-----BEGIN RSA PRIVATE KEY-----)', '\\1\n') | regex_replace('(-----END RSA PRIVATE KEY-----)', '\n\\1') | regex_replace('(.{64})', '\\1\n') | regex_replace('\n+', '\n') }}
+      dest: "{{ private_key_path }}.alt"
+      mode: '0600'
+    delegate_to: localhost
+    run_once: true
+
+  - name: Compare file sizes
+    shell: |
+      echo "Original formatted file size: $(wc -c < {{ private_key_path }} 2>/dev/null || echo 'File not found')"
+      echo "Alternative file size: $(wc -c < {{ private_key_path }}.alt)"
+      echo "Alternative file content:"
+      cat {{ private_key_path }}.alt
+    delegate_to: localhost
+    run_once: true
+    register: file_comparison
+
+  - name: Show file comparison
+    debug:
+      var: file_comparison.stdout_lines
+    delegate_to: localhost
+    run_once: true
+
+  - name: Use alternative key file if original is empty
+    shell: |
+      if [ ! -s {{ private_key_path }} ]; then
+        echo "Original file is empty, using alternative"
+        mv {{ private_key_path }}.alt {{ private_key_path }}
+      else
+        echo "Original file is not empty, keeping it"
+        rm -f {{ private_key_path }}.alt
+      fi
       chmod 600 {{ private_key_path }}
     delegate_to: localhost
     run_once: true
