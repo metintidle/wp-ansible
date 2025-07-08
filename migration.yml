@@ -53,7 +53,7 @@
       - "--exclude=.git"
       - "--exclude=*.log"
       mode: pull
-    # delegate_to: localhost
+      rsync_path: "sudo rsync"
     vars:
       ansible_host: "{{ source_host_ip }}"
       ansible_user: "{{ source_user }}"
