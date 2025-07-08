@@ -14,7 +14,7 @@
       content: "{{ source_private_key_raw | replace('\\n', '\n')}}"
       dest: "{{ private_key_path }}"
       mode: '0600'
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Copy private key formatting script
@@ -22,19 +22,19 @@
       src: bash/privatekey.sh
       dest: /tmp/privatekey.sh
       mode: '0755'
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Fix private key format with proper newlines
     shell: /tmp/privatekey.sh "{{ private_key_path }}"
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
     register: format_debug
 
   - name: Show formatting debug output
     debug:
       var: format_debug.stdout_lines
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Alternative - Write properly formatted key directly
@@ -43,7 +43,7 @@
         {{ source_private_key_raw }}
       dest: "/home/ec2-user/private-key.alt"
       mode: '0600'
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Compare file sizes
@@ -52,14 +52,14 @@
       echo "Alternative file size: $(wc -c < '{{ private_key_path }}.alt')"
       echo "Alternative file content:"
       cat "{{ private_key_path }}.alt"
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
     register: file_comparison
 
   - name: Show file comparison
     debug:
       var: file_comparison.stdout_lines
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   # - name: Use alternative key file if original is empty
@@ -79,26 +79,26 @@
     shell: |
       head -1 "{{ private_key_path }}"
       tail -1 "{{ private_key_path }}"
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
     register: key_check
 
   - name: Display key format check
     debug:
       var: key_check.stdout_lines
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Print private key file content
     shell: cat "{{ private_key_path }}"
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
     register: key_content
 
   - name: Display private key content
     debug:
       var: key_content.stdout_lines
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Test SSH connection to source server
@@ -109,7 +109,7 @@
           -o ConnectTimeout=10 \
           "{{ source_user }}@{{ source_host_ip }}" \
           "echo 'SSH connection successful'"
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
     register: ssh_test
     ignore_errors: yes
@@ -120,21 +120,21 @@
       - "SSH test return code: {{ ssh_test.rc }}"
       - "SSH test stdout: {{ ssh_test.stdout }}"
       - "SSH test stderr: {{ ssh_test.stderr }}"
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Verify key permissions and ownership
     shell: |
       ls -la "{{ private_key_path }}"
       file "{{ private_key_path }}"
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
     register: key_info
 
   - name: Display key info
     debug:
       var: key_info.stdout_lines
-    delegate_to: localhost
+    # delegate_to: localhost
     run_once: true
 
   - name: Download WordPress files from source server
@@ -146,7 +146,7 @@
       - "--exclude=.git"
       - "--exclude=*.log"
       mode: pull
-    delegate_to: localhost
+    # delegate_to: localhost
     vars:
       ansible_host: "{{ source_host_ip }}"
       ansible_user: "{{ source_user }}"
