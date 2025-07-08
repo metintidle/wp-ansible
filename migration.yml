@@ -17,6 +17,23 @@
     delegate_to: localhost
     run_once: true
 
+  - name: Fix private key format with proper newlines
+    shell: |
+      # Read the key and format it properly
+      key_content=$(cat {{ private_key_path }})
+
+      # Remove any existing newlines and spaces, then format properly
+      echo "$key_content" | tr -d '\n\r' | \
+      sed 's/-----BEGIN RSA PRIVATE KEY-----/-----BEGIN RSA PRIVATE KEY-----\n/' | \
+      sed 's/-----END RSA PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----/' | \
+      sed 's/\(.\{64\}\)/\1\n/g' | \
+      sed '/^$/d' > {{ private_key_path }}.tmp
+
+      mv {{ private_key_path }}.tmp {{ private_key_path }}
+      chmod 600 {{ private_key_path }}
+    delegate_to: localhost
+    run_once: true
+
   - name: Verify private key format
     shell: |
       head -1 {{ private_key_path }}
