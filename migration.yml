@@ -45,38 +45,41 @@
   #   # delegate_to: localhost
   #   run_once: true
 
+  # - name: Download WordPress files from source server
+  #   synchronize:
+  #     src: "{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
+  #     dest: "/usr/share/nginx/html/"
+  #     rsync_opts:
+  #     - "--exclude=.git"
+  #     - "--exclude=*.log"
+  #     mode: pull
+  #     rsync_path: "sudo rsync"
+  #   vars:
+  #     ansible_host: "{{ source_host_ip }}"
+  #     ansible_user: "{{ source_user }}"
+  #     ansible_ssh_private_key_file: "{{ private_key_path }}"
+  #     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+  #   become: true
+
   - name: Download WordPress files from source server
-    synchronize:
-      src: "{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
-      dest: "/usr/share/nginx/html/"
-      rsync_opts:
-      - "--exclude=.git"
-      - "--exclude=*.log"
-      mode: pull
-      rsync_path: "sudo rsync"
-    vars:
-      ansible_host: "{{ source_host_ip }}"
-      ansible_user: "{{ source_user }}"
-      ansible_ssh_private_key_file: "{{ private_key_path }}"
-      ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    shell: |
+      rsync -avz --delete \
+        --exclude='.git' \
+        --exclude='*.log' \
+        -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+        "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
+        "/usr/share/nginx/html/"
+    register: rsync_result
     become: true
 
-  # - name: Download WordPress files from source server
-  #   shell: |
-  #     rsync -avz --delete \
-  #       --exclude='.git' \
-  #       --exclude='*.log' \
-  #       -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-  #       "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
-  #       "/usr/share/nginx/html/"
-  #   register: rsync_result
+  - name: Display rsync result
+    debug:
+      msg:
+        - "Rsync return code: {{ rsync_result.rc }}"
+        - "Rsync stdout: {{ rsync_result.stdout }}"
+        - "Rsync stderr: {{ rsync_result.stderr }}"
 
-  # - name: Display rsync result
-  #   debug:
-  #     msg:
-  #       - "Rsync return code: {{ rsync_result.rc }}"
-  #       - "Rsync stdout: {{ rsync_result.stdout }}"
-  #       - "Rsync stderr: {{ rsync_result.stderr }}"
+
 
   - name: Fix ownership after download
     file:
