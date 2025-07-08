@@ -62,18 +62,18 @@
     delegate_to: localhost
     run_once: true
 
-  - name: Use alternative key file if original is empty
-    shell: |
-      if [ ! -s "{{ private_key_path }}" ]; then
-        echo "Original file is empty, using alternative"
-        mv "{{ private_key_path }}.alt" "{{ private_key_path }}"
-      else
-        echo "Original file is not empty, keeping it"
-        # rm -f "{{ private_key_path }}.alt"
-      fi
-      chmod 600 "{{ private_key_path }}"
-    delegate_to: localhost
-    run_once: true
+  # - name: Use alternative key file if original is empty
+  #   shell: |
+  #     if [ ! -s "{{ private_key_path }}" ]; then
+  #       echo "Original file is empty, using alternative"
+  #       cp "{{ private_key_path }}.alt" "{{ private_key_path }}"
+  #     else
+  #       echo "Original file is not empty, keeping it"
+  #       # rm -f "{{ private_key_path }}.alt"
+  #     fi
+  #     chmod 600 "{{ private_key_path }}"
+  #   delegate_to: localhost
+  #   run_once: true
 
   - name: Verify private key format
     shell: |
