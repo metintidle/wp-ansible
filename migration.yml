@@ -1,0 +1,52 @@
+- name: Download WordPress files from remote server
+  hosts: all  # This runs on target servers
+  gather_facts: false
+
+  vars:
+    source_private_key_raw: "{{ lookup('env', 'SOURCE_PRIVATE_KEY') }}"
+    source_host_ip: "{{ lookup('env', 'SOURCE_IP') }}"
+    source_user: "{{ lookup('env', 'SOURCE_USER') | default('ec2-user') }}"
+    private_key_path: "/tmp/source_key.pem"
+
+  tasks:
+  - name: Write SSH private key for source server
+    copy:
+      content: "{{ source_private_key_raw }}"
+      dest: "{{ private_key_path }}"
+      mode: '0600'
+
+  - name: Download WordPress files from source server
+    synchronize:
+      src: "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
+      dest: "/usr/share/nginx/html/"
+      delete: yes
+      rsync_opts:
+      - "--exclude=.git"
+      - "--exclude=*.log"
+      # - "--exclude=wp-config.php"
+      - "-e ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no"
+      mode: pull
+    delegate_to: localhost
+
+  # - name: Alternative - Download using rsync command directly
+  #   command: >
+  #     rsync -avz --delete
+  #     --exclude='.git'
+  #     --exclude='*.log'
+  #     --exclude='wp-config.php'
+  #     -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no"
+  #     {{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}
+  #     /usr/share/nginx/html/
+  #   when: use_direct_rsync is defined and use_direct_rsync
+
+  - name: Fix ownership after download
+    file:
+      path: /usr/share/nginx/html/
+      owner: ec2-user
+      group: nginx
+      recurse: yes
+
+  - name: Remove temporary private key
+    file:
+      path: "{{ private_key_path }}"
+      state: absent
