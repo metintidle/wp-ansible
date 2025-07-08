@@ -17,16 +17,19 @@
 
   - name: Download WordPress files from source server
     synchronize:
-      src: "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
+      src: "{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
       dest: "/usr/share/nginx/html/"
       delete: yes
       rsync_opts:
-      - "--exclude=.git"
-      - "--exclude=*.log"
-      # - "--exclude=wp-config.php"
-      - "-e ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no"
+        - "--exclude=.git"
+        - "--exclude=*.log"
       mode: pull
     delegate_to: localhost
+    vars:
+      ansible_host: "{{ source_host_ip }}"
+      ansible_user: "{{ source_user }}"
+      ansible_ssh_private_key_file: "{{ private_key_path }}"
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
   # - name: Alternative - Download using rsync command directly
   #   command: >
@@ -38,6 +41,16 @@
   #     {{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}
   #     /usr/share/nginx/html/
   #   when: use_direct_rsync is defined and use_direct_rsync
+
+  - name: Alternative - Download using rsync command directly
+    shell: |
+      rsync -avz --delete \
+        --exclude='.git' \
+        --exclude='*.log' \
+        -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+        {{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }} \
+        /usr/share/nginx/html/
+    when: use_direct_rsync is defined and use_direct_rsync | default(false)
 
   - name: Fix ownership after download
     file:
