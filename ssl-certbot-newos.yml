@@ -38,22 +38,6 @@
       name: nginx
       state: restarted
 
-  - name: Check if EPEL repository is installed
-    stat:
-      path: /etc/yum.repos.d/epel.repo
-    register: epel_repo
-
-  - name: Install EPEL repository for Amazon Linux 2023
-    dnf:
-      name: epel-release
-      state: present
-    when: not epel_repo.stat.exists
-
-  - name: Check if Certbot is installed
-    stat:
-      path: /usr/bin/certbot
-    register: certbot_installed
-
   - name: Install Certbot using dnf
     dnf:
       name:
