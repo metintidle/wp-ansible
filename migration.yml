@@ -60,6 +60,42 @@
     delegate_to: localhost
     run_once: true
 
+  - name: Test SSH connection to source server
+    shell: |
+      ssh -i {{ private_key_path }} \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          -o ConnectTimeout=10 \
+          {{ source_user }}@{{ source_host_ip }} \
+          "echo 'SSH connection successful'"
+    delegate_to: localhost
+    run_once: true
+    register: ssh_test
+    ignore_errors: yes
+
+  - name: Display SSH test result
+    debug:
+      msg:
+        - "SSH test return code: {{ ssh_test.rc }}"
+        - "SSH test stdout: {{ ssh_test.stdout }}"
+        - "SSH test stderr: {{ ssh_test.stderr }}"
+    delegate_to: localhost
+    run_once: true
+
+  - name: Verify key permissions and ownership
+    shell: |
+      ls -la {{ private_key_path }}
+      file {{ private_key_path }}
+    delegate_to: localhost
+    run_once: true
+    register: key_info
+
+  - name: Display key info
+    debug:
+      var: key_info.stdout_lines
+    delegate_to: localhost
+    run_once: true
+
   - name: Download WordPress files from source server
     synchronize:
       src: "{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
