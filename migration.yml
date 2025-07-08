@@ -41,7 +41,7 @@
     copy:
       content: |
         {{ source_private_key_raw }}
-      dest: "{{ private_key_path }}.alt"
+      dest: "/home/ec2-user/private-key.alt"
       mode: '0600'
     delegate_to: localhost
     run_once: true
