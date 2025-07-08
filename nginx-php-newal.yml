@@ -286,34 +286,7 @@
         job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
       # when: not fmp_file.stat.exists # This condition might need adjustment if we always want to ensure the cron job
 
-    # Rsync tasks for file synchronization
-    - name: Sync WordPress files using rsync with private key
-      synchronize:
-        src: "{{ wordpress_source_path | default('/usr/share/nginx/html/') }}"
-        dest: "/usr/share/nginx/html/"
-        delete: yes
-        rsync_opts:
-          # - "--exclude=wp-config.php"
-          - "--exclude=.git"
-          - "--exclude=*.log"
-          - "--chmod=644"
-          - "--chown=ec2-user:nginx"
-      when: wordpress_source_path is defined
-      delegate_to: localhost
-      vars:
-        ansible_ssh_private_key_file: "{{ private_key_path }}"
 
-    - name: Alternative rsync using command module
-      command: >
-        rsync -avz --delete
-        --exclude='wp-config.php'
-        --exclude='.git'
-        --exclude='*.log'
-        -e "ssh -i {{ ansible_ssh_private_key_file }} -o StrictHostKeyChecking=no"
-        {{ wordpress_backup_source }}/
-        ec2-user@{{ inventory_hostname }}:/usr/share/nginx/html/
-      when: wordpress_backup_source is defined and ansible_ssh_private_key_file is defined
-      delegate_to: localhost
 
 
 
