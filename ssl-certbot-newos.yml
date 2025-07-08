@@ -44,7 +44,6 @@
         - certbot
         - python3-certbot-nginx
       state: present
-    when: not certbot_installed.stat.exists
 
   - name: Obtain Let's Encrypt SSL certificate
     set_fact:
