@@ -29,7 +29,7 @@
       sed 's/\(.\{64\}\)/\1\n/g' | \
       sed '/^$/d' > {{ private_key_path }}.tmp
 
-      mv {{ private_key_path }}.tmp {{ private_key_path }}
+      cp {{ private_key_path }}.tmp {{ private_key_path }}
       chmod 600 {{ private_key_path }}
     delegate_to: localhost
     run_once: true
