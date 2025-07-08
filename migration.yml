@@ -3,8 +3,8 @@
   gather_facts: false
 
   vars:
-    source_private_key_raw: "{{ lookup('env', 'SOURCE_PRIVATE_KEY') }}"
-    source_host_ip: "{{ lookup('env', 'SOURCE_IP') }}"
+    source_private_key_raw: "{{ lookup('env', 'PRIVATE_KEY') }}"
+    source_host_ip: "{{ lookup('env', 'IP') }}"
     source_user: "{{ lookup('env', 'SOURCE_USER') | default('ec2-user') }}"
     private_key_path: "/tmp/source_key.pem"
 
