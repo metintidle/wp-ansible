@@ -20,7 +20,7 @@
   - name: Fix private key format with proper newlines
     shell: |
       # Read the key and format it properly
-      key_content=$(cat {{ private_key_path }})
+      key_content=$(cat "{{ private_key_path }}")
 
       # Debug: show what we read
       echo "Original key content length: ${#key_content}"
@@ -30,19 +30,19 @@
       sed 's/-----BEGIN RSA PRIVATE KEY-----/-----BEGIN RSA PRIVATE KEY-----\n/' | \
       sed 's/-----END RSA PRIVATE KEY-----/\n-----END RSA PRIVATE KEY-----/' | \
       sed 's/\(.\{64\}\)/\1\n/g' | \
-      sed '/^$/d' > {{ private_key_path }}.tmp
+      sed '/^$/d' > "{{ private_key_path }}.tmp"
 
       # Debug: show what we created
       echo "Formatted key content:"
-      cat {{ private_key_path }}.tmp
-      echo "Formatted key file size: $(wc -c < {{ private_key_path }}.tmp)"
+      cat "{{ private_key_path }}.tmp"
+      echo "Formatted key file size: $(wc -c < '{{ private_key_path }}.tmp')"
 
       # Move the file
-      mv {{ private_key_path }}.tmp {{ private_key_path }}
-      chmod 600 {{ private_key_path }}
+      mv "{{ private_key_path }}.tmp" "{{ private_key_path }}"
+      chmod 600 "{{ private_key_path }}"
 
       # Verify the final file
-      echo "Final file size: $(wc -c < {{ private_key_path }})"
+      echo "Final file size: $(wc -c < '{{ private_key_path }}')"
     delegate_to: localhost
     run_once: true
     register: format_debug
@@ -64,10 +64,10 @@
 
   - name: Compare file sizes
     shell: |
-      echo "Original formatted file size: $(wc -c < {{ private_key_path }} 2>/dev/null || echo 'File not found')"
-      echo "Alternative file size: $(wc -c < {{ private_key_path }}.alt)"
+      echo "Original formatted file size: $(wc -c < '{{ private_key_path }}' 2>/dev/null || echo 'File not found')"
+      echo "Alternative file size: $(wc -c < '{{ private_key_path }}.alt')"
       echo "Alternative file content:"
-      cat {{ private_key_path }}.alt
+      cat "{{ private_key_path }}.alt"
     delegate_to: localhost
     run_once: true
     register: file_comparison
@@ -80,21 +80,21 @@
 
   - name: Use alternative key file if original is empty
     shell: |
-      if [ ! -s {{ private_key_path }} ]; then
+      if [ ! -s "{{ private_key_path }}" ]; then
         echo "Original file is empty, using alternative"
-        mv {{ private_key_path }}.alt {{ private_key_path }}
+        mv "{{ private_key_path }}.alt" "{{ private_key_path }}"
       else
         echo "Original file is not empty, keeping it"
-        rm -f {{ private_key_path }}.alt
+        rm -f "{{ private_key_path }}.alt"
       fi
-      chmod 600 {{ private_key_path }}
+      chmod 600 "{{ private_key_path }}"
     delegate_to: localhost
     run_once: true
 
   - name: Verify private key format
     shell: |
-      head -1 {{ private_key_path }}
-      tail -1 {{ private_key_path }}
+      head -1 "{{ private_key_path }}"
+      tail -1 "{{ private_key_path }}"
     delegate_to: localhost
     run_once: true
     register: key_check
@@ -106,7 +106,7 @@
     run_once: true
 
   - name: Print private key file content
-    shell: cat {{ private_key_path }}
+    shell: cat "{{ private_key_path }}"
     delegate_to: localhost
     run_once: true
     register: key_content
@@ -119,11 +119,11 @@
 
   - name: Test SSH connection to source server
     shell: |
-      ssh -i {{ private_key_path }} \
+      ssh -i "{{ private_key_path }}" \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
           -o ConnectTimeout=10 \
-          {{ source_user }}@{{ source_host_ip }} \
+          "{{ source_user }}@{{ source_host_ip }}" \
           "echo 'SSH connection successful'"
     delegate_to: localhost
     run_once: true
@@ -141,8 +141,8 @@
 
   - name: Verify key permissions and ownership
     shell: |
-      ls -la {{ private_key_path }}
-      file {{ private_key_path }}
+      ls -la "{{ private_key_path }}"
+      file "{{ private_key_path }}"
     delegate_to: localhost
     run_once: true
     register: key_info
