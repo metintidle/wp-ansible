@@ -31,16 +31,6 @@
     run_once: true
     register: format_debug
 
-
-  - name: Display SSH test result
-    debug:
-      msg:
-      - "SSH test return code: {{ ssh_test.rc }}"
-      - "SSH test stdout: {{ ssh_test.stdout }}"
-      - "SSH test stderr: {{ ssh_test.stderr }}"
-    # delegate_to: localhost
-    run_once: true
-
   # - name: Verify key permissions and ownership
   #   shell: |
   #     ls -la "{{ private_key_path }}"
