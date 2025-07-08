@@ -11,9 +11,35 @@
   tasks:
   - name: Write SSH private key for source server on localhost
     copy:
-      content: "{{ source_private_key_raw }}"
+      content: "{{ source_private_key_raw | replace('\\n', '\n') }}"
       dest: "{{ private_key_path }}"
       mode: '0600'
+    delegate_to: localhost
+    run_once: true
+
+  - name: Verify private key format
+    shell: |
+      head -1 {{ private_key_path }}
+      tail -1 {{ private_key_path }}
+    delegate_to: localhost
+    run_once: true
+    register: key_check
+
+  - name: Display key format check
+    debug:
+      var: key_check.stdout_lines
+    delegate_to: localhost
+    run_once: true
+
+  - name: Print private key file content
+    shell: cat {{ private_key_path }}
+    delegate_to: localhost
+    run_once: true
+    register: key_content
+
+  - name: Display private key content
+    debug:
+      var: key_content.stdout_lines
     delegate_to: localhost
     run_once: true
 
