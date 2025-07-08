@@ -37,44 +37,6 @@
     # delegate_to: localhost
     run_once: true
 
-  - name: Alternative - Write properly formatted key directly
-    copy:
-      content: |
-        {{ source_private_key_raw }}
-      dest: "/home/ec2-user/private-key.alt"
-      mode: '0600'
-    # delegate_to: localhost
-    run_once: true
-
-  - name: Compare file sizes
-    shell: |
-      echo "Original formatted file size: $(wc -c < '{{ private_key_path }}' 2>/dev/null || echo 'File not found')"
-      echo "Alternative file size: $(wc -c < '{{ private_key_path }}.alt')"
-      echo "Alternative file content:"
-      cat "{{ private_key_path }}.alt"
-    # delegate_to: localhost
-    run_once: true
-    register: file_comparison
-
-  - name: Show file comparison
-    debug:
-      var: file_comparison.stdout_lines
-    # delegate_to: localhost
-    run_once: true
-
-  # - name: Use alternative key file if original is empty
-  #   shell: |
-  #     if [ ! -s "{{ private_key_path }}" ]; then
-  #       echo "Original file is empty, using alternative"
-  #       cp "{{ private_key_path }}.alt" "{{ private_key_path }}"
-  #     else
-  #       echo "Original file is not empty, keeping it"
-  #       # rm -f "{{ private_key_path }}.alt"
-  #     fi
-  #     chmod 600 "{{ private_key_path }}"
-  #   delegate_to: localhost
-  #   run_once: true
-
   - name: Verify private key format
     shell: |
       head -1 "{{ private_key_path }}"
@@ -153,6 +115,23 @@
       ansible_ssh_private_key_file: "{{ private_key_path }}"
       ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
+  - name: Download WordPress files from source server
+    shell: |
+      rsync -avz --delete \
+        --exclude='.git' \
+        --exclude='*.log' \
+        -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+        "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
+        "/usr/share/nginx/html/"
+    register: rsync_result
+
+  - name: Display rsync result
+    debug:
+      msg:
+        - "Rsync return code: {{ rsync_result.rc }}"
+        - "Rsync stdout: {{ rsync_result.stdout }}"
+        - "Rsync stderr: {{ rsync_result.stderr }}"
+
   - name: Fix ownership after download
     file:
       path: /usr/share/nginx/html/
@@ -160,9 +139,8 @@
       group: nginx
       recurse: yes
 
-  - name: Remove temporary private key from localhost
+  - name: Remove temporary private key from target server
     file:
       path: "{{ private_key_path }}"
       state: absent
-    delegate_to: localhost
     run_once: true
