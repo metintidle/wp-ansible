@@ -42,10 +42,10 @@
         --exclude='wp-content/wpvivid_staging' \
         --exclude='wp-content/upgrade-temp-backup' \
         --exclude='wp-admin' \
-        --exclude='wp-includes' \
+        # --exclude='wp-includes' \
         --exclude='wp-content/cache' \
         --exclude='wp-content/backups' \
-        --exclude='wp-content/upgrade' \
+        # --exclude='wp-content/upgrade' \
         --exclude='wp-content/plugins/akismet' \
         --exclude='wp-content/plugins/hello.php' \
         --exclude='.htaccess' \
