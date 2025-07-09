@@ -34,7 +34,7 @@
 
   - name: Download WordPress files from source server
     shell: |
-      rsync -avz --info=progress2 \
+      rsync -avz --progress \
         --exclude='.git' \
         --exclude='*.log' \
         --exclude='wp-content/wpvividbackups' \
