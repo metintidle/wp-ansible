@@ -214,7 +214,7 @@
     - name: Change ownership of WordPress files to ec2-user and nginx
       file:
         path: /usr/share/nginx/html/
-        owner: {{web_user}}
+        owner: "{{ web_user }}"
         group: nginx
         recurse: yes
 
