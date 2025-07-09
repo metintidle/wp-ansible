@@ -143,7 +143,7 @@
         state: restarted
       with_items:
         - nginx
-        - php-fpm:wq
+        - php-fpm
       tags: restart
 
     - name: Test Nginx configuration
