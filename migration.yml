@@ -41,7 +41,6 @@
         --exclude='wp-content/wpvivid_uploads' \
         --exclude='wp-content/wpvivid_staging' \
         --exclude='wp-content/upgrade-temp-backup' \
-
         --exclude='wp-includes' \
         --exclude='wp-content/cache' \
         --exclude='wp-content/backups' \
