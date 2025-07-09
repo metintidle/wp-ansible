@@ -2,8 +2,19 @@
 - name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
   hosts: all
   become: yes
+  
+  vars:
+    web_user: "{{ ansible_user | default('ec2-user') }}"
 
   tasks:
+    - name: Get current user from remote host
+      command: whoami
+      register: current_user
+
+    - name: Set web_user as fact
+      set_fact:
+      web_user: "{{ current_user.stdout }}"
+
     - name: Update the package index
       dnf:
         name: "*"
@@ -131,7 +142,7 @@
         state: restarted
       with_items:
         - nginx
-        - php-fpm
+        - php-fpm:wq
       tags: restart
 
     - name: Test Nginx configuration
@@ -145,9 +156,9 @@
         state: restarted
       when: nginx_test_result.rc == 0
 
-    - name: Add ec2-user to nginx group
+    - name: Add {{ web_user }} to nginx group
       user:
-        name: ec2-user
+        name: "{{ web_user }}"
         groups: nginx
         append: yes
 
@@ -180,7 +191,7 @@
     - name: Create symbolic link from web server’s document root to home directory
       file:
         src: /usr/share/nginx/html
-        dest: /home/ec2-user/html
+        dest: /home/{{ web_user }}/html
         state: link
 
     - name: Change ownership of WordPress files to ec2-user and nginx
@@ -189,7 +200,7 @@
         regexp: "{{ item.regexp }}"
         line: "{{ item.line }}"
       with_items:
-        - { regexp: "^user =.*", line: "user = ec2-user" }
+        - { regexp: "^user =.*", line: "user = {{ web_user }}" }
         - { regexp: "^group =.*", line: "group = nginx" }
 
     - name: Restart PHP-FPM and Nginx
@@ -203,7 +214,7 @@
     - name: Change ownership of WordPress files to ec2-user and nginx
       file:
         path: /usr/share/nginx/html/
-        owner: ec2-user
+        owner: {{ web_user }}
         group: nginx
         recurse: yes
 
@@ -250,24 +261,26 @@
         state: restarted
 
     ## Path: fix.yml
-    - name: fpm
+    - name: Check if fpm.sh exists in /usr/local/bin
       stat:
-        path: /home/ec2-user/fpm.sh
+        path: /usr/local/bin/fpm.sh
       register: fpm_file
       tags: fpm
 
-    - name: Copy file to remote server
+    - name: Copy fpm.sh to /usr/local/bin
       copy:
         src: bash/fpm.sh
-        dest: /home/ec2-user/fpm.sh
+        dest: /usr/local/bin/fpm.sh
         mode: 0755
-        force: yes # Ensure the file is always replaced
-      # when: not fpm_file.stat.exists # This condition is removed to always copy
+        owner: root
+        group: root
+        force: yes
 
-    - name: Install bc for fmp.sh script
+    - name: Install bc for fpm.sh script
       dnf:
         name: bc
         state: present
+
     - name: Install cronie
       yum:
         name: cronie
@@ -283,7 +296,7 @@
       cron:
         name: "Run fpm.sh every 5 minutes"
         minute: "*/5"
-        job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
+        job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
       # when: not fmp_file.stat.exists # This condition might need adjustment if we always want to ensure the cron job
 
 
