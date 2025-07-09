@@ -34,7 +34,7 @@
 
   - name: Download WordPress files from source server
     shell: |
-      rsync -avz --progress \
+      rsync -az --progress \
         --exclude='.git' \
         --exclude='*.log' \
         --exclude='wp-content/wpvividbackups' \
@@ -52,6 +52,7 @@
         --exclude='wp-content/themes/twentytwentyone' \
         --exclude='.htaccess*' \
         --exclude='wp-content/themes/twentytwentythree' \
+        --exclude='wp-content/*.zip' \
         -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
         "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
         "/usr/share/nginx/html/"
