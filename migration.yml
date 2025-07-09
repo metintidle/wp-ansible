@@ -37,6 +37,21 @@
       rsync -avz --info=progress2 \
         --exclude='.git' \
         --exclude='*.log' \
+        --exclude='wp-content/wpvividbackups' \
+        --exclude='wp-content/wpvivid_uploads' \
+        --exclude='wp-content/wpvivid_staging' \
+        --exclude='wp-content/upgrade-temp-backup' \
+        --exclude='wp-admin' \
+        --exclude='wp-includes' \
+        --exclude='wp-content/cache' \
+        --exclude='wp-content/backups' \
+        --exclude='wp-content/upgrade' \
+        --exclude='wp-content/plugins/akismet' \
+        --exclude='wp-content/plugins/hello.php' \
+        --exclude='.htaccess' \
+        --exclude='wp-content/themes/twentytwentyone' \
+        --exclude='.htaccess*' \
+        --exclude='wp-content/themes/twentytwentythree' \
         -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
         "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
         "/usr/share/nginx/html/"
