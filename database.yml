@@ -2,7 +2,7 @@
 - name: Setup Database on Amazon Linux 2
   hosts: all
   become: yes
-
+## sudo cat /etc/mysql/mariadb.conf.d/99-logging.cnf
   tasks:
     - name: Install MariaDB using amazon-linux-extras
       command: amazon-linux-extras install -y mariadb10.5
