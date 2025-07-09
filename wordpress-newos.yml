@@ -11,7 +11,7 @@
 
     - name: Create database for WordPress
       command: >
-        mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} "
+        mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }}
       #-e "CREATE DATABASE IF NOT EXISTS {{ db_name }};
     - name: remove mariadb
       command: "dnf remove -y mariadb105"
