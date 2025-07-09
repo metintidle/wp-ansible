@@ -3,3 +3,4 @@ main.sh
 /temp
 settings.json
 /logs
+.DS_Store
