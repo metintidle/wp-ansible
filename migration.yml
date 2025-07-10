@@ -45,33 +45,33 @@
         - "Private key path: {{ private_key_path }}"
     run_once: true
 
-  - name: Download WordPress files from source server
-    shell: |
-      rsync -az --progress \
-        --exclude='.git' \
-        --exclude='*.log' \
-        --exclude='wp-content/wpvividbackups' \
-        --exclude='wp-content/wpvivid_uploads' \
-        --exclude='wp-content/wpvivid_staging' \
-        --exclude='wp-content/upgrade-temp-backup' \
-        --exclude='wp-content/backups' \
-        --exclude='wp-content/plugins/akismet' \
-        --exclude='wp-content/plugins/hello.php' \
-        --exclude='.htaccess' \
-        --exclude='wp-content/themes/twentytwentyone' \
-        --exclude='.htaccess*' \
-        --exclude='wp-includes' \
-        --exclude='wp-admin' \
-        --exclude='wp-content/themes/twentytwentythree' \
-        --exclude='wp-content/themes/twentytwentytwo' \
-        --exclude='wp-content/themes/twentytwentyfive' \
-        --exclude='wp-content/themes/twentytwentyfour' \
-        --exclude='wp-content/*.zip' \
-        -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-        "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
-        "/usr/share/nginx/html/"
-    register: rsync_result
-    become: true
+  # - name: Download WordPress files from source server
+  #   shell: |
+  #     rsync -az --progress \
+  #       --exclude='.git' \
+  #       --exclude='*.log' \
+  #       --exclude='wp-content/wpvividbackups' \
+  #       --exclude='wp-content/wpvivid_uploads' \
+  #       --exclude='wp-content/wpvivid_staging' \
+  #       --exclude='wp-content/upgrade-temp-backup' \
+  #       --exclude='wp-content/backups' \
+  #       --exclude='wp-content/plugins/akismet' \
+  #       --exclude='wp-content/plugins/hello.php' \
+  #       --exclude='.htaccess' \
+  #       --exclude='wp-content/themes/twentytwentyone' \
+  #       --exclude='.htaccess*' \
+  #       --exclude='wp-includes' \
+  #       --exclude='wp-admin' \
+  #       --exclude='wp-content/themes/twentytwentythree' \
+  #       --exclude='wp-content/themes/twentytwentytwo' \
+  #       --exclude='wp-content/themes/twentytwentyfive' \
+  #       --exclude='wp-content/themes/twentytwentyfour' \
+  #       --exclude='wp-content/*.zip' \
+  #       -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+  #       "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
+  #       "/usr/share/nginx/html/"
+  #   register: rsync_result
+  #   become: true
     #--exclude='wp-includes' \
     #--exclude='wp-admin' \
         # --exclude='wp-content/upgrade' \
@@ -89,9 +89,22 @@
       ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         {{ source_user }}@{{ source_host_ip }} \
         "test -d ~/html/wp-content/uploads/elementor/css"
-    register: css_dir_check
+    register: css_dir_check_raw
     ignore_errors: yes
     run_once: true
+    tags: css_backup
+
+  - name: Set css directory check result for all hosts
+    set_fact:
+      css_dir_exists: "{{ css_dir_check_raw.rc == 0 }}"
+    when: css_dir_check_raw is defined
+    run_once: true
+    tags: css_backup
+
+  - name: Set css directory check result for other hosts
+    set_fact:
+      css_dir_exists: "{{ hostvars[groups['all'][0]]['css_dir_exists'] | default(false) }}"
+    when: css_dir_check_raw is not defined
     tags: css_backup
 
   - name: Compress elementor css files on source server
@@ -99,9 +112,22 @@
       ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         {{ source_user }}@{{ source_host_ip }} \
         "cd ~/html/wp-content/uploads/elementor/css && tar -czf /tmp/elementor-css-backup.tar.gz ."
-    register: compress_result
-    when: css_dir_check.rc == 0
+    register: compress_result_raw
+    when: css_dir_exists | bool
     run_once: true
+    tags: css_backup
+
+  - name: Set compress result for all hosts
+    set_fact:
+      compress_succeeded: "{{ compress_result_raw is succeeded }}"
+    when: compress_result_raw is defined
+    run_once: true
+    tags: css_backup
+
+  - name: Set compress result for other hosts
+    set_fact:
+      compress_succeeded: "{{ hostvars[groups['all'][0]]['compress_succeeded'] | default(false) }}"
+    when: compress_result_raw is not defined
     tags: css_backup
 
   - name: Download compressed elementor css files from source server
@@ -109,11 +135,23 @@
       scp -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         {{ source_user }}@{{ source_host_ip }}:/tmp/elementor-css-backup.tar.gz \
         /tmp/elementor-css-backup.tar.gz
-    register: download_css_result
-    when: css_dir_check.rc == 0 and compress_result is succeeded
+    register: download_css_result_raw
+    when: css_dir_exists | bool and compress_succeeded | bool
     run_once: true
     tags: css_backup
 
+  - name: Set download result for all hosts
+    set_fact:
+      download_succeeded: "{{ download_css_result_raw is succeeded }}"
+    when: download_css_result_raw is defined
+    run_once: true
+    tags: css_backup
+
+  - name: Set download result for other hosts
+    set_fact:
+      download_succeeded: "{{ hostvars[groups['all'][0]]['download_succeeded'] | default(false) }}"
+    when: download_css_result_raw is not defined
+    tags: css_backup
 
   - name: Extract elementor css files to target server
     shell: |
@@ -121,7 +159,7 @@
       cd /usr/share/nginx/html/wp-content/uploads/elementor/css
       tar -xzf /tmp/elementor-css-backup.tar.gz
     become: true
-    when: css_dir_check.rc == 0 and download_css_result is succeeded
+    when: css_dir_exists | bool and download_succeeded | bool
     tags: css_backup
 
 
