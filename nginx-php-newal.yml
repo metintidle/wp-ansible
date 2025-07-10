@@ -16,8 +16,9 @@
     #   set_fact:
     #     web_user: "{{ current_user.stdout }}"
 
-    - debug:
-      msg: "Detected current user is '{{ web_user }}'"
+    - name: Show current user
+      debug:
+        msg: "Detected current user is '{{ web_user }}'"
 
     - name: Update the package index
       dnf:
