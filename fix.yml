@@ -124,7 +124,7 @@
         line: "realpath_cache_ttl = 300"
         state: present
       become: yes
-      
+
     - name: Check if fpm.sh exists in /usr/local/bin
       stat:
         path: /usr/local/bin/fpm.sh
@@ -141,7 +141,7 @@
         force: yes
 
     - name: Install bc for fpm.sh script
-      dnf:
+      yum:
         name: bc
         state: present
 
