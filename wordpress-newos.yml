@@ -9,15 +9,11 @@
       command: "dnf install -y mariadb105"
       become: yes
 
-    - name: Test database connection
+    - name: Create WordPress database if it doesn't exist
       command: >
-        mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} -e "SELECT 1;"
-      register: db_connection_test
-
-    - name: Display database connection result
-      debug:
-        msg: "Database connection successful"
+        mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} -e "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
       when: db_connection_test.rc == 0
+
     - name: remove mariadb
       command: "dnf remove -y mariadb105"
       become: yes
