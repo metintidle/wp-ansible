@@ -101,7 +101,7 @@
         path: /home/ec2-user/html/wp-config.php
       register: wp_config_exists
 
-    - name: Create wp config
+    - name: config
       command: >
         /usr/local/bin/wp config create
         --dbname={{db_name}}
