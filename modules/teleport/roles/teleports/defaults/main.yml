@@ -1,0 +1,12 @@
+---
+# Default variables for the teleport role.
+
+# Specify a major version (e.g., "15") or a full version (e.g., "15.3.4").
+# 'latest' will install the most recent version.
+teleport_version: "15"
+
+# Define which Teleport services to enable on this node.
+# Can be a combination of: auth, proxy, ssh
+teleport_services_to_enable:
+  - ssh
+

@@ -1,0 +1,48 @@
+---
+# tasks file for teleport on AlmaLinux 8
+
+- name: Add Teleport YUM repository
+  ansible.builtin.yum_repository:
+    name: teleport
+    description: "Teleport"
+    baseurl: "https://rpm.releases.teleport.dev/{{ ansible_architecture }}/"
+    gpgcheck: true
+    gpgkey: https://rpm.releases.teleport.dev/gpg
+    enabled: true
+    state: present
+
+- name: Install Teleport package
+  ansible.builtin.dnf:
+    name: "teleport{% if teleport_version and teleport_version != 'latest' %}-{{ teleport_version }}{% endif %}"
+    state: present
+    update_cache: true
+  notify: Restart teleport
+
+- name: Create Teleport configuration file
+  ansible.builtin.template:
+    src: teleport.yaml.j2
+    dest: /etc/teleport.yaml
+    owner: root
+    group: root
+    mode: '0640'
+  notify: Restart teleport
+
+- name: Open firewall ports for Teleport services
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  loop:
+    - 3023/tcp  # SSH service
+    - 3025/tcp  # Auth service
+    - 3080/tcp  # Web UI (HTTP, default)
+    - 443/tcp   # Web UI (HTTPS, if you configure it)
+  when: "'proxy' in teleport_services_to_enable or 'auth' in teleport_services_to_enable"
+
+- name: Ensure Teleport service is started and enabled on boot
+  ansible.builtin.systemd:
+    name: teleport
+    state: started
+    enabled: true
+

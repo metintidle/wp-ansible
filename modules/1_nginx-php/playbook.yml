@@ -303,7 +303,8 @@
         minute: "*/5"
         job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
       # when: not fmp_file.stat.exists # This condition might need adjustment if we always want to ensure the cron job
-
+    - name: Install Wordfence
+      command: pip3 install wordfence
 
 
 

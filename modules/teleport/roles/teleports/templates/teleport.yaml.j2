@@ -1,0 +1,46 @@
+# This file is managed by Ansible. Do not edit manually.
+teleport:
+  nodename: {{ ansible_hostname }}
+  data_dir: /var/lib/teleport
+  # This token is used for new nodes to join the cluster.
+  auth_token: {{ teleport_auth_token }}
+  # A list of auth servers to connect to.
+  auth_servers:
+{% for server in teleport_auth_servers %}
+    - {{ server }}
+{% endfor %}
+  log:
+    output: stderr
+    severity: INFO
+
+# The auth service is the cluster's certificate authority.
+# For production, run this on a dedicated, secure machine.
+auth_service:
+  enabled: {{ 'yes' if 'auth' in teleport_services_to_enable else 'no' }}
+  listen_addr: 0.0.0.0:3025
+  cluster_name: {{ teleport_cluster_name }}
+  # For production, consider using a different authentication type like 'github'.
+  # See: https://goteleport.com/docs/reference/authentication/
+  authentication:
+    type: local
+
+# The proxy service is the cluster's entry point.
+# For production, run this on a dedicated, public-facing machine.
+proxy_service:
+  enabled: {{ 'yes' if 'proxy' in teleport_services_to_enable else 'no' }}
+  # For production, use port 443 and configure TLS certificates.
+  # See: https://goteleport.com/docs/administration/production/#configure-the-teleport-proxy
+  web_listen_addr: 0.0.0.0:3080
+  public_addr: {{ teleport_public_addr }}
+
+# The ssh service allows remote access to this node via Teleport.
+ssh_service:
+  enabled: {{ 'yes' if 'ssh' in teleport_services_to_enable else 'no' }}
+  labels:
+    os: {{ ansible_distribution }}
+    arch: {{ ansible_architecture }}
+  commands:
+  - name: kernel
+    command: ['/usr/bin/uname', '-r']
+    period: 1m0s
+

@@ -121,7 +121,7 @@
 
   - name: Fetch public IP address
     uri:
-      url: http://checkip.amazonaws.com
+      url: https://checkip.amazonaws.com
       return_content: yes
     register: public_ip
     become: false

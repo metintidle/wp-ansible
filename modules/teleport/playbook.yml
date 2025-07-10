@@ -1,0 +1,29 @@
+---
+- name: Install and configure Teleport
+  hosts: teleport_servers # Make sure this group is in your inventory
+  become: yes
+  vars:
+    # ------------------------------------------------------------------
+    # IMPORTANT: Production Security
+    # ------------------------------------------------------------------
+    # The auth token is highly sensitive.
+    # 1. Generate a token on your *first* auth server:
+    #    # tctl tokens add --type=node --ttl=1h
+    # 2. Encrypt it using Ansible Vault:
+    #    # ansible-vault encrypt_string 'your-secure-token-here' --name 'teleport_auth_token'
+    # 3. Replace the line below with the vaulted variable.
+    #    For more info: https://docs.ansible.com/ansible/latest/user_guide/vault.html
+    teleport_auth_token: "replace-with-secure-token-or-use-vault"
+
+    # --- General Configuration ---
+    teleport_cluster_name: "almalinux-cluster"
+    # Replace with your primary auth server's IP or DNS name.
+    # For a multi-node setup, this list would contain all auth servers.
+    teleport_auth_servers:
+      - "teleport.example.com:3025"
+    # The public address clients will use to connect to the proxy.
+    teleport_public_addr: "teleport.example.com:3080"
+
+  roles:
+    - role: teleport
+
