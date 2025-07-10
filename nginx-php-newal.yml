@@ -8,13 +8,16 @@
 
   tasks:
 
-    - name: Get current user from remote host
-      command: whoami
-      register: current_user
+    # - name: Get current user from remote host
+    #   command: whoami
+    #   register: current_user
 
-    - name: Set web_user as fact
-      set_fact:
-        web_user: "{{ current_user.stdout }}"
+    # - name: Set web_user as fact
+    #   set_fact:
+    #     web_user: "{{ current_user.stdout }}"
+
+    - debug:
+      msg: "Detected current user is '{{ web_user }}'"
 
     - name: Update the package index
       dnf:
