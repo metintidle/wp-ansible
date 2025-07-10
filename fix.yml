@@ -8,21 +8,6 @@
 
   tasks:
 
-    - name: Allow SSH connections
-      ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: false
-
-    - name: Allow HTTP connections
-      ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: false
-
-    - name: Allow HTTPS connections
-      ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: false
-
     - name: Remove unconditional WP_MEMORY_LIMIT definition
       ansible.builtin.lineinfile:
         path: /home/ec2-user/html/wp-config.php
@@ -88,54 +73,91 @@
         weekday: "*"
         job: "sudo chown -R ec2-user:nginx {{ nginx_cache_dir }} && sudo  chmod -R 774 {{ nginx_cache_dir }}"
 
-    - name: Remove WordPress Fail2Ban filter
-      ansible.builtin.file:
-        path: /etc/fail2ban/filter.d/wordpress.conf
-        state: absent
+    - name: Update PHP-FPM configuration for 512MB RAM
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: "^pm =", line: "pm = dynamic" }
+        - { regexp: "^pm.max_children =.*", line: "pm.max_children = 3" }
+        - { regexp: "^pm.start_servers =.*", line: "pm.start_servers = 1" }
+        - {
+            regexp: "^pm.min_spare_servers =.*",
+            line: "pm.min_spare_servers = 1",
+          }
+        - {
+            regexp: "^pm.max_spare_servers =.*",
+            line: "pm.max_spare_servers = 2",
+          }
+        - { regexp: "^;?pm.max_requests =.*", line: "pm.max_requests = 500" } # Ensure it handles commented or uncommented
 
-    - name: Remove WordPress Fail2Ban jail
-      ansible.builtin.file:
-        path: /etc/fail2ban/jail.d/wordpress.conf
-        state: absent
+    - name: Increase PHP upload size
+      lineinfile:
+        path: /etc/php.ini
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - {
+            regexp: "^upload_max_filesize =.*",
+            line: "upload_max_filesize = 300M",
+          }
+        - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
 
-    - name: Configure fail2ban jail for None WordPress Requests
-      ansible.builtin.copy:
-          src: security/jail/nginx-unknown-script.conf
-          dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
-          owner: root
-          group: root
-          mode: '0644'
+    - name: Increase PHP memory limit
+      lineinfile:
+        path: /etc/php.ini
+        regexp: "^memory_limit =.*"
+        line: "memory_limit = 96M"
+      become: yes
 
-    - name: Disable fail2ban jail for Nginx PHP Url hack
-      ansible.builtin.copy:
-          src: security/jail/nginx-php-url-hack.conf
-          dest: /etc/fail2ban/jail.d/nginx-php-url-hack.conf
-          owner: root
-          group: root
-          mode: '0644'
+    - name: Update PHP realpath cache size
+      lineinfile:
+        path: /etc/php.ini
+        line: "realpath_cache_size = 1024k"
+        state: present
+      become: yes
 
-    - name: Disable fail2ban jail for None Wordpress requests
-      ansible.builtin.copy:
-          src: security/jail/non-wordpress-requests.conf
-          dest: /etc/fail2ban/jail.d/non-wordpress-requests.conf
-          owner: root
-          group: root
-          mode: '0644'
-    
-    - name: Configure fail2ban jail for None WordPress Requests
-      ansible.builtin.copy:
-          src: security/jail.local
-          dest: /etc/fail2ban/jail.local
-          owner: root
-          group: root
-          mode: '0644'
+    - name: Update PHP realpath cache TTL
+      lineinfile:
+        path: /etc/php.ini
+        line: "realpath_cache_ttl = 300"
+        state: present
+      become: yes
+      
+    - name: Check if fpm.sh exists in /usr/local/bin
+      stat:
+        path: /usr/local/bin/fpm.sh
+      register: fpm_file
+      tags: fpm
 
-    - name: Restart Fail2Ban
-      ansible.builtin.service:
-        name: fail2ban
-        state: restarted
+    - name: Copy fpm.sh to /usr/local/bin
+      copy:
+        src: bash/fpm.sh
+        dest: /usr/local/bin/fpm.sh
+        mode: 0755
+        owner: root
+        group: root
+        force: yes
 
-    - name: Restart Nginx
-      ansible.builtin.service:
-        name: nginx
-        state: restarted
+    - name: Install bc for fpm.sh script
+      dnf:
+        name: bc
+        state: present
+
+    - name: Install cronie
+      yum:
+        name: cronie
+        state: present
+
+    - name: Start and enable cronie service
+      systemd:
+        name: crond
+        state: started
+        enabled: yes
+
+    - name: Add a cron job to run fpm.sh every 5 minutes
+      cron:
+        name: "Run fpm.sh every 5 minutes"
+        minute: "*/5"
+        job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
