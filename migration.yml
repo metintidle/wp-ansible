@@ -47,6 +47,8 @@
         --exclude='.htaccess' \
         --exclude='wp-content/themes/twentytwentyone' \
         --exclude='.htaccess*' \
+        --exclude='wp-includes' \
+        --exclude='wp-admin' \
         --exclude='wp-content/themes/twentytwentythree' \
         --exclude='wp-content/themes/twentytwentytwo' \
         --exclude='wp-content/themes/twentytwentyfive' \
@@ -68,6 +70,36 @@
         - "Rsync return code: {{ rsync_result.rc }}"
         - "Rsync stdout: {{ rsync_result.stdout }}"
         - "Rsync stderr: {{ rsync_result.stderr }}"
+
+  - name: Compress elementor css files on source server
+    shell: |
+      ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        {{ source_user }}@{{ source_host_ip }} \
+        "cd ~/html/wp-content/uploads/elementor/css && tar -czf /tmp/elementor-css-backup.tar.gz ."
+    register: compress_result
+    run_once: true
+
+  - name: Download compressed elementor css files from source server
+    shell: |
+      scp -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        {{ source_user }}@{{ source_host_ip }}:/tmp/elementor-css-backup.tar.gz \
+        /tmp/elementor-css-backup.tar.gz
+    register: download_css_result
+    run_once: true
+
+  - name: Extract elementor css files to target server
+    shell: |
+      mkdir -p /usr/share/nginx/html/wp-content/uploads/elementor/css
+      cd /usr/share/nginx/html/wp-content/uploads/elementor/css
+      tar -xzf /tmp/elementor-css-backup.tar.gz
+    become: true
+    when: download_css_result.rc == 0
+
+  - name: Clean up temporary css backup file
+    file:
+      path: /tmp/elementor-css-backup.tar.gz
+      state: absent
+    run_once: true
 
   - name: Fix ownership after download
     file:
