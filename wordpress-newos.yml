@@ -12,7 +12,6 @@
     - name: Create WordPress database if it doesn't exist
       command: >
         mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} -e "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
-      when: db_connection_test.rc == 0
 
     - name: remove mariadb
       command: "dnf remove -y mariadb105"
