@@ -1,0 +1,137 @@
+---
+- name: Install and configure Fail2Ban
+  hosts: all
+  become: yes
+  tasks:
+    - name: Allow SSH connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTP connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTPS connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Upload security configuration file
+      ansible.builtin.copy:
+        src: configs/security.conf
+        dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install Fail2Ban
+      ansible.builtin.command:
+        cmd: yum install fail2ban -y
+
+    # - name: Upload Nginx PHP URL attack filter configuration
+    #   ansible.builtin.copy:
+    #     src: security/filter/nginx-php-url-hack.conf
+    #     dest: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+    # - name: Configure fail2ban jail for PHP URL attacks
+    #   ansible.builtin.copy:
+    #     src: security/jail/nginx-php-url-hack.conf
+    #     dest: /etc/fail2ban/jail.d/nginx-php-url-hack.conf
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+
+
+    # - name: Create None WordPress Requests filter configuration
+    #   ansible.builtin.copy:
+    #     src: security/filter/non-wordpress-requests.conf
+    #     dest: /etc/fail2ban/filter.d/non-wordpress-requests.conf
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+    # - name: Configure fail2ban jail for None WordPress Requests
+        #   ansible.builtin.copy:
+        #     src: security/jail/non-wordpress-requests.conf
+        #     dest: /etc/fail2ban/jail.d/non-wordpress-requests.conf
+        #     owner: root
+        #     group: root
+        #     mode: '0644'
+
+
+   
+    - name: Create Nginx unknown script filter configuration
+      ansible.builtin.copy:
+        src: security/filter/nginx-unknown-script.conf
+        dest: /etc/fail2ban/filter.d/nginx-unknown-script.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+
+    - name: Configure fail2ban jail for unknown script errors
+      ansible.builtin.copy:
+        src: security/jail/nginx-unknown-script.conf
+        dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create custom action configuration
+      copy:
+        dest: /etc/fail2ban/action.d/nginx-wp.conf
+        content: |
+          [Definition]
+          actionstart =
+          actionstop =
+          actioncheck =
+          actionban = iptables -I INPUT -s <ip> -j DROP
+          actionunban = iptables -D INPUT -s <ip> -j DROP
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Ensure Fail2Ban service is enabled and started
+      service:
+        name: fail2ban
+        state: started
+        enabled: yes
+
+    - name: Create Fail2Ban local configuration
+      copy:
+        dest: /etc/fail2ban/jail.local
+        content: |
+          [DEFAULT]
+          ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
+          bantime = 3600
+          findtime = 600
+          maxretry = 3
+          banaction = iptables-multiport
+          backend = auto
+          [sshd]
+          enabled = true
+
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Check fail2ban status
+      command: fail2ban-client status
+      register: fail2ban_status
+      changed_when: false
+
+    - name: Display fail2ban status
+      debug:
+        var: fail2ban_status.stdout_lines
+
+    - name: Restart Fail2Ban service
+      service:
+        name: fail2ban
+        state: restarted
+    - name: Restart Nginx service
+      service:
+        name: nginx
+        state: restarted

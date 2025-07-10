@@ -1,0 +1,113 @@
+- name: Download WordPress files from remote server
+  hosts: all # This runs on target servers
+  gather_facts: false
+
+  vars:
+    source_private_key_raw: "{{ lookup('env', 'PRIVATE_KEY') }}"
+    source_host_ip: "{{ lookup('env', 'IP') }}"
+    source_user: "ec2-user"
+    private_key_path: "/tmp/source_key.pem"
+
+  tasks:
+  - name: Write SSH private key for source server on localhost
+    copy:
+      content: "{{ source_private_key_raw | replace('\\n', '\n')}}"
+      dest: "{{ private_key_path }}"
+      mode: '0600'
+    # delegate_to: localhost
+    run_once: true
+
+  - name: Copy private key formatting script
+    copy:
+      src: bash/privatekey.sh
+      dest: /tmp/privatekey.sh
+      mode: '0755'
+    # delegate_to: localhost
+    run_once: true
+
+  - name: Fix private key format with proper newlines
+    shell: /tmp/privatekey.sh "{{ private_key_path }}"
+    # delegate_to: localhost
+    run_once: true
+    register: format_debug
+
+  - name: Compress elementor css files on source server
+    shell: |
+      ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        {{ source_user }}@{{ source_host_ip }} \
+        "cd ~/html/wp-content/uploads/elementor/css && tar -czf /tmp/elementor-css-backup.tar.gz ."
+    register: compress_result
+    run_once: true
+
+  - name: Download compressed elementor css files from source server
+    shell: |
+      scp -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        {{ source_user }}@{{ source_host_ip }}:/tmp/elementor-css-backup.tar.gz \
+        /tmp/elementor-css-backup.tar.gz
+    register: download_css_result
+    run_once: true
+
+  - name: Extract elementor css files to target server
+    shell: |
+      mkdir -p /usr/share/nginx/html/wp-content/uploads/elementor/css
+      cd /usr/share/nginx/html/wp-content/uploads/elementor/css
+      tar -xzf /tmp/elementor-css-backup.tar.gz
+    become: true
+    when: download_css_result.rc == 0
+
+  - name: Clean up temporary css backup file
+    file:
+      path: /tmp/elementor-css-backup.tar.gz
+      state: absent
+    run_once: true
+
+  - name: Download WordPress files from source server
+    shell: |
+      rsync -az --progress \
+        --exclude='.git' \
+        --exclude='*.log' \
+        --exclude='wp-content/wpvividbackups' \
+        --exclude='wp-content/wpvivid_uploads' \
+        --exclude='wp-content/wpvivid_staging' \
+        --exclude='wp-content/upgrade-temp-backup' \
+        --exclude='wp-content/backups' \
+        --exclude='wp-content/plugins/akismet' \
+        --exclude='wp-content/plugins/hello.php' \
+        --exclude='.htaccess' \
+        --exclude='wp-content/themes/twentytwentyone' \
+        --exclude='.htaccess*' \
+        --exclude='wp-content/themes/twentytwentythree' \
+        --exclude='wp-content/themes/twentytwentytwo' \
+        --exclude='wp-content/themes/twentytwentyfive' \
+        --exclude='wp-content/themes/twentytwentyfour' \
+        --exclude='wp-content/*.zip' \
+        -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+        "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
+        "/usr/share/nginx/html/"
+    register: rsync_result
+    become: true
+    #--exclude='wp-includes' \
+    #--exclude='wp-admin' \
+        # --exclude='wp-content/upgrade' \
+        #--exclude='wp-content/cache' \
+
+  - name: Display rsync result
+    debug:
+      msg:
+        - "Rsync return code: {{ rsync_result.rc }}"
+        - "Rsync stdout: {{ rsync_result.stdout }}"
+        - "Rsync stderr: {{ rsync_result.stderr }}"
+
+  - name: Fix ownership after download
+    file:
+      path: /usr/share/nginx/html/
+      owner: ec2-user
+      group: nginx
+      recurse: yes
+    become: true
+
+  - name: Remove temporary private key from target server
+    file:
+      path: "{{ private_key_path }}"
+      state: absent
+    run_once: true

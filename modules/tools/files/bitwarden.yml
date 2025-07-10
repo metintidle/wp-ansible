@@ -1,0 +1,53 @@
+# bitwarden.yml
+- name: Get Access Token from Bitwarden
+  uri:
+    url: https://connex.itt.com.au:8075/identity/connect/token
+    method: POST
+    body:
+      grant_type: client_credentials
+      scope: api
+      client_id: "{{ lookup('env', 'BITWARDEN_CLIENT_ID') }}"
+      client_secret: "{{ lookup('env', 'BITWARDEN_CLIENT_SECRET') }}"
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    return_content: yes
+  register: bitwarden_token
+
+- name: Display the Bitwarden Token
+  debug:
+    msg: "{{ bitwarden_token.json.access_token }}"
+- name: Create a new item in Bitwarden
+  uri:
+    url: https://connex.itt.com.au:8075/api/collections/{{ lookup('env', 'BITWARDEN_COLLECTION_ID') }}/items
+    method: POST
+    body_format: json
+    body:
+      type: 1
+      name: "{{ domain_name }}"
+      notes: "FTP Password: {{ generated_password }}"
+      collectionIds:
+        - "{{ lookup('env', 'BITWARDEN_COLLECTION_ID') }}"
+      fields:
+        - type: 0
+          name: "FTP Password"
+          value: "{{ generated_password }}"
+    headers:
+      Content-Type: application/json
+      Authorization: "Bearer {{ bitwarden_token.json.access_token }}"
+    return_content: yes
+  register: bitwarden_item
+
+
+# org Id(Arian): a1a7c70d-6614-4f57-9cc1-4d2b56a3ef2a
+# collectionId(FTP): a0664fc9-dfe1-4652-aba1-ae7c25a287d9
+
+
+# curl --location 'https://connex.itt.com.au:8075/identity/connect/token' \
+# --header 'Content-Type: application/x-www-form-urlencoded' \
+# --data-urlencode 'client_id=organization.a1a7c70d-6614-4f57-9cc1-4d2b56a3ef2a' \
+# --data-urlencode 'client_secret=GHKTkSygsvdqACzyZCdSdVtRywgcGL' \
+# --data-urlencode 'scope=api.organization' \
+# --data-urlencode 'grant_type=client_credentials' \
+# --data-urlencode 'device_identifier=2BCB82C5-F2AF-4E8E-9837-ECFB952D36F5' \
+# --data-urlencode 'device_name=macbook' \
+# --data-urlencode 'device_type=laptop'

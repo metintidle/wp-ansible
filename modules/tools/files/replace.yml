@@ -1,0 +1,34 @@
+- name: Setup SSL on Amazon Linux
+  hosts: all
+  vars:
+    domain_names:
+    - "{{ domain_name | default('') }}"
+
+  tasks:
+    - name: Fetch public IP address
+      uri:
+        url: http://checkip.amazonaws.com
+        return_content: yes
+      register: public_ip
+
+    - name: print public ip
+      debug:
+        msg: "{{ public_ip.content | trim }}"
+
+    - name: Set
+      set_fact:
+        wp_replace: /usr/local/bin/wp search-replace --all-tables http://{{ public_ip.content | trim }} https://{{ domain_name }}
+
+    - name: Print  command
+      debug:
+        msg: "{{ wp_replace }}"
+
+    - name: replace current ip with domaine name by wp cli
+      command: "{{wp_replace}}"
+      args:
+        chdir: /home/ec2-user/html
+      register: wp_search_replace
+
+    - name: Display search-replace result
+      debug:
+        var: wp_search_replace.stdout

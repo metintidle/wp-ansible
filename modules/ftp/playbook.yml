@@ -1,0 +1,120 @@
+---
+- name: Setup FTP on Amazon Linux
+  hosts: all
+  become: yes
+
+  collections:
+    - community.general
+
+  tasks:
+    - name: Include get_domain_info tasks
+      include_tasks: ./utility/get_domain_info.yml #return domain_name , organize_name
+
+    - name: Include get_domain_info tasks
+      include_tasks: ./utility/get_pass.yml
+
+    - name: Display the generated password
+      debug:
+        msg: "Generated Password: {{ generated_password }}"
+
+    - name: Create SSL directory if it does not exist
+      ansible.builtin.file:
+        path: /etc/ssl/private
+        state: directory
+        mode: '0755'
+
+    - name: Generate SSL certificate
+      ansible.builtin.command: >
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/vsftpd.key -out /etc/ssl/private/vsftpd.pem -subj "/C=AU/ST=NSW/L/Wollongong/O={{organize}}/OU=Myftp/CN={{domain_name}}"
+
+    - name: Install the latest version of vsftpd
+      ansible.builtin.command:
+        cmd: yum install vsftpd -y
+
+    - name: Copy vsftpd.conf
+      ansible.builtin.copy:
+        src: configs/vsftpd.conf
+        dest: /etc/vsftpd/vsftpd.conf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Restart vsftpd
+      ansible.builtin.systemd:
+        name: vsftpd
+        state: restarted
+
+    - name: Check if /sbin/nologin exists in /etc/shells
+      ansible.builtin.command:
+        cmd: grep -c '^/sbin/nologin$' /etc/shells
+      register: nologin_check
+      changed_when: false
+      failed_when: nologin_check.rc not in [0, 1]
+
+    - name: Add /sbin/nologin to /etc/shells
+      ansible.builtin.lineinfile:
+        path: /etc/shells
+        line: '/sbin/nologin'
+        state: present
+      when: nologin_check.rc == 1
+
+    - name: Check if ftpuser exists
+      ansible.builtin.getent:
+        database: passwd
+        key: ftpuser
+      register: ftpuser_exists
+      ignore_errors: yes
+
+    - name: Create FTP user without home directory and add to nginx group
+      ansible.builtin.user:
+        name: ftpuser
+        state: present
+        groups: nginx
+        shell: /sbin/nologin
+        password: "{{ generated_password | password_hash('sha512') }}"
+      when: ftpuser_exists.failed
+
+    - name: Ensure ftpuser is in nginx group
+      ansible.builtin.user:
+        name: ftpuser
+        groups: nginx
+        append: yes
+
+    - name: Change ownership of wp-config.php
+      ansible.builtin.command: chown ec2-user:nginx /home/ec2-user/html/wp-config.php
+
+    - name: Change the owner of the webroot to ec2-user
+      ansible.builtin.file:
+        path: /usr/share/nginx/html
+        owner: ec2-user
+        group: nginx
+        mode: 0775
+
+    - name: Print the inventory hostname
+      ansible.builtin.debug:
+        msg: "The inventory hostname is {{ inventory_hostname }}"
+
+    - name: Ensure pasv_address is set in vsftpd.conf
+      ansible.builtin.lineinfile:
+        path: /etc/vsftpd/vsftpd.conf
+        regexp: '^#?pasv_address='
+        line: "pasv_address={{ inventory_hostname }}"
+        state: present
+      notify: Restart vsftpd
+
+    - name: Add writable permission to files of webroot
+      ansible.builtin.shell: |
+        sudo chmod -R 775 /home/ec2-user/html/wp-content/* && find /home/ec2-user/html -type f -exec chmod 774 {} \;
+      no_log: true
+
+    - name: Update FTP user password
+      ansible.builtin.user:
+        name: ftpuser
+        password: "{{ generated_password | password_hash('sha512') }}"
+        update_password: always
+
+  handlers:
+    - name: Restart vsftpd
+      ansible.builtin.systemd:
+        name: vsftpd
+        state: restarted

@@ -1,0 +1,93 @@
+---
+- name: Fix 
+  hosts: all
+  become: yes
+  vars:
+    nginx_cache_dir: /var/cache/nginx
+    old_nginx_cache_dir: /var/run/nginx-cache
+
+  tasks:
+
+    - name: Allow SSH connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTP connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTPS connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Remove unconditional WP_MEMORY_LIMIT definition
+      ansible.builtin.lineinfile:
+        path: /home/ec2-user/html/wp-config.php
+        regexp: '.*WP_MEMORY_LIMIT.*'
+        state: absent
+
+    - name: Set WordPress memory limit
+      ansible.builtin.blockinfile:
+        path: "/home/ec2-user/html/wp-config.php"
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: "DB_COLLATE"
+        block: |
+          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
+              define( 'WP_MEMORY_LIMIT', '128M' );
+          }
+      # become_user: yes
+
+    - name: Remove WordPress Fail2Ban filter
+      ansible.builtin.file:
+        path: /etc/fail2ban/filter.d/wordpress.conf
+        state: absent
+
+    - name: Remove WordPress Fail2Ban jail
+      ansible.builtin.file:
+        path: /etc/fail2ban/jail.d/wordpress.conf
+        state: absent
+
+    - name: Configure fail2ban jail for None WordPress Requests
+      ansible.builtin.copy:
+          src: security/jail/nginx-unknown-script.conf
+          dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+          owner: root
+          group: root
+          mode: '0644'
+
+    - name: Disable fail2ban jail for Nginx PHP Url hack
+      ansible.builtin.copy:
+          src: security/jail/nginx-php-url-hack.conf
+          dest: /etc/fail2ban/jail.d/nginx-php-url-hack.conf
+          owner: root
+          group: root
+          mode: '0644'
+
+    - name: Disable fail2ban jail for None Wordpress requests
+      ansible.builtin.copy:
+          src: security/jail/non-wordpress-requests.conf
+          dest: /etc/fail2ban/jail.d/non-wordpress-requests.conf
+          owner: root
+          group: root
+          mode: '0644'
+    
+    - name: Configure fail2ban jail for None WordPress Requests
+      ansible.builtin.copy:
+          src: security/jail.local
+          dest: /etc/fail2ban/jail.local
+          owner: root
+          group: root
+          mode: '0644'
+
+    - name: Restart Fail2Ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted
+
+    - name: Restart Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted

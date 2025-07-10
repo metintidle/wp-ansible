@@ -1,0 +1,53 @@
+---
+- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update the package index
+      yum:
+        name: "*"
+        state: latest
+
+    - name: Check if Nginx is installed
+      command: rpm -q nginx
+      register: nginx_installed
+      ignore_errors: yes
+      failed_when: false
+
+    - name: Install Nginx using amazon-linux-extras
+      command: amazon-linux-extras install -y nginx1
+      when: nginx_installed.rc != 0
+
+    - name: Ensure Nginx is installed
+      yum:
+        name: nginx
+        state: present
+      when: nginx_installed.rc != 0
+
+    - name: Start and enable Nginx service
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Check if Nginx is running
+      command: systemctl status nginx
+      register: nginx_status
+      ignore_errors: yes
+
+    - name: Display Nginx status
+      debug:
+        var: nginx_status.stdout
+
+    - name: Check if PHP is installed
+      command: rpm -q php
+      register: php_installed
+      ignore_errors: yes
+      failed_when: false
+
+    - name: Install PHP
+      yum:
+        name: php
+        state: present
+      when: php_installed.rc != 0
