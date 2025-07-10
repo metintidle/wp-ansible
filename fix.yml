@@ -145,19 +145,16 @@
         name: bc
         state: present
 
-    - name: Install cronie
-      yum:
-        name: cronie
-        state: present
-
-    - name: Start and enable cronie service
-      systemd:
-        name: crond
-        state: started
-        enabled: yes
-
     - name: Add a cron job to run fpm.sh every 5 minutes
       cron:
         name: "Run fpm.sh every 5 minutes"
         minute: "*/5"
         job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
+        
+    - name: Restart PHP-FPM and Nginx
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - php-fpm
+        - nginx
