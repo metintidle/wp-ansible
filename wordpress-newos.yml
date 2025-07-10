@@ -101,7 +101,7 @@
         path: /home/ec2-user/html/wp-config.php
       register: wp_config_exists
 
-    - name: Create wp-config.php
+    - name: Create wp config
       command: >
         /usr/local/bin/wp config create
         --dbname={{db_name}}
@@ -154,7 +154,7 @@
       command: wp plugin install better-search-replace --activate
       args:
         chdir: /home/ec2-user/html
-        
+
     # - name: Install All 404 Redirect to Homepage Plugin
     #   command: wp plugin install all-404-redirect-to-homepage --activate
     #   args:
