@@ -77,12 +77,12 @@
         # --exclude='wp-content/upgrade' \
         #--exclude='wp-content/cache' \
 
-  - name: Display rsync result
-    debug:
-      msg:
-        - "Rsync return code: {{ rsync_result.rc }}"
-        - "Rsync stdout: {{ rsync_result.stdout }}"
-        - "Rsync stderr: {{ rsync_result.stderr }}"
+  # - name: Display rsync result
+  #   debug:
+  #     msg:
+  #       - "Rsync return code: {{ rsync_result.rc }}"
+  #       - "Rsync stdout: {{ rsync_result.stdout }}"
+  #       - "Rsync stderr: {{ rsync_result.stderr }}"
 
   - name: Check if elementor css directory exists on source server
     shell: |
