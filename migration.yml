@@ -42,43 +42,96 @@
         - "Private key path: {{ private_key_path }}"
     run_once: true
 
-  - name: Download WordPress files from source server
+  - name: Create compressed archive on remote server
     shell: |
-      rsync -az --progress \
-        --exclude='.git' \
-        --exclude='*.log' \
-        --exclude='wp-content/wpvividbackups' \
-        --exclude='wp-content/wpvivid_uploads' \
-        --exclude='wp-content/wpvivid_staging' \
-        --exclude='wp-content/upgrade-temp-backup' \
-        --exclude='wp-content/backups' \
-        --exclude='wp-content/plugins/akismet' \
-        --exclude='wp-content/plugins/hello.php' \
-        --exclude='.htaccess' \
-        --exclude='wp-content/themes/twentytwentyone' \
-        --exclude='.htaccess*' \
-        --exclude='wp-includes' \
-        --exclude='wp-admin' \
-        --exclude='wp-content/upgrade' \
-        --exclude='wp-content/cache' \
-        --exclude='wp-content/themes/twentytwentythree' \
-        --exclude='wp-content/themes/twentytwentytwo' \
-        --exclude='wp-content/themes/twentytwentyfive' \
-        --exclude='wp-content/themes/twentytwentyfour' \
-        --exclude='wp-content/*.zip' \
-        -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
-        "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
-        "/usr/share/nginx/html/"
-    register: rsync_result
-    become: true
+        tar -czf /tmp/wordpress.tar.gz -C {{ wordpress_source_path | default('/usr/share/nginx/html') }} . \
+          --exclude='.git' \
+          --exclude='*.log' \
+          --exclude='wp-content/wpvividbackups' \
+          --exclude='wp-content/wpvivid_uploads' \
+          --exclude='wp-content/wpvivid_staging' \
+          --exclude='wp-content/upgrade-temp-backup' \
+          --exclude='wp-content/backups' \
+          --exclude='wp-content/plugins/akismet' \
+          --exclude='wp-content/plugins/hello.php' \
+          --exclude='.htaccess' \
+          --exclude='wp-content/themes/twentytwentyone' \
+          --exclude='wp-content/themes/twentytwentythree' \
+          --exclude='wp-content/themes/twentytwentytwo' \
+          --exclude='wp-content/themes/twentytwentyfive' \
+          --exclude='wp-content/themes/twentytwentyfour' \
+          --exclude='wp-content/*.zip'
+    delegate_to: "{{ source_host_ip }}"
+    vars:
+        ansible_user: "{{ source_user }}"
+        ansible_ssh_private_key_file: "{{ private_key_path }}"
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
-    
-  - name: Display rsync result
-    debug:
-      msg:
-        - "Rsync return code: {{ rsync_result.rc }}"
-        - "Rsync stdout: {{ rsync_result.stdout }}"
-        - "Rsync stderr: {{ rsync_result.stderr }}"
+  - name: Download compressed archive from remote server
+    shell: |
+      scp -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        "{{ source_user }}@{{ source_host_ip }}:/tmp/wordpress.tar.gz" \
+        "/tmp/wordpress.tar.gz"
+    register: download_result
+
+  - name: Extract WordPress files
+    shell: |
+      cd /usr/share/nginx/html/ && \
+      tar -xzf /tmp/wordpress.tar.gz
+    become: true
+    register: extract_result
+
+  - name: Clean up remote archive
+    shell: rm -f /tmp/wordpress.tar.gz
+    delegate_to: "{{ source_host_ip }}"
+    vars:
+      ansible_user: "{{ source_user }}"
+      ansible_ssh_private_key_file: "{{ private_key_path }}"
+      ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+    ignore_errors: true
+
+  - name: Clean up local archive
+    file:
+      path: /tmp/wordpress.tar.gz
+      state: absent
+
+  # - name: Download WordPress files from source server
+  #   shell: |
+  #     rsync -az --progress \
+  #       --exclude='.git' \
+  #       --exclude='*.log' \
+  #       --exclude='wp-content/wpvividbackups' \
+  #       --exclude='wp-content/wpvivid_uploads' \
+  #       --exclude='wp-content/wpvivid_staging' \
+  #       --exclude='wp-content/upgrade-temp-backup' \
+  #       --exclude='wp-content/backups' \
+  #       --exclude='wp-content/plugins/akismet' \
+  #       --exclude='wp-content/plugins/hello.php' \
+  #       --exclude='.htaccess' \
+  #       --exclude='wp-content/themes/twentytwentyone' \
+  #       --exclude='.htaccess*' \
+  #       --exclude='wp-includes' \
+  #       --exclude='wp-admin' \
+  #       --exclude='wp-content/upgrade' \
+  #       --exclude='wp-content/cache' \
+  #       --exclude='wp-content/themes/twentytwentythree' \
+  #       --exclude='wp-content/themes/twentytwentytwo' \
+  #       --exclude='wp-content/themes/twentytwentyfive' \
+  #       --exclude='wp-content/themes/twentytwentyfour' \
+  #       --exclude='wp-content/*.zip' \
+  #       -e "ssh -i {{ private_key_path }} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+  #       "{{ source_user }}@{{ source_host_ip }}:{{ wordpress_source_path | default('/usr/share/nginx/html/') }}" \
+  #       "/usr/share/nginx/html/"
+  #   register: rsync_result
+  #   become: true
+
+
+  # - name: Display rsync result
+  #   debug:
+  #     msg:
+  #       - "Rsync return code: {{ rsync_result.rc }}"
+  #       - "Rsync stdout: {{ rsync_result.stdout }}"
+  #       - "Rsync stderr: {{ rsync_result.stderr }}"
 
   - name: Check if elementor css directory exists on source server
     shell: |
@@ -157,7 +210,6 @@
     become: true
     when: css_dir_exists | bool and download_succeeded | bool
     tags: css_backup
-
 
   - name: Clean up temporary css backup file
     file:
