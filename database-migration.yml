@@ -5,21 +5,18 @@
   vars:
     config_path: /usr/share/nginx/html/wp-config.php
     ansible_python_interpreter: /usr/bin/python3.7
-    # Old database configuration
-    old_db_user: 'ittdb'
-    old_db_password: 'Ifeq1xBCdIR481'
-    old_db_host: '13.210.187.157'
+
     # New database configuration
-    new_db_user: 'itt-admin'
-    new_db_password: 'GCdGb!fNmk!!3dH'
-    new_db_host: '152.69.175.15'
-## sudo cat /etc/mysql/mariadb.conf.d/99-logging.cnf
+    new_db_user: "{{ lookup('env', 'DB_USER') }}"
+    new_db_password: "{{ lookup('env', 'DB_PASS') }}"
+    new_db_host: "{{ lookup('env', 'DB_HOST') }}"
   tasks:
     - name: Comment out old DB_USER in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: ".*DB_USER.*"
-        line: "// define( 'DB_USER', '{{ old_db_user }}' );"
+        regexp: '^(.*DB_USER.*)$'
+        line: '// \1'
+        backrefs: true
 
     - name: Add new DB_USER in wp-config.php
       ansible.builtin.lineinfile:
@@ -30,8 +27,9 @@
     - name: Comment out old DB_PASSWORD in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: ".*DB_PASSWORD.*"
-        line: "// define( 'DB_PASSWORD', '{{ old_db_password }}' );"
+        regexp: '^(.*DB_PASSWORD.*)$'
+        line: '// \1'
+        backrefs: true
 
     - name: Add new DB_PASSWORD in wp-config.php
       ansible.builtin.lineinfile:
@@ -42,8 +40,9 @@
     - name: Comment out old DB_HOST in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: ".*DB_HOST.*"
-        line: "// define( 'DB_HOST', '{{ old_db_host }}' );"
+        regexp: '^(.*DB_HOST.*)$'
+        line: '// \1'
+        backrefs: true
 
     - name: Add new DB_HOST in wp-config.php
       ansible.builtin.lineinfile:
