@@ -9,12 +9,12 @@
     },
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
-  "postCreateCommand": [
-    "bash",
-    "-c",
-    "pip install --upgrade pip && pip install ansible ansible-core ansible-lint yamllint molecule pytest-testinfra"
-  ],
-  "customizations": {
+"postCreateCommand": [
+  "bash",
+  "-c",
+  "pip install --upgrade pip && pip install ansible ansible-core ansible-lint yamllint molecule pytest-testinfra && [ -f ~/.ssh/id_rsa ] && chmod 600 ~/.ssh/id_rsa || true && [ -f ~/.ssh/config ] && chmod 644 ~/.ssh/config || true && chmod 700 ~/.ssh || true"
+],
+"customizations": {
     "vscode": {
       "extensions": [
         "ms-azuretools.vscode-docker",
@@ -25,7 +25,12 @@
     }
   },
   "mounts": [
-    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+    "source=${env:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
+    "source=${env:USERPROFILE}/.ansible,target=/home/vscode/.ansible,type=bind,consistency=cached"
   ],
+  "remoteEnv": {
+    "ANSIBLE_CONFIG": "/workspaces/wp-ansible/ansible.cfg"
+  },
   "remoteUser": "vscode"
 }
