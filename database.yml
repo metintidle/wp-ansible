@@ -24,7 +24,7 @@
     #       y
     #       y
     #       y
-    #       y
+    #       
 
     - name: Check if MariaDB is running
       command: systemctl status mariadb

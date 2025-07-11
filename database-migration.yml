@@ -1,0 +1,34 @@
+---
+- name: Change db connection string in wordpress wp-config.php
+  hosts: all
+  become: yes
+  vars:
+  ansible_ssh_common_args: '-F C:\Users\MahdiNejati\.ssh\config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+  config_path: /usr/share/nginx/html/wp-config.php
+## sudo cat /etc/mysql/mariadb.conf.d/99-logging.cnf
+  tasks:
+    - name: Update wp-config.php with new database credentials
+      ansible.builtin.blockinfile:
+        path: "/home/ec2-user/html/wp-config.php"
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: "DB_COLLATE"
+        block: |
+          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
+              define( 'WP_MEMORY_LIMIT', '128M' );
+          }
+    - name: Fix WordPress FTP error
+      lineinfile:
+        path: "/home/ec2-user/html/wp-config.php"
+        regexp: "^define\\('FS_METHOD',"
+        line: "define('FS_METHOD', 'direct');"
+        backup: yes
+#old connection string
+#define( 'DB_USER', 'ittdb' );
+#define( 'DB_PASSWORD', 'Ifeq1xBCdIR481' );
+#define( 'DB_HOST', '13.210.187.157' );
+
+#new connection string
+#define( 'DB_USER', 'itt-admin' );
+#define( 'DB_PASSWORD', 'GCdGb!fNmk!!3dH' );
+#define( 'DB_HOST', '152.69.175.15' );
+
