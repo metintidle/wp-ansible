@@ -10,38 +10,38 @@
     - name: Comment out old DB_USER in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "'DB_USER'"
+        regexp: "DB_USER"
         line: "// define( 'DB_USER', 'ittdb' );"
 
     - name: Add new DB_USER in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "'DB_USER'"
-        insertafter: "'DB_USER'"
+        regexp: "DB_USER"
+        insertafter: "DB_USER"
         line: "define( 'DB_USER', 'itt-admin' );"
 
     - name: Comment out old DB_PASSWORD in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "'DB_PASSWORD'"
+        regexp: "DB_PASSWORD"
         line: "// define( 'DB_PASSWORD', 'Ifeq1xBCdIR481' );"
 
     - name: Add new DB_PASSWORD in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "'DB_PASSWORD'"
-        insertafter: "'DB_PASSWORD'"
+        regexp: "DB_PASSWORD"
+        insertafter: "DB_PASSWORD"
         line: "define( 'DB_PASSWORD', 'GCdGb!fNmk!!3dH' );"
 
     - name: Comment out old DB_HOST in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "'DB_HOST'"
+        regexp: "DB_HOST"
         line: "// define( 'DB_HOST', '13.210.187.157' );"
 
     - name: Add new DB_HOST in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "'DB_HOST'"
-        insertafter: "'DB_HOST'"
+        regexp: "DB_HOST"
+        insertafter: "DB_HOST"
         line: "define( 'DB_HOST', '152.69.175.15' );"
