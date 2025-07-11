@@ -5,43 +5,48 @@
   vars:
     config_path: /usr/share/nginx/html/wp-config.php
     ansible_python_interpreter: /usr/bin/python3.7
+    # Old database configuration
+    old_db_user: 'ittdb'
+    old_db_password: 'Ifeq1xBCdIR481'
+    old_db_host: '13.210.187.157'
+    # New database configuration
+    new_db_user: 'itt-admin'
+    new_db_password: 'GCdGb!fNmk!!3dH'
+    new_db_host: '152.69.175.15'
 ## sudo cat /etc/mysql/mariadb.conf.d/99-logging.cnf
   tasks:
     - name: Comment out old DB_USER in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "DB_USER"
-        line: "// define( 'DB_USER', 'ittdb' );"
+        regexp: ".*DB_USER.*"
+        line: "// define( 'DB_USER', '{{ old_db_user }}' );"
 
     - name: Add new DB_USER in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "DB_USER"
-        insertafter: "DB_USER"
-        line: "define( 'DB_USER', 'itt-admin' );"
+        insertafter: ".*DB_USER.*"
+        line: "define( 'DB_USER', '{{ new_db_user }}' );"
 
     - name: Comment out old DB_PASSWORD in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "DB_PASSWORD"
-        line: "// define( 'DB_PASSWORD', 'Ifeq1xBCdIR481' );"
+        regexp: ".*DB_PASSWORD.*"
+        line: "// define( 'DB_PASSWORD', '{{ old_db_password }}' );"
 
     - name: Add new DB_PASSWORD in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "DB_PASSWORD"
-        insertafter: "DB_PASSWORD"
-        line: "define( 'DB_PASSWORD', 'GCdGb!fNmk!!3dH' );"
+        insertafter: ".*DB_PASSWORD.*"
+        line: "define( 'DB_PASSWORD', '{{ new_db_password }}' );"
 
     - name: Comment out old DB_HOST in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "DB_HOST"
-        line: "// define( 'DB_HOST', '13.210.187.157' );"
+        regexp: ".*DB_HOST.*"
+        line: "// define( 'DB_HOST', '{{ old_db_host }}' );"
 
     - name: Add new DB_HOST in wp-config.php
       ansible.builtin.lineinfile:
         path: "{{ config_path }}"
-        regexp: "DB_HOST"
-        insertafter: "DB_HOST"
-        line: "define( 'DB_HOST', '152.69.175.15' );"
+        insertafter: ".*DB_HOST.*;"
+        line: "define( 'DB_HOST', '{{ new_db_host }}' );"
