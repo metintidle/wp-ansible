@@ -1,34 +1,47 @@
 ---
 - name: Change db connection string in wordpress wp-config.php
   hosts: all
-  become: yes
+  become: true
   vars:
-  ansible_ssh_common_args: '-F C:\Users\MahdiNejati\.ssh\config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-  config_path: /usr/share/nginx/html/wp-config.php
+    config_path: /usr/share/nginx/html/wp-config.php
+    ansible_python_interpreter: /usr/bin/python3.7
 ## sudo cat /etc/mysql/mariadb.conf.d/99-logging.cnf
   tasks:
-    - name: Update wp-config.php with new database credentials
-      ansible.builtin.blockinfile:
-        path: "/home/ec2-user/html/wp-config.php"
-        marker: "# {mark} WP_MEMORY_LIMIT block"
-        insertafter: "DB_COLLATE"
-        block: |
-          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
-              define( 'WP_MEMORY_LIMIT', '128M' );
-          }
-    - name: Fix WordPress FTP error
-      lineinfile:
-        path: "/home/ec2-user/html/wp-config.php"
-        regexp: "^define\\('FS_METHOD',"
-        line: "define('FS_METHOD', 'direct');"
-        backup: yes
-#old connection string
-#define( 'DB_USER', 'ittdb' );
-#define( 'DB_PASSWORD', 'Ifeq1xBCdIR481' );
-#define( 'DB_HOST', '13.210.187.157' );
+    - name: Comment out old DB_USER in wp-config.php
+      ansible.builtin.lineinfile:
+        path: "{{ config_path }}"
+        regexp: "'DB_USER'"
+        line: "// define( 'DB_USER', 'ittdb' );"
 
-#new connection string
-#define( 'DB_USER', 'itt-admin' );
-#define( 'DB_PASSWORD', 'GCdGb!fNmk!!3dH' );
-#define( 'DB_HOST', '152.69.175.15' );
+    - name: Add new DB_USER in wp-config.php
+      ansible.builtin.lineinfile:
+        path: "{{ config_path }}"
+        regexp: "'DB_USER'"
+        insertafter: "'DB_USER'"
+        line: "define( 'DB_USER', 'itt-admin' );"
 
+    - name: Comment out old DB_PASSWORD in wp-config.php
+      ansible.builtin.lineinfile:
+        path: "{{ config_path }}"
+        regexp: "'DB_PASSWORD'"
+        line: "// define( 'DB_PASSWORD', 'Ifeq1xBCdIR481' );"
+
+    - name: Add new DB_PASSWORD in wp-config.php
+      ansible.builtin.lineinfile:
+        path: "{{ config_path }}"
+        regexp: "'DB_PASSWORD'"
+        insertafter: "'DB_PASSWORD'"
+        line: "define( 'DB_PASSWORD', 'GCdGb!fNmk!!3dH' );"
+
+    - name: Comment out old DB_HOST in wp-config.php
+      ansible.builtin.lineinfile:
+        path: "{{ config_path }}"
+        regexp: "'DB_HOST'"
+        line: "// define( 'DB_HOST', '13.210.187.157' );"
+
+    - name: Add new DB_HOST in wp-config.php
+      ansible.builtin.lineinfile:
+        path: "{{ config_path }}"
+        regexp: "'DB_HOST'"
+        insertafter: "'DB_HOST'"
+        line: "define( 'DB_HOST', '152.69.175.15' );"
