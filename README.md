@@ -20,3 +20,7 @@ PORTS:
 # HOW TO START FROM A SPECIAL TASK
 
 ![alt text](docs/semaphore.png)
+
+```
+--start-at-task=
+```
