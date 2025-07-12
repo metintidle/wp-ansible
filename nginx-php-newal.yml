@@ -302,8 +302,70 @@
         name: "Run fpm.sh every 5 minutes"
         minute: "*/5"
         job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
-      # when: not fmp_file.stat.exists # This condition might need adjustment if we always want to ensure the cron job
+        
+    # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
+    # Include these tasks in your existing playbook
 
+    - name: Remove existing tmpfs entry from fstab if it exists
+      lineinfile:
+        path: /etc/fstab
+        regexp: '^tmpfs\s+/tmp\s+tmpfs.*'
+        state: absent
+      become: yes
+
+    - name: Create disk-based tmp directory
+      file:
+        path: /var/tmp_disk
+        state: directory
+        mode: '1777'
+        owner: root
+        group: root
+      become: yes
+
+    - name: Add bind mount entry to fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/var/tmp_disk /tmp none bind 0 0"
+        state: present
+        backup: yes
+      become: yes
+
+    - name: Check if /tmp is currently a tmpfs
+      shell: mount | grep -q "tmpfs on /tmp"
+      register: tmp_is_tmpfs
+      failed_when: false
+      changed_when: false
+
+    - name: Backup current /tmp contents if it's tmpfs
+      shell: cp -a /tmp/* /var/tmp_disk/ 2>/dev/null || true
+      when: tmp_is_tmpfs.rc == 0
+      become: yes
+
+    - name: Unmount tmpfs /tmp if it exists
+      mount:
+        path: /tmp
+        state: unmounted
+      when: tmp_is_tmpfs.rc == 0
+      become: yes
+      ignore_errors: yes
+
+    - name: Mount disk-based /tmp
+      mount:
+        path: /tmp
+        src: /var/tmp_disk
+        fstype: none
+        opts: bind
+        state: mounted
+      become: yes
+
+    - name: Verify /tmp is mounted from disk
+      shell: df -h /tmp | grep -v tmpfs
+      register: tmp_mount_check
+      failed_when: tmp_mount_check.rc != 0
+
+    - name: Display /tmp mount status
+      debug:
+        msg: "/tmp is now mounted from disk: {{ tmp_mount_check.stdout }}"
 
 
 
