@@ -112,6 +112,9 @@
             line: "upload_max_filesize = 300M",
           }
         - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
+        - { regexp: "^post_max_size =.*", line: "post_max_size = 50M" }
+        - { regexp: "^max_execution_time =.*", line: "max_execution_time = 300" }
+
 
     - name: Increase PHP memory limit
       lineinfile:
@@ -302,7 +305,7 @@
         name: "Run fpm.sh every 5 minutes"
         minute: "*/5"
         job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
-        
+
     # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
     # Include these tasks in your existing playbook
 
