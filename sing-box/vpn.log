@@ -1,0 +1,65 @@
+{
+  "log": {
+    "loglevel": "info",
+    "access": "/var/log/sing-box/access.log",
+    "error": "/var/log/sing-box/error.log"
+  },
+  "inbounds": [
+    {
+      "type": "vless",
+      "tag": "vless-in",
+      "listen": "0.0.0.0",
+      "listen_port": 3200,
+      "sniff": true,
+      "sniff_override_destination": true,
+      "sniff_override_remote_address": true,
+      "sniffing": {
+        "enabled": true,
+        "dest_override": ["http", "tls"]
+      },
+      "tls": {
+        "enabled": true,
+        "server_name": "connex.itt.con.au",
+        "alpn": ["h2", "http/1.1"],
+        "certificates": [
+          {
+            "certificate_file": "/etc/letsencrypt/live/connex.itt.con.au/fullchain.pem",
+            "key_file": "/etc/letsencrypt/live/connex.itt.con.au/privkey.pem"
+          }
+        ]
+      },
+      "users": [
+        {
+          "id": "1f6a55a6-3a4a-4a3a-8a0d-0a0a0a0a0a0a",
+          "flow": "xtls-rprx-vision"
+        }
+      ],
+      "transport": {
+        "type": "tcp"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "proxy",
+      "server": "51.161.174.170",
+      "server_port": 443,
+      "uuid": "1f6a55a6-3a4a-4a3a-8a0d-0a0a0a0a0a0a",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.cloudflare.com",
+        "alpn": ["http/1.1"],
+        "reality": {
+          "enabled": true,
+          "public_key": "REPLACE_WITH_PUBLIC_KEY",
+          "short_id": "REPLACE_WITH_SHORT_ID"
+        }
+      },
+      "transport": {
+        "type": "tcp"
+      }
+    }
+  ]
+}
