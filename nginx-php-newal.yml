@@ -8,14 +8,13 @@
 
   tasks:
 
-    # - name: Get current user from remote host
-    #   command: whoami
-    #   register: current_user
-
-    # - name: Set web_user as fact
-    #   set_fact:
-    #     web_user: "{{ current_user.stdout }}"
-
+    # run bash file Updatepython.sh 
+    - name: Run Updatepython.sh
+      ansible.builtin.shell: bash {{ playbook_dir }}/bash/Updatepython.sh
+      args:
+        chdir: /tmp
+      become: true
+    
     - name: Show current user
       debug:
         msg: "Detected current user is '{{ web_user }}'"
