@@ -1,0 +1,20 @@
+services:
+  semaphore:
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    image: semaphoreui/semaphore:v2.14.11-ansible2.16.5
+    environment:
+      SEMAPHORE_DB_USER: itt-admin
+      SEMAPHORE_DB_PASS: "GCdGb!fNmk!!3dH"
+      SEMAPHORE_DB_HOST: 152.69.175.15 # Use localhost
+      SEMAPHORE_DB_PORT: 3306 # Default MariaDB port
+      SEMAPHORE_DB_DIALECT: mysql # MariaDB uses the MySQL dialect
+      SEMAPHORE_DB_NAME: semaphore_ansible
+      SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore/
+      SEMAPHORE_ACCESS_KEY_ENCRYPTION: gs72mPntFATGJs9qK0pQ0rKtfidlexiMjYCH9gWKhTU=
+      # SEMAPHORE_ADMIN: admin
+      # SEMAPHORE_ADMIN_NAME: admin
+      # SEMAPHORE_ADMIN_EMAIL: mahdi@itt.com.au
+      # SEMAPHORE_ADMIN_PASSWORD: "ONWdZUf4ipvcML" # Please set a secure password
+
