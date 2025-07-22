@@ -9,19 +9,19 @@
   tasks:
 
     # run bash file Updatepython.sh This file needs to be uploaded from the repository or downloaded on the remote server. 
-    - name: Copy Updatepython.sh to remote server
-      ansible.builtin.copy:
-        src: bash/updatepython.sh
-        dest: /tmp/updatepython.sh
-        mode: '0755'
-        owner: root
-        group: root
+    # - name: Copy Updatepython.sh to remote server
+    #   ansible.builtin.copy:
+    #     src: bash/updatepython.sh
+    #     dest: /tmp/updatepython.sh
+    #     mode: '0755'
+    #     owner: root
+    #     group: root
 
-    - name: Run Updatepython.sh
-      ansible.builtin.shell: bash /tmp/updatepython.sh
-      args:
-        chdir: /tmp
-      become: true
+    # - name: Run Updatepython.sh
+    #   ansible.builtin.shell: bash /tmp/updatepython.sh
+    #   args:
+    #     chdir: /tmp
+    #   become: true
     
     - name: Show current user
       debug:
