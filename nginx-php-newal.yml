@@ -68,6 +68,7 @@
           - php-gd
           - php-sqlite3
           - php-zip
+          - libwebp-tools
         state: present
 
     - name: Check if igbinary is already installed
