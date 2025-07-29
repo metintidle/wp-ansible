@@ -1,5 +1,5 @@
 ---
-- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+- name: Setup Nginx and PHP on Amazon Linux 2 (512MB RAM) For WordPress
   hosts: all
   become: yes
   
@@ -100,7 +100,7 @@
         line: "{{ item.line }}"
       with_items:
         - { regexp: "^pm =", line: "pm = dynamic" }
-        - { regexp: "^pm.max_children =.*", line: "pm.max_children = 3" }
+        - { regexp: "^pm.max_children =.*", line: "pm.max_children = 2" }
         - { regexp: "^pm.start_servers =.*", line: "pm.start_servers = 1" }
         - {
             regexp: "^pm.min_spare_servers =.*",
@@ -266,10 +266,12 @@
       with_items:
         - { regexp: "opcache.enable=.*", line: "opcache.enable=1" }
         - { regexp: "opcache.memory_consumption=.*", line: "opcache.memory_consumption=64" }
-        - { regexp: "opcache.interned_strings_buffer=.*", line: "opcache.interned_strings_buffer=4" }
+        - { regexp: "opcache.interned_strings_buffer=.*", line: "opcache.interned_strings_buffer=8" }
         - { regexp: "opcache.max_accelerated_files=.*", line: "opcache.max_accelerated_files=2000" }
         - { regexp: "opcache.revalidate_freq=.*", line: "opcache.revalidate_freq=300" }
+        - { regexp: "opcache.fast_shutdown=.*", line: "opcache.fast_shutdown=1" }
         - { regexp: "opcache.save_comments=.*", line: "opcache.save_comments=0" }
+        - { regexp: "opcache.load_comments=.*", line: "opcache.load_comments=0" }
         - { regexp: "opcache.max_file_size=.*", line: "opcache.max_file_size=1M" } # Value from fix.yml
         - { regexp: "opcache.huge_code_pages=.*", line: "opcache.huge_code_pages=0" } # Value from fix.yml
       become: yes
@@ -380,7 +382,3 @@
     - name: Display /tmp mount status
       debug:
         msg: "/tmp is now mounted from disk: {{ tmp_mount_check.stdout }}"
-
-
-
-
