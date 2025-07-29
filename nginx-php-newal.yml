@@ -55,20 +55,20 @@
     - name: Install PHP and PHP-FPM dependencies
       dnf:
         name:
-          - php
-          - php-fpm
-          - php-mysqlnd
-          - php-mbstring
-          - php-intl
-          - gcc
-          - ImageMagick
-          - ImageMagick-devel
-          - php-pear
-          - php-devel
-          - php-gd
-          - php-sqlite3
-          - php-zip
-          - libwebp-tools
+            - php8.1
+            - php8.1-fpm
+            - php8.1-mysqlnd
+            - php8.1-mbstring
+            - php8.1-intl
+            - gcc
+            - ImageMagick
+            - ImageMagick-devel
+            - php-pear
+            - php8.1-devel
+            - php8.1-gd
+            - php-sqlite3
+            - php8.1-zip
+            - libwebp-tools
         state: present
 
     - name: Check if igbinary is already installed
