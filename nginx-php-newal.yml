@@ -72,6 +72,8 @@
             - php-sqlite3
             - php8.1-zip
             - libwebp-tools
+            - netpbm-progs
+            - libjpeg-turbo-utils
         state: present
 
     - name: Check if igbinary is already installed
