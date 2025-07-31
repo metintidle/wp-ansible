@@ -51,6 +51,11 @@
       register: wordpress_xmlrpc
       changed_when: "'Nothing to do.' not in wordpress_xmlrpc.stdout"
 
+    - name: Install Squid specific collection (as Squid is installed)
+      shell: cscli collections install crowdsecurity/squid
+      register: squid_collection
+      changed_when: "'Nothing to do.' not in squid_collection.stdout"
+
     - name: Reload CrowdSec to apply new configurations
       systemd:
         name: crowdsec
@@ -91,16 +96,41 @@
     - name: Disable specific CrowdSec scenarios
       ansible.builtin.shell: "cscli scenarios remove {{ item }} --force"
       loop:
+        # --- Enterprise Appliances/VPNs ---
         - crowdsecurity/f5-big-ip-cve-2020-5902
         - crowdsecurity/fortinet-cve-2018-13379
-        - crowdsecurity/grafana-cve-2021-43798
+        - crowdsecurity/pulse-secure-sslvpn-cve-2019-11510
         - crowdsecurity/vmware-cve-2022-22954
         - crowdsecurity/vmware-vcenter-vmsa-2021-0027
-        - crowdsecurity/pulse-secure-sslvpn-cve-2019-11510
-        - crowdsecurity/CVE-2017-9841
-        - crowdsecurity/CVE-2019-18935
+        # --- Other Applications/Services (not part of a typical WP stack) ---
+        - crowdsecurity/grafana-cve-2021-43798
+        - crowdsecurity/jira-cve-2019-11581
+        - crowdsecurity/nextcloud
+        - crowdsecurity/solr-cve-2019-0192
+        - crowdsecurity/solr-cve-2019-0193
+        # --- Other Web Servers (you are using Nginx) ---
+        - crowdsecurity/http-cve-2021-41773  # Apache specific
+        - crowdsecurity/http-cve-2021-42013  # Apache specific
+        # --- Other PHP Frameworks/Apps ---
+        - crowdsecurity/CVE-2017-9841         # PHPUnit RCE
+        - crowdsecurity/CVE-2019-18935         # ThinkPHP RCE
+        - crowdsecurity/thinkphp-cve-2018-20062
+        - crowdsecurity/drupal-bf
+        - crowdsecurity/joomla-bf
+        # --- Mail Servers ---
+        - crowdsecurity/postfix-logs
+        - crowdsecurity/dovecot-logs
+        # --- Database Servers (yours is remote) ---
+        - crowdsecurity/mysql-bf
+        - crowdsecurity/postgresql-bf
+        # --- Other Proxies ---
+        - crowdsecurity/haproxy-logs
+        - crowdsecurity/traefik-logs
+        # --- Other Services/WAFs ---
+        - crowdsecurity/vsftpd-bf      # FTP Server Brute-Force
+        - crowdsecurity/modsecurity    # ModSecurity WAF (if not used with Nginx)
       register: disable_scenarios_result
-      changed_when: "'was already disabled' not in disable_scenarios_result.stdout and 'was not installed' not in disable_scenarios_result.stdout"
+      changed_when: disable_scenarios_result.results | map(attribute='stdout') | select('search', ' disabled') | list | length > 0
       notify: Reload CrowdSec
 
   handlers:
