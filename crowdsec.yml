@@ -23,22 +23,6 @@
       ansible.builtin.dnf:
         name: crowdsec-firewall-bouncer-iptables
         state: present
-
-    - name: Install EPEL repository to make ngrep available
-      ansible.builtin.dnf:
-        name: epel-release
-        state: present
-        update_cache: yes
-
-    - name: Install required packages for testing
-      ansible.builtin.dnf:
-        name: ngrep
-        state: present
-      register: ngrep_install_result
-      failed_when:
-        - ngrep_install_result.failed
-        - "'No package ngrep available.' not in ngrep_install_result.get('failures', [])"
-
     - name: Enable CrowdSec service
       systemd:
         name: crowdsec
