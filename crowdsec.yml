@@ -15,17 +15,22 @@
         curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.rpm.sh | bash
 
     - name: Install CrowdSec
-      yum:
+      ansible.builtin.dnf:
         name: crowdsec
         state: present
 
     - name: Install firewall bouncer for iptables
-      yum:
+      ansible.builtin.dnf:
         name: crowdsec-firewall-bouncer-iptables
         state: present
 
+    - name: Install EPEL repository to make ngrep available
+      ansible.builtin.dnf:
+        name: epel-release
+        state: present
+
     - name: Install required packages for testing
-      yum:
+      ansible.builtin.dnf:
         name: ngrep
         state: present
 
