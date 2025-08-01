@@ -45,7 +45,7 @@
 
     - name: Add fastcgi cache configuration to nginx.conf
       ansible.builtin.copy:
-        src: configs/file_cache.conf
+        src: configs/cache/file_cache.conf
         dest: /etc/nginx/conf.d/fastcgi_cache_file.conf
         owner: root
         group: root
@@ -53,7 +53,7 @@
 
     - name: Add cache control configuration to nginx.conf
       ansible.builtin.copy:
-        src: configs/cache_block.conf
+        src: configs/cache/cache_block.conf
         dest: /etc/nginx/default.d/fastcgi_cache_block.conf
         owner: root
         group: root
