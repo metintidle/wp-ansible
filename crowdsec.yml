@@ -77,12 +77,12 @@
       changed_when: false
       failed_when: "'You can successfully interact with Central API (CAPI)' not in capi_status.stdout"
 
-    - name: Create backup of nginx.conf if it doesn't exist
-      copy:
-        src: /etc/nginx/nginx.conf
-        dest: /etc/nginx/nginx.conf.backup
-        remote_src: yes
-        force: no
+    # - name: Create backup of nginx.conf if it doesn't exist
+    #   copy:
+    #     src: /etc/nginx/nginx.conf
+    #     dest: /etc/nginx/nginx.conf.backup
+    #     remote_src: yes
+    #     force: no
 
     # Optional: Configure Nginx to log proper client IP when behind a proxy
     # - name: Configure Nginx for proper IP logging when behind a proxy
