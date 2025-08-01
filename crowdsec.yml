@@ -23,6 +23,7 @@
       ansible.builtin.dnf:
         name: crowdsec-firewall-bouncer-iptables
         state: present
+
     - name: Enable CrowdSec service
       systemd:
         name: crowdsec
@@ -45,10 +46,10 @@
       register: wordpress_xmlrpc
       changed_when: "'Nothing to do.' not in wordpress_xmlrpc.stdout"
 
-    - name: Install Squid specific collection (as Squid is installed)
-      shell: cscli collections install crowdsecurity/squid
-      register: squid_collection
-      changed_when: "'Nothing to do.' not in squid_collection.stdout"
+    - name: Install iptables collection for log parsing
+      shell: cscli collections install crowdsecurity/iptables
+      register: iptables_collection
+      changed_when: "'Nothing to do.' not in iptables_collection.stdout"
 
     - name: Reload CrowdSec to apply new configurations
       systemd:
