@@ -4,6 +4,6 @@ main.sh
 settings.json
 /logs
 .DS_Store
-/semaphore
-/ssh-sync
+/semaphore/
+/ssh-sync/*
 /config
