@@ -321,6 +321,22 @@
         minute: "*/5"
         job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
 
+
+    - name: Copy cleanlogs.sh to /usr/local/bin
+      copy:
+        src: bash/cleanlogs.sh
+        dest: /usr/local/bin/cleanlogs.sh
+        mode: 0755
+        owner: root
+        group: root
+        force: yes
+    - name: Add a cron job to run cleanlogs.sh every day
+      cron:
+        name: "Run cleanlogs.sh daily"
+        minute: "0"
+        hour: "0"
+        job: "/usr/local/bin/cleanlogs.sh >> /var/log/cleanlogs.log 2>&1"
+    
     # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
     # Include these tasks in your existing playbook
 
