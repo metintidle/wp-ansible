@@ -5,5 +5,5 @@ settings.json
 /logs
 .DS_Store
 /semaphore/
-/ssh-sync/*
+/ssh-sync/
 /config
