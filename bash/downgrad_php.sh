@@ -10,6 +10,8 @@ sudo cp /etc/php.ini /etc/php.ini.backup
 sudo cp /etc/php-fpm.d/www.conf /etc/php-fpm.d/www.conf.backup
 
 # Update PHP-FPM configuration
+sudo sed -i 's/^user =.*/user = ec2-user/' /etc/php-fpm.d/www.conf
+sudo sed -i 's/^group =.*/group = nginx/' /etc/php-fpm.d/www.conf
 sudo sed -i 's/^pm =.*/pm = dynamic/' /etc/php-fpm.d/www.conf
 sudo sed -i 's/^pm.max_children =.*/pm.max_children = 3/' /etc/php-fpm.d/www.conf
 sudo sed -i 's/^pm.start_servers =.*/pm.start_servers = 1/' /etc/php-fpm.d/www.conf
