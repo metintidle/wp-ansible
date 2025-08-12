@@ -1,0 +1,101 @@
+name: hoop
+
+services:
+  db:
+    image: docker.io/library/postgres:15-alpine
+    environment:
+      POSTGRES_DB: hoop
+      POSTGRES_USER: hoop
+      POSTGRES_PASSWORD: hooppass123
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 180M
+    mem_limit: 180M
+    command: >
+      postgres
+      -c shared_buffers=32MB
+      -c effective_cache_size=64MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=16MB
+      -c max_connections=50
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hoop -d hoop"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - hoopnet
+
+  gateway:
+    image: docker.io/hoophq/hooplabs
+    environment:
+      - LOG_LEVEL=info
+      - LOG_ENCODING=console
+      - GIN_MODE=release
+      - PLUGIN_AUDIT_PATH=/opt/hoop/sessions
+      - PLUGIN_INDEX_PATH=/opt/hoop/sessions/indexes
+      - STATIC_UI_PATH=/opt/hoop/webapp/public
+      - MIGRATION_PATH_FILES=/opt/hoop/migrations
+      - POSTGRES_DB_URI=postgresql://hoop:hooppass123@db:5432/hoop?sslmode=disable
+      - HOOP_SERVER_HOST=0.0.0.0
+      - HOOP_GRPC_HOST=0.0.0.0
+      - API_URL=http://dev.itt.com.au:8009
+      - GATEWAY_URL=http://dev.itt.com.au:8010
+      - WEBAPP_EXTERNAL_URL=http://dev.itt.com.au:8009
+      - HOOP_BASE_URL=http://dev.itt.com.au:8009
+    env_file: .env
+    command: hoop start gateway
+    ports:
+      - "0.0.0.0:8009:8009"
+      - "0.0.0.0:8010:8010"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "gateway-healthcheck.sh"]
+      interval: 5s
+      timeout: 30s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - hoopnet
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    mem_limit: 200M
+
+  agent:
+    image: docker.io/hoophq/hooplabs
+    env_file: .env
+    environment:
+      - POSTGRES_DB_URI=postgresql://hoop:hooppass123@db:5432/hoop?sslmode=disable
+      - LOG_LEVEL=info
+      - LOG_ENCODING=console
+    depends_on:
+      gateway:
+        condition: service_healthy
+    command: run-agent.sh
+    restart: unless-stopped
+    networks:
+      - hoopnet
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    mem_limit: 100M
+
+networks:
+  hoopnet:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

@@ -1,46 +1,62 @@
 name: hoop
-
 services:
+  db:
+    image: docker.io/library/postgres:15-alpine
+    environment:
+      POSTGRES_DB: hoop
+      POSTGRES_USER: hoop
+      POSTGRES_PASSWORD: hooppass123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 215M
+    mem_limit: 215M
+    healthcheck:
+      test: "pg_isready -U hoop -d hoop"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   gateway:
     image: docker.io/hoophq/hooplabs
     environment:
-      - LOG_LEVEL=info
-      - LOG_ENCODING=console
-      - GIN_MODE=release
-      - PLUGIN_AUDIT_PATH=/opt/hoop/sessions
-      - PLUGIN_INDEX_PATH=/opt/hoop/sessions/indexes
-      - STATIC_UI_PATH=/opt/hoop/webapp/public
-      - MIGRATION_PATH_FILES=/opt/hoop/migrations
-      - POSTGRES_DB_URI=postgresql://postgres:MwArxR0P1ED@db.fttdokrkdoupbkkwpbam.supabase.co:5432/postgres
-    env_file: ".env"
-    command: "hoop start gateway"
+    - LOG_LEVEL=info
+    - LOG_ENCODING=console
+    - GIN_MODE=release
+    - PLUGIN_AUDIT_PATH=/opt/hoop/sessions
+    - PLUGIN_INDEX_PATH=/opt/hoop/sessions/indexes
+    - STATIC_UI_PATH=/opt/hoop/webapp/public
+    - MIGRATION_PATH_FILES=/opt/hoop/migrations
+    - POSTGRES_DB_URI=postgresql://hoop:hooppass123@db:5432/hoop?sslmode=disable
+    env_file: .env
+    command: hoop start gateway
     ports:
-      - "8009:8009"
-      - "8010:8010"
-    networks:
-      - hoopdev
+    - 8009:8009
+    - 8010:8010
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
-      test: "gateway-healthcheck.sh"
-      interval: "2s"
-      timeout: "30s"
+      test: gateway-healthcheck.sh
+      interval: 2s
+      timeout: 30s
       retries: 10
-      start_period: "20s"
+      start_period: 20s
+
   agent:
     image: docker.io/hoophq/hooplabs
-    # uncomment the following lines to test the local script
-    # volumes:
-    #   - ./rootfs/usr/local/bin/run-agent.sh:/usr/local/bin/run-agent.sh
-    networks:
-      - hoopdev
-    env_file: ".env"
+    env_file: .env
     environment:
-      - POSTGRES_DB_URI=postgresql://postgres:MwArxR0P1ED@db.fttdokrkdoupbkkwpbam.supabase.co:5432/postgres
-      - LOG_LEVEL=info
-      - LOG_ENCODING=console
+    - POSTGRES_DB_URI=postgresql://hoop:hooppass123@db:5432/hoop?sslmode=disable
+    - LOG_LEVEL=info
+    - LOG_ENCODING=console
     depends_on:
       gateway:
-        condition: "service_healthy"
+        condition: service_healthy
     command: run-agent.sh
 
-networks:
-  hoopdev:
+volumes:
+  postgres_data:
