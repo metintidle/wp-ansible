@@ -1,5 +1,5 @@
 {
-  "ansible.python.interpreterPath": "/Users/meti/Projects/wp-ansible/wp/bin/python",
+  "ansible.python.interpreterPath": "/usr/local/bin/python",
   "CodeGPT.apiKey": "LM Studio",
   "gitdoc.enabled": true,
   "files.autoSave": "afterDelay",

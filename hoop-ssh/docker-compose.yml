@@ -1,0 +1,46 @@
+name: hoop
+
+services:
+  gateway:
+    image: docker.io/hoophq/hooplabs
+    environment:
+      - LOG_LEVEL=info
+      - LOG_ENCODING=console
+      - GIN_MODE=release
+      - PLUGIN_AUDIT_PATH=/opt/hoop/sessions
+      - PLUGIN_INDEX_PATH=/opt/hoop/sessions/indexes
+      - STATIC_UI_PATH=/opt/hoop/webapp/public
+      - MIGRATION_PATH_FILES=/opt/hoop/migrations
+      - POSTGRES_DB_URI=postgresql://postgres:MwArxR0P1ED@db.fttdokrkdoupbkkwpbam.supabase.co:5432/postgres
+    env_file: ".env"
+    command: "hoop start gateway"
+    ports:
+      - "8009:8009"
+      - "8010:8010"
+    networks:
+      - hoopdev
+    healthcheck:
+      test: "gateway-healthcheck.sh"
+      interval: "2s"
+      timeout: "30s"
+      retries: 10
+      start_period: "20s"
+  agent:
+    image: docker.io/hoophq/hooplabs
+    # uncomment the following lines to test the local script
+    # volumes:
+    #   - ./rootfs/usr/local/bin/run-agent.sh:/usr/local/bin/run-agent.sh
+    networks:
+      - hoopdev
+    env_file: ".env"
+    environment:
+      - POSTGRES_DB_URI=postgresql://postgres:MwArxR0P1ED@db.fttdokrkdoupbkkwpbam.supabase.co:5432/postgres
+      - LOG_LEVEL=info
+      - LOG_ENCODING=console
+    depends_on:
+      gateway:
+        condition: "service_healthy"
+    command: run-agent.sh
+
+networks:
+  hoopdev:
