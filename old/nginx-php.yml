@@ -1,0 +1,312 @@
+---
+- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update the package index
+      yum:
+        name: "*"
+        state: latest
+
+    - name: Install Nginx using amazon-linux-extras
+      command: amazon-linux-extras install -y nginx1
+
+    - name: Start and enable Nginx service
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Check if Nginx is running
+      command: systemctl status nginx
+      register: nginx_status
+      ignore_errors: yes
+
+    - name: Display Nginx status
+      debug:
+        var: nginx_status.stdout
+
+    - name: Install PHP using amazon-linux-extras
+      command: amazon-linux-extras enable php8.2
+
+    - name: Instal PHP-FPM  dependencies
+      yum:
+        name:
+          - php-fpm
+          - php-mysqlnd
+          - php-mbstring
+          - php-intl
+          - gcc
+          - ImageMagick
+          - ImageMagick-devel
+          - php-pear
+          - php-devel
+          - php-gd
+          - php-sqlite3
+          - php-zip
+        state: present
+
+    - name: Check if igbinary is already installed
+      command: pecl list | grep igbinary
+      register: igbinary_check
+      ignore_errors: yes
+
+    - name: Start and enable php igbinary
+      ansible.builtin.command: sudo pecl install igbinary
+      when: igbinary_check.rc != 0
+
+    - name: Ensure pexpect is installed
+      pip:
+        name: pexpect
+        state: present
+
+    - name: Update PHP-FPM configuration for 512MB RAM
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: "^pm =", line: "pm = dynamic" }
+        - { regexp: "^pm.max_children =.*", line: "pm.max_children = 3" }
+        - { regexp: "^pm.start_servers =.*", line: "pm.start_servers = 1" }
+        - {
+            regexp: "^pm.min_spare_servers =.*",
+            line: "pm.min_spare_servers = 1",
+          }
+        - {
+            regexp: "^pm.max_spare_servers =.*",
+            line: "pm.max_spare_servers = 2",
+          }
+        - { regexp: "^;?pm.max_requests =.*", line: "pm.max_requests = 500" } # Ensure it handles commented or uncommented
+
+    - name: Increase PHP upload size
+      lineinfile:
+        path: /etc/php.ini
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - {
+            regexp: "^upload_max_filesize =.*",
+            line: "upload_max_filesize = 300M",
+          }
+        - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
+
+    - name: Increase PHP memory limit
+      lineinfile:
+        path: /etc/php.ini
+        regexp: "^memory_limit =.*"
+        line: "memory_limit = 96M"
+      become: yes
+
+    - name: Update PHP realpath cache size
+      lineinfile:
+        path: /etc/php.ini
+        line: "realpath_cache_size = 1024k"
+        state: present
+      become: yes
+
+    - name: Update PHP realpath cache TTL
+      lineinfile:
+        path: /etc/php.ini
+        line: "realpath_cache_ttl = 300"
+        state: present
+      become: yes
+
+    - name: Set PHP session storage to memory
+      lineinfile:
+        path: /etc/php.ini
+        line: "session.save_path = \"/tmp\""
+        state: present
+      become: yes
+
+    - name: Restart PHP-FPM and Nginx
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - nginx
+        - php-fpm
+      tags: restart
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      register: nginx_test_result
+      ignore_errors: yes
+
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: nginx_test_result.rc == 0
+
+    - name: Add ec2-user to nginx group
+      user:
+        name: ec2-user
+        groups: nginx
+        append: yes
+
+    - name: Copy nginx.config
+      ansible.builtin.copy:
+        src: configs/nginx.conf
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: add security
+      ansible.builtin.copy:
+        src: configs/security/general.conf
+        dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+      tags: security
+
+    # - name: add security rules
+    #   ansible.builtin.copy:
+    #     src: configs/security-rules.conf
+    #     dest: /etc/nginx/default.d/security.conf
+    #     owner: root
+    #     group: root
+    #     mode: '0644'
+    #   tags: security
+
+    - name: Create symbolic link from web server’s document root to home directory
+      file:
+        src: /usr/share/nginx/html
+        dest: /home/ec2-user/html
+        state: link
+
+    - name: Change ownership of WordPress files to ec2-user and nginx
+      lineinfile:
+        path: /etc/php-fpm.d/www.conf
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: "^user =.*", line: "user = ec2-user" }
+        - { regexp: "^group =.*", line: "group = nginx" }
+
+    - name: Restart PHP-FPM and Nginx
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - php-fpm
+        - nginx
+
+    - name: Change ownership of WordPress files to ec2-user and nginx
+      file:
+        path: /usr/share/nginx/html/
+        owner: ec2-user
+        group: nginx
+        recurse: yes
+
+    - name: Update the PECL channel
+      command: pecl channel-update pecl.php.net
+
+    - name: Install imagick PHP extension non-interactively
+      expect:
+        command: pecl install imagick
+        responses:
+          'Please provide the prefix of ImageMagick installation \[autodetect\] :': "\r"
+
+    - name: Enable the imagick extension
+      lineinfile:
+        path: /etc/php.d/20-imagick.ini # Corrected path based on typical configurations
+        line: "extension=imagick.so"
+        create: yes
+
+    - name: install php opcache
+      ansible.builtin.command:
+        cmd: sudo yum install php-opcache -y
+
+    - name: Configure Opcache settings
+      lineinfile:
+        path: /etc/php.d/10-opcache.ini # Standard Opcache config file
+        regexp: "^{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+        create: yes # Create the file if it doesn't exist
+      with_items:
+        - { regexp: "opcache.enable=.*", line: "opcache.enable=1" }
+        - { regexp: "opcache.memory_consumption=.*", line: "opcache.memory_consumption=64" }
+        - { regexp: "opcache.interned_strings_buffer=.*", line: "opcache.interned_strings_buffer=4" }
+        - { regexp: "opcache.max_accelerated_files=.*", line: "opcache.max_accelerated_files=2000" }
+        - { regexp: "opcache.revalidate_freq=.*", line: "opcache.revalidate_freq=300" }
+        - { regexp: "opcache.save_comments=.*", line: "opcache.save_comments=0" }
+        - { regexp: "opcache.max_file_size=.*", line: "opcache.max_file_size=1M" } # Value from fix.yml
+        - { regexp: "opcache.huge_code_pages=.*", line: "opcache.huge_code_pages=0" } # Value from fix.yml
+      become: yes
+
+    - name: Restart PHP-FPM service
+      service:
+        name: php-fpm
+        state: restarted
+
+    ## Path: fix.yml
+    - name: fpm
+      stat:
+        path: /home/ec2-user/fpm.sh
+      register: fpm_file
+      tags: fpm
+
+    - name: Copy file to remote server
+      copy:
+        src: bash/fpm.sh
+        dest: /home/ec2-user/fpm.sh
+        mode: 0755
+        force: yes # Ensure the file is always replaced
+      # when: not fpm_file.stat.exists # This condition is removed to always copy
+
+    - name: Install bc for fpm.sh script
+      yum:
+        name: bc
+        state: present
+
+    - name: Add a cron job to run fpm.sh every 5 minutes
+      cron:
+        name: "Run fpm.sh every 5 minutes"
+        minute: "*/5"
+        job: "/home/ec2-user/fpm.sh >> /var/log/fpm.log 2>&1"
+      # when: not fpm_file.stat.exists # This condition might need adjustment if we always want to ensure the cron job
+
+    - name: Remove the old cron job for fpm.sh (every minute)
+      cron:
+        name: "Run fpm.sh every minute"
+        state: absent
+
+    - name: remove file /var/log/fpm.log
+      command: rm -f /var/log/fpm.log
+
+    - name: Create a swap file
+      command: fallocate -l 1G /swapfile
+      args:
+        creates: /swapfile
+
+    - name: Check if swap is already enabled
+      command: swapon --show
+      register: swap_status
+      changed_when: false
+
+    - name: Set up the swap file
+      command: mkswap /swapfile
+      when: swap_status.stdout == ""
+
+    - name: Enable the swap file
+      command: swapon /swapfile
+      when: swap_status.stdout == ""
+
+    - name: Add swap file to /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: '/swapfile none swap sw 0 0'
+        create: yes
+      when: swap_status.stdout == ""
+
+    - name: Set correct permissions on swap file
+      file:
+        path: /swapfile
+        mode: '0600'
+        owner: root
+        group: root
