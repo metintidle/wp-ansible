@@ -2,13 +2,13 @@
 - name: Setup Nginx and PHP on Amazon Linux 2 (512MB RAM) For WordPress
   hosts: all
   become: yes
-  
+
   vars:
     web_user: "{{ ansible_user | default('ec2-user') }}"
 
   tasks:
 
-    # run bash file Updatepython.sh This file needs to be uploaded from the repository or downloaded on the remote server. 
+    # run bash file Updatepython.sh This file needs to be uploaded from the repository or downloaded on the remote server.
     - name: Copy Updatepython.sh to remote server
       ansible.builtin.copy:
         src: bash/updatepython.sh
@@ -22,7 +22,7 @@
     #   args:
     #     chdir: /tmp
     #   become: true
-    
+
     - name: Show current user
       debug:
         msg: "Detected current user is '{{ web_user }}'"
@@ -336,7 +336,7 @@
         minute: "0"
         hour: "0"
         job: "/usr/local/bin/cleanlogs.sh >> /var/log/cleanlogs.log 2>&1"
-    
+
     # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
     # Include these tasks in your existing playbook
 
@@ -400,3 +400,8 @@
     - name: Display /tmp mount status
       debug:
         msg: "/tmp is now mounted from disk: {{ tmp_mount_check.stdout }}"
+
+    - name: Install micro editor
+      shell: |
+        cd /usr/local/bin
+        curl https://getmic.ro | sudo bash
