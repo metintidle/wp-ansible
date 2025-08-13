@@ -1,6 +1,5 @@
 LOG_DIRS=(
   "/var/log/nginx"
-
 )
 for dir in "${LOG_DIRS[@]}"; do
   if [ -d "$dir" ]; then
