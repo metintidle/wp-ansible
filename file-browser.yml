@@ -1,0 +1,196 @@
+---
+- name: Install and Configure File Browser for WordPress wp-content WITH COMPRESSION SUPPORT
+  hosts: all
+  become: yes
+  vars:
+    filebrowser_port: 6533
+    filebrowser_user: admin
+    filebrowser_password: ucib6D0LIHJD6wNyLFpQdmGDBrOY5J
+    wordpress_root: /usr/share/nginx/html
+    filebrowser_version: "2.42.5"
+
+  tasks:
+    - name: Install compression tools
+      package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - zip
+        - unzip
+        - tar
+        - gzip
+      ignore_errors: yes
+
+    - name: Create filebrowser directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - /etc/filebrowser
+        - /var/lib/filebrowser
+
+    - name: Get latest File Browser release URL
+      uri:
+        url: https://api.github.com/repos/filebrowser/filebrowser/releases/latest
+        method: GET
+        return_content: yes
+      register: github_release
+
+    - name: Extract download URL
+      set_fact:
+        download_url: "{{ github_release.json.assets | selectattr('name', 'match', '.*linux-amd64-filebrowser.tar.gz') | list | first | json_query('browser_download_url') }}"
+
+    - name: Download File Browser
+      get_url:
+        url: "{{ download_url }}"
+        dest: /tmp/linux-amd64-filebrowser.tar.gz
+        mode: '0644'
+
+    - name: Extract File Browser
+      unarchive:
+        src: /tmp/linux-amd64-filebrowser.tar.gz
+        dest: /tmp/
+        remote_src: yes
+
+    - name: Install File Browser binary
+      copy:
+        src: /tmp/filebrowser
+        dest: /usr/local/bin/filebrowser
+        owner: root
+        group: root
+        mode: '0755'
+        remote_src: yes
+
+    - name: Create File Browser configuration
+      template:
+        content: |
+          {
+            "port": {{ filebrowser_port }},
+            "address": "0.0.0.0",
+            "log": "stdout",
+            "database": "/var/lib/filebrowser/filebrowser.db",
+            "root": "{{ wordpress_root }}/wp-content"
+          }
+        dest: /etc/filebrowser/config.json
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Initialize File Browser database
+      command: /usr/local/bin/filebrowser -c /etc/filebrowser/config.json config init
+      args:
+        creates: /var/lib/filebrowser/filebrowser.db
+
+    - name: Set proper permissions for filebrowser database directory
+      file:
+        path: /var/lib/filebrowser
+        owner: ec2-user
+        group: nginx
+        mode: '0755'
+        recurse: yes
+
+    - name: Create admin user
+      command: >
+        /usr/local/bin/filebrowser -c /etc/filebrowser/config.json
+        users add {{ filebrowser_user }} {{ filebrowser_password }} --perm.admin
+      ignore_errors: yes
+
+    - name: Configure File Browser settings
+      command: >
+        /usr/local/bin/filebrowser -c /etc/filebrowser/config.json
+        config set --address="0.0.0.0" --port="{{ filebrowser_port }}"
+        --root="{{ wordpress_root }}/wp-content"
+      ignore_errors: yes
+
+    - name: Create systemd service file with compression support
+      template:
+        content: |
+          [Unit]
+          Description=File Browser
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/local/bin/filebrowser -c /etc/filebrowser/config.json
+          User=ec2-user
+          Group=nginx
+          Restart=on-failure
+          RestartSec=5s
+          Environment=FB_DISABLE_EXEC=false
+
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/filebrowser.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start File Browser service
+      systemd:
+        name: filebrowser
+        enabled: yes
+        state: started
+
+    - name: Wait for service to start
+      wait_for:
+        port: "{{ filebrowser_port }}"
+        host: "0.0.0.0"
+        delay: 3
+        timeout: 30
+
+    - name: Check if compression is enabled
+      uri:
+        url: "http://localhost:{{ filebrowser_port }}/"
+        method: GET
+        return_content: yes
+      register: filebrowser_check
+      ignore_errors: yes
+
+    - name: Verify compression is enabled
+      debug:
+        msg: "✅ Compression/Command execution is ENABLED!"
+      when: "'EnableExec':true" in filebrowser_check.content
+
+    - name: Warning if compression not detected
+      debug:
+        msg: "⚠️  Compression might not be fully enabled. Check service logs."
+      when: "'EnableExec':true" not in filebrowser_check.content
+
+    - name: Clean up temporary files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/linux-amd64-filebrowser.tar.gz
+        - /tmp/filebrowser
+
+    - name: Display access information
+      debug:
+        msg: |
+          ==============================================
+          File Browser Installation Completed!
+          ==============================================
+          Access URL: http://{{ ansible_default_ipv4.address }}:{{ filebrowser_port }}/
+          Username: {{ filebrowser_user }}
+          Password: {{ filebrowser_password }}
+          Root Directory: {{ wordpress_root }}/wp-content
+
+          🔧 COMPRESSION FEATURES ENABLED:
+          • Click the < > shell icon in the top-right corner
+          • Available commands:
+            - zip -r archive.zip foldername/
+            - unzip archive.zip
+            - tar -czf archive.tar.gz foldername/
+            - tar -xzf archive.tar.gz
+            - gzip filename
+            - gunzip filename.gz
+            - ls -la, du -sh, find, etc.
+
+          The service will start automatically on boot.
+          ==============================================
