@@ -298,6 +298,10 @@
         owner: root
         group: root
         force: yes
+  
+    - name: fix "ASCII text executable" without "CRLF line terminators"
+      ansible.builtin.command:
+        sudo sed -i 's/\r$//' /usr/local/bin/fpm.sh
 
     - name: Install bc for fpm.sh script
       dnf:
