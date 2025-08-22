@@ -409,3 +409,23 @@
       shell: |
         cd /usr/local/bin
         curl https://getmic.ro | sudo bash
+  
+
+    - name: Create a 1G swap file
+      command: sudo fallocate -l 1G /swapfile
+      args:
+        creates: /swapfile
+
+    - name: Set permissions on swap file
+      command: sudo chmod 600 /swapfile
+      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+
+    - name: Set up swap area
+      command: sudo mkswap /swapfile
+      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+
+    - name: Enable swap file
+      command: sudo swapon /swapfile
+      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+
+
