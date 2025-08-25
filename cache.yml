@@ -42,6 +42,7 @@
       command: wp plugin install nginx-cache --activate
       args:
         chdir: /home/ec2-user/html
+      become: no
 
     - name: Add fastcgi cache configuration to nginx.conf
       ansible.builtin.copy:
