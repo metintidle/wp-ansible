@@ -16,6 +16,7 @@
         state: directory
         mode: "0755"
       delegate_to: localhost
+      become: false
       run_once: true
 
 
@@ -41,6 +42,7 @@
           dest: "{{ controller_archive }}"
           format: gz
       delegate_to: localhost
+      become: false
       run_once: true
 
     - name: Upload the compressed plugin to the remote server
@@ -48,6 +50,7 @@
         src: "{{ controller_archive }}"
         dest: "{{ remote_archive }}"
         mode: '0644'
+      become: false
 
     - name: Uncompress the plugin on the remote server
       ansible.builtin.unarchive:
@@ -56,11 +59,13 @@
         remote_src: yes # Tells Ansible the source is on the remote machine
         owner: "{{ web_user }}"
         group: nginx
+      become: false
 
     - name: Clean up the archive on the remote server
       ansible.builtin.file:
         path: "{{ remote_archive }}"
         state: absent
+      become: false
 
     - name: Clean up the local archive on the controller
       ansible.builtin.file:
