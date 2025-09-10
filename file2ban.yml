@@ -3,21 +3,6 @@
   hosts: all
   become: true
   tasks:
-    # - name: Allow SSH connections
-    #   ansible.builtin.command:
-    #     cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
-    #   changed_when: false
-
-    # - name: Allow HTTP connections
-    #   ansible.builtin.command:
-    #     cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
-    #   changed_when: false
-
-    # - name: Allow HTTPS connections
-    #   ansible.builtin.command:
-    #     cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
-    #   changed_when: false
-
     - name: Upload security configuration file
       ansible.builtin.copy:
         src: configs/security.conf
@@ -130,3 +115,18 @@
       service:
         name: nginx
         state: restarted
+
+    - name: Allow SSH connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTP connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    - name: Allow HTTPS connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
