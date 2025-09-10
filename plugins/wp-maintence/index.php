@@ -1,19 +1,19 @@
 <?php
 /*
 Plugin Name: IT&T Maintenance
-Description: Optimize Harddisk space and database usge
+Description: Monitoring Websites for finding  
 Version: 1.0.2
 Author: Meti Nejati
 License: GPLv2 or later
-Text Domain: itt-toolbox
+Text Domain: itt-maintenance
 */
 
 if (!defined('ABSPATH')) exit; // Exit if accessed directly
 
 // Define plugin constants
-define('ITT_TOOLBOX_VERSION', '1.0.2');
-define('ITT_TOOLBOX_PLUGIN_URL', plugin_dir_url(__FILE__));
-define('ITT_TOOLBOX_PLUGIN_PATH', plugin_dir_path(__FILE__));
+define('ITT_MAINTENANCE_VERSION', '1.0.2');
+define('ITT_MAINTENANCE_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('ITT_MAINTENANCE_PLUGIN_PATH', plugin_dir_path(__FILE__));
 
 /**
  * Main ITT Toolbox Plugin Loader Class

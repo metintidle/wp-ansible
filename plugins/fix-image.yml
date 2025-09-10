@@ -12,7 +12,7 @@
   # memory regression issues on v 8.4
   # plugin ecosystem incompatibilities make it unsuitable for production use on resource-constrained servers
   - name: Install PHP and PHP-FPM dependencies
-    dnf:
+    ansible.builtin.yum_repository:
       name:
       - gcc
       - ImageMagick
@@ -21,3 +21,37 @@
       - netpbm-progs
       - libjpeg-turbo-utils
       state: present
+
+  - name: Compress the wp-maintence plugin folder locally
+    community.general.archive:
+      path: plugins/wp-maintence # Relative path to the plugin on your machine
+      dest: /tmp/wp-maintence.tar.gz
+      format: gz
+    delegate_to: localhost
+    run_once: true
+
+  - name: Upload the compressed plugin to the remote server
+    ansible.builtin.copy:
+      src: /tmp/wp-maintence.tar.gz
+      dest: /tmp/wp-maintence.tar.gz
+      mode: '0644'
+
+  - name: Uncompress the plugin on the remote server
+    ansible.builtin.unarchive:
+      src: /tmp/wp-maintence.tar.gz
+      dest: /home/ec2-user/html/wp-content/plugins/
+      remote_src: yes # Tells Ansible the source is on the remote machine
+      owner: "{{ web_user }}"
+      group: nginx
+
+  - name: Clean up the archive on the remote server
+    ansible.builtin.file:
+      path: /tmp/wp-maintence.tar.gz
+      state: absent
+
+  - name: Clean up the local archive on the controller
+    ansible.builtin.file:
+      path: /tmp/wp-maintence.tar.gz
+      state: absent
+    delegate_to: localhost
+    run_once: true

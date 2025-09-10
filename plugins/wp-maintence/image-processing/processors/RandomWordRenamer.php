@@ -389,6 +389,6 @@ class RandomWordRenamer {
 }
 
 // Initialize the renamer
-new RandomWordRenamer();
+// new RandomWordRenamer();
 
 ?>
