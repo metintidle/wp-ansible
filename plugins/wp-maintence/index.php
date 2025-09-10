@@ -1,11 +1,24 @@
 <?php
 /*
-Plugin Name: ITT Maintenance
-Description: Replaces default image upload resize with wp-itt-toolbox logic (first step: does not disable WP default sizes or original image).
-Version: 0.1
-Author: Your Name
+Plugin Name: IT&T Toolbox
+Description: Optimize Harddisk space and database usge
+Version: 1.0.2
+Author: Meti Nejati
+License: GPLv2 or later
+Text Domain: itt-toolbox
 */
 
+if (!defined('ABSPATH')) exit; // Exit if accessed directly
+
+// Define plugin constants
+define('ITT_TOOLBOX_VERSION', '1.0.2');
+define('ITT_TOOLBOX_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('ITT_TOOLBOX_PLUGIN_PATH', plugin_dir_path(__FILE__));
+
+/**
+ * Main ITT Toolbox Plugin Loader Class
+ * Entry point that initializes all plugin components
+ */
 require_once dirname(__FILE__) . '/image-processing/DynamicMemoryCWebPProcessor.php';
 
 // Global instance for admin interface access
