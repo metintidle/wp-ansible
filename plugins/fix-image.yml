@@ -5,18 +5,15 @@
 
   tasks:
 
-  # Wordpress and plugins has issue with upper than PHP version 8.1
-  # memory regression issues on v 8.4
-  # plugin ecosystem incompatibilities make it unsuitable for production use on resource-constrained servers
   - name: Install Image packages
-    ansible.builtin.yum_repository:
+    yum:
       name:
-      - gcc
-      - ImageMagick
-      - ImageMagick-devel
-      - libwebp-tools
-      - netpbm-progs
-      - libjpeg-turbo-utils
+        - gcc
+        - ImageMagick
+        - ImageMagick-devel
+        - libwebp-tools
+        - netpbm-progs
+        - libjpeg-turbo-utils
       state: present
 
   - name: Compress the wp-maintence plugin folder locally
