@@ -37,6 +37,7 @@
          dest: /tmp/wp-maintence.tar.gz
          format: gz
        delegate_to: localhost
+       become: false
        run_once: true
 
      - name: Upload the compressed plugin to the remote server
@@ -63,4 +64,5 @@
          path: /tmp/wp-maintence.tar.gz
          state: absent
        delegate_to: localhost
+       become: false
        run_once: true
