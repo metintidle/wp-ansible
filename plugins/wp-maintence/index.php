@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: IT&T Toolbox
+Plugin Name: IT&T Maintenance
 Description: Optimize Harddisk space and database usge
 Version: 1.0.2
 Author: Meti Nejati
