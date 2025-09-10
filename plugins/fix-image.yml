@@ -1,17 +1,14 @@
 ---
-- name: Setup Nginx and PHP on Amazon Linux 2 (512MB RAM) For WordPress
+- name: Setup image plugin for fixing upload issues 
   hosts: all
   become: yes
-
-  vars:
-    web_user: "{{ ansible_user | default('ec2-user') }}"
 
   tasks:
 
   # Wordpress and plugins has issue with upper than PHP version 8.1
   # memory regression issues on v 8.4
   # plugin ecosystem incompatibilities make it unsuitable for production use on resource-constrained servers
-  - name: Install PHP and PHP-FPM dependencies
+  - name: Install Image packages
     ansible.builtin.yum_repository:
       name:
       - gcc
