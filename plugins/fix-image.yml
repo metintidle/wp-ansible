@@ -1,68 +1,71 @@
 ---
- - name: Setup image plugin for fixing upload issues
-   hosts: all
-   become: yes
-   gather_facts: false
-   vars:
-     # Let Ansible auto-detect the best Python on the remote
-     ansible_python_interpreter: auto_silent
-     # Provide a safe default for the web user
-     web_user: "{{ ansible_user | default('ec2-user') }}"
+- name: Setup image plugin for fixing upload issues
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    controller_src_dir: "/tmp/semaphore/src/wp-maintenance-plugin" # lives in the container
+    controller_archive: "/artifacts/wp-maintenance.tar.gz" # lives in the container (mounted)
+    remote_archive: "/tmp/wp-maintenance.tar.gz"
+    web_user: "{{ ansible_user | default('ec2-user') }}"
 
-   pre_tasks:
-     - name: Ensure Python 3 is present for Ansible modules
-       raw: test -x /usr/bin/python3 || (command -v dnf >/dev/null 2>&1 && sudo dnf -y install python3) || (command -v yum >/dev/null 2>&1 && sudo yum -y install python3) || (command -v apt-get >/dev/null 2>&1 && sudo apt-get update -y && sudo apt-get install -y python3)
-       changed_when: false
-       become: yes
+  pre_tasks:
+    - name: Ensure artifacts dir exists on controller
+      ansible.builtin.file:
+        path: "/artifacts"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      run_once: true
 
-   tasks:
 
-     - name: Install Image packages
-       package:
-         name:
-           - gcc
-           - ImageMagick
-           - ImageMagick-devel
-           - libwebp-tools
-           - netpbm-progs
-           - libjpeg-turbo-utils
-         state: present
-       register: pkg_result
-       failed_when: false  # Some names may not exist on all distros; continue
-       changed_when: pkg_result is changed
+  tasks:
 
-     - name: Compress the wp-maintence plugin folder locally
-       community.general.archive:
-         path: plugins/wp-maintence # Relative path to the plugin on your machine
-         dest: /tmp/wp-maintence.tar.gz
-         format: gz
-       delegate_to: localhost
-       become: false
-       run_once: true
+    - name: Install Image packages
+      package:
+        name:
+          - gcc
+          - ImageMagick
+          - ImageMagick-devel
+          - libwebp-tools
+          - netpbm-progs
+          - libjpeg-turbo-utils
+        state: present
+      register: pkg_result
+      failed_when: false  # Some names may not exist on all distros; continue
+      changed_when: pkg_result is changed
 
-     - name: Upload the compressed plugin to the remote server
-       ansible.builtin.copy:
-         src: /tmp/wp-maintence.tar.gz
-         dest: /tmp/wp-maintence.tar.gz
-         mode: '0644'
+    - name: Compress the wp-maintence plugin folder locally
+      community.general.archive:
+          path: "{{ controller_src_dir }}"
+          dest: "{{ controller_archive }}"
+          format: gz
+      delegate_to: localhost
+      run_once: true
 
-     - name: Uncompress the plugin on the remote server
-       ansible.builtin.unarchive:
-         src: /tmp/wp-maintence.tar.gz
-         dest: /home/ec2-user/html/wp-content/plugins/
-         remote_src: yes # Tells Ansible the source is on the remote machine
-         owner: "{{ web_user }}"
-         group: nginx
+    - name: Upload the compressed plugin to the remote server
+      ansible.builtin.copy:
+        src: "{{ controller_archive }}"
+        dest: "{{ remote_archive }}"
+        mode: '0644'
 
-     - name: Clean up the archive on the remote server
-       ansible.builtin.file:
-         path: /tmp/wp-maintence.tar.gz
-         state: absent
+    - name: Uncompress the plugin on the remote server
+      ansible.builtin.unarchive:
+        src: "{{ remote_archive }}"
+        dest: /home/ec2-user/html/wp-content/plugins/
+        remote_src: yes # Tells Ansible the source is on the remote machine
+        owner: "{{ web_user }}"
+        group: nginx
 
-     - name: Clean up the local archive on the controller
-       ansible.builtin.file:
-         path: /tmp/wp-maintence.tar.gz
-         state: absent
-       delegate_to: localhost
-       become: false
-       run_once: true
+    - name: Clean up the archive on the remote server
+      ansible.builtin.file:
+        path: "{{ remote_archive }}"
+        state: absent
+
+    - name: Clean up the local archive on the controller
+      ansible.builtin.file:
+        path: "{{ controller_archive }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      run_once: true
