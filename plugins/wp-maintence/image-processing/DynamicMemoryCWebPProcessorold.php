@@ -13,7 +13,7 @@ require_once dirname(__FILE__) . '/processors/RandomWordRenamer.php'; // NEW
 require_once dirname(__FILE__) . '/utils/BinaryFinder.php';
 
 
-class DynamicMemoryCWebPProcessor {
+class DynamicMemoryCWebPProcessorOld {
 
     private $cwebp_path;
     private $memory_manager;
@@ -21,7 +21,7 @@ class DynamicMemoryCWebPProcessor {
     private $cwebp_processor;
     private $low_memory_processor;
     private $renamer; // NEW
-
+    
     private $high_memory_threshold = 500 * 1024 * 1024; // 500MB
 
     public function __construct() {
@@ -122,31 +122,73 @@ class DynamicMemoryCWebPProcessor {
      * NEW: Create a WebP version without overwriting the original.
      * Hooks into `wp_handle_upload` to act on the final file.
      */
-    public function create_webp_version($upload, $context) {
-        if (!$this->is_processable_image($upload['type'])) {
-            return $upload;
+    public function create_webp_for_all_sizes($metadata, $attachment_id) {
+        $upload_dir = wp_get_upload_dir();
+        $attachment_path = get_attached_file($attachment_id);
+
+        // Get the mime type of the original file
+        $mime_type = get_post_mime_type($attachment_id);
+        if (!$this->is_processable_image($mime_type)) {
+            return $metadata;
         }
 
-        $start_time = microtime(true);
         $memory_status = $this->memory_manager->get_memory_status();
 
-        $file_path = $upload['file'];
-        $image_info = getimagesize($file_path);
-
+        $image_info = getimagesize($attachment_path);
         if (!$image_info) {
-            error_log("❌ Cannot read image info for: " . basename($file_path));
-            return $upload;
+            error_log("❌ Cannot read image info for attachment: " . $attachment_path);
+            return $metadata;
         }
 
-        $original_width = $image_info[0];
-        $original_height = $image_info[1];
-        $original_size = filesize($file_path);
+        $base_path = dirname($attachment_path);
+        $files_to_process = [];
+
+        // 1. Add the original (full-size) image
+        $files_to_process['full'] = [
+            'path' => $attachment_path,
+            'width' => $metadata['width'],
+            'height' => $metadata['height']
+        ];
+
+        // 2. Add all intermediate sizes
+        if (isset($metadata['sizes']) && is_array($metadata['sizes'])) {
+            foreach ($metadata['sizes'] as $size => $size_info) {
+                $files_to_process[$size] = [
+                    'path' => $base_path . '/' . $size_info['file'],
+                    'width' => $size_info['width'],
+                    'height' => $size_info['height']
+                ];
+            }
+        }
+
+        error_log("Found " . count($files_to_process) . " sizes to convert to WebP for attachment ID {$attachment_id}");
+
+        // Process each file
+        foreach ($files_to_process as $size_name => $file_data) {
+            $this->process_single_image_to_webp($file_data['path'], $file_data['width'], $file_data['height'], $mime_type, $memory_status);
+        }
+
+        return $metadata;
+    }
+
+    /**
+     * Processes a single image file (original or thumbnail) to create a WebP version.
+     * This is the core logic extracted from the previous `create_webp_version` function.
+     */
+    private function process_single_image_to_webp($source_path, $original_width, $original_height, $mime_type, $memory_status) {
+        if (!file_exists($source_path)) {
+            error_log("❌ Source file does not exist, skipping WebP creation: " . $source_path);
+            return;
+        }
+
+        $start_time = microtime(true); // Define start_time here for accurate timing per image
+        $original_size = filesize($source_path);
 
         // Create a temporary copy to process, so we don't alter the original upload
-        $processing_path = $file_path . '.tmp';
-        if (!copy($file_path, $processing_path)) {
+        $processing_path = $source_path . '.tmp';
+        if (!copy($source_path, $processing_path)) {
             error_log("❌ Failed to create temporary copy for WebP processing.");
-            return $upload;
+            return;
         }
 
         // Simple decision: High memory or Low memory mode
@@ -154,15 +196,15 @@ class DynamicMemoryCWebPProcessor {
 
         error_log(sprintf(
             "🔄 Creating WebP version for: %s (Mode: %s)",
-            basename($file_path),
+            basename($source_path),
             $use_high_memory ? 'HIGH MEMORY' : 'LOW MEMORY'
         ));
 
         try {
             if ($use_high_memory) {
-                $result = $this->process_high_memory_mode($processing_path, $original_width, $original_height, $upload['type']);
+                $result = $this->process_high_memory_mode($processing_path, $original_width, $original_height, $mime_type);
             } else {
-                $result = $this->process_low_memory_mode($processing_path, $original_width, $original_height, $upload['type']);
+                $result = $this->process_low_memory_mode($processing_path, $original_width, $original_height, $mime_type);
             }
 
             if ($result['success']) {
@@ -171,13 +213,8 @@ class DynamicMemoryCWebPProcessor {
                 $compression_ratio = round((($original_size - $final_size) / $original_size) * 100, 1);
 
                 // The processed file is now a WebP. Rename it to its final destination.
-                $webp_path = dirname($file_path) . '/' . pathinfo($file_path, PATHINFO_FILENAME) . '.webp';
+                $webp_path = dirname($source_path) . '/' . pathinfo($source_path, PATHINFO_FILENAME) . '.webp';
                 rename($processing_path, $webp_path);
-
-                // Update upload array to reflect the new WebP file
-                $upload['file'] = $webp_path;
-                $upload['url'] = dirname($upload['url']) . '/' . pathinfo($upload['url'], PATHINFO_FILENAME) . '.webp';
-                $upload['type'] = 'image/webp';
 
                 error_log("✅ WebP created: {$webp_path} ({$compression_ratio}% compression in {$processing_time}s)");
 
@@ -188,15 +225,13 @@ class DynamicMemoryCWebPProcessor {
                 error_log("❌ WebP processing failed: " . $result['error']);
             }
         } catch (Exception $e) {
-            error_log("❌ WebP creation exception for " . basename($file_path) . ": " . $e->getMessage());
+            error_log("❌ WebP creation exception for " . basename($source_path) . ": " . $e->getMessage());
         } finally {
             // Clean up the temporary processing file if it still exists
             if (file_exists($processing_path)) {
                 unlink($processing_path);
             }
         }
-
-        return $upload;
     }
 
     private function process_high_memory_mode($file_path, $width, $height, $mime_type) {
