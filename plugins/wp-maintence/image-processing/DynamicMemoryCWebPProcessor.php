@@ -47,7 +47,7 @@ class DynamicMemoryCWebPProcessor {
         // We now hook into `wp_handle_upload` which runs *after* the file is moved.
         // This allows us to have the final path and not interfere with the original upload.
         add_filter('wp_handle_upload', array($this, 'create_webp_version'), 10, 2);
-        add_filter('wp_generate_attachment_metadata', array($this, 'create_webp_for_all_sizes'), 10, 2);
+        // add_filter('wp_generate_attachment_metadata', array($this, 'create_webp_for_all_sizes'), 10, 2);
     }
 
     /**
@@ -253,7 +253,7 @@ class DynamicMemoryCWebPProcessor {
 
     public function missing_cwebp_notice() {
         echo '<div class="notice notice-error"><p>';
-        echo '<strong>CWebP not found:</strong> Install with <code>sudo dnf install libwebp-tools</code>';
+    echo '<strong>CWebP not found:</strong> Install with <code>sudo yum install libwebp-tools</code>';
         echo '</p></div>';
     }
 
@@ -288,7 +288,5 @@ class DynamicMemoryCWebPProcessor {
         );
     }
 }
-
-?>
 
 ?>
