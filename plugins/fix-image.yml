@@ -1,27 +1,35 @@
 ---
-- name: Setup image plugin for fixing upload issues
+- name: Setup image plugin for fixing upload issues (fixed controller/remote paths)
   hosts: all
   become: true
   gather_facts: false
+
   vars:
-    controller_src_dir: "/tmp/semaphore/src/wp-maintenance-plugin" # lives in the container
-    controller_archive: "/artifacts/wp-maintenance.tar.gz" # lives in the container (mounted)
+    # Controller-side (Ansible control node) paths
+    controller_src_dir: "/tmp/semaphore/src/wp-maintenance-plugin"     # where the plugin folder exists on the controller
+    controller_artifacts_dir: "/artifacts"                              # mounted in Semaphore; change to "{{ playbook_dir }}/artifacts" if preferred
+    controller_archive: "{{ controller_artifacts_dir }}/wp-maintenance.tar.gz"
+
+    # Remote-side paths
     remote_archive: "/tmp/wp-maintenance.tar.gz"
+    plugin_name: "wp-maintenance"
+    plugin_dest: "/var/www/html/wp-content/plugins"  # change to your WP path if needed
+
+    # Ownership (adjust to your stack)
     web_user: "{{ ansible_user | default('ec2-user') }}"
+    web_group: "{{ web_user }}"
 
   pre_tasks:
     - name: Ensure artifacts dir exists on controller
       ansible.builtin.file:
-        path: "/artifacts"
+        path: "{{ controller_artifacts_dir }}"
         state: directory
         mode: "0755"
       delegate_to: localhost
-      become: false
       run_once: true
-
+      become: false
 
   tasks:
-
     - name: Install Image packages
       package:
         name:
@@ -36,31 +44,47 @@
       failed_when: false  # Some names may not exist on all distros; continue
       changed_when: pkg_result is changed
 
-    - name: Compress the wp-maintence plugin folder locally
-      community.general.archive:
-          path: "{{ controller_src_dir }}"
-          dest: "{{ controller_archive }}"
-          format: gz
+    - name: Compress plugin locally on the controller
+      ansible.builtin.archive:
+        path: "{{ controller_src_dir }}/"
+        dest: "{{ controller_archive }}"
+        format: gz
       delegate_to: localhost
-      become: false
       run_once: true
+      become: false
 
     - name: Upload the compressed plugin to the remote server
       ansible.builtin.copy:
-        src: "{{ controller_archive }}"
-        dest: "{{ remote_archive }}"
-        mode: '0644'
-      become: false
+        src: "{{ controller_archive }}"    # file on the controller
+        dest: "{{ remote_archive }}"        # target on the remote
+        mode: "0644"
 
-    - name: Uncompress the plugin on the remote server
+    - name: Ensure plugin destination exists on remote
+      ansible.builtin.file:
+        path: "{{ plugin_dest }}"
+        state: directory
+        mode: "0755"
+
+    - name: Extract plugin on remote
       ansible.builtin.unarchive:
         src: "{{ remote_archive }}"
-        dest: /home/ec2-user/html/wp-content/plugins/
-        remote_src: yes # Tells Ansible the source is on the remote machine
-        owner: "{{ web_user }}"
-        group: nginx
-      become: false
+        dest: "{{ plugin_dest }}/"
+        remote_src: true
+        extra_opts:
+          - "--transform"
+          - "s|^|{{ plugin_name }}/|"
+      # Note: If your archive already contains the 'wp-maintenance' folder at top-level,
+      # you can remove the extra_opts transform above.
 
+    - name: Set permissions for plugin directory
+      ansible.builtin.file:
+        path: "{{ plugin_dest }}/{{ plugin_name }}"
+        state: directory
+        recurse: true
+        owner: "{{ web_user }}"
+        group: "{{ web_group }}"
+
+  post_tasks:
     - name: Clean up the archive on the remote server
       ansible.builtin.file:
         path: "{{ remote_archive }}"
