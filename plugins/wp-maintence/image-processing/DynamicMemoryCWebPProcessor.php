@@ -29,7 +29,7 @@ class DynamicMemoryCWebPProcessor {
         $this->memory_manager = new MemoryManager();
         $this->imagick_processor = new ImageMagickProcessor();
         $this->low_memory_processor = new LowMemoryResizeProcessor();
-        $this->renamer = new RandomWordRenamer(); // NEW
+        // $this->renamer = new RandomWordRenamer(); // NEW
 
         if ($this->cwebp_path) {
             $this->cwebp_processor = new CWebPProcessor($this->cwebp_path);
