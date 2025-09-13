@@ -1,0 +1,38 @@
+{
+    "FunctionName": "cloudfront-bot-verification",
+    "FunctionArn": "arn:aws:lambda:ap-southeast-2:018835043385:function:cloudfront-bot-verification",
+    "Runtime": "nodejs22.x",
+    "Role": "arn:aws:iam::018835043385:role/service-role/cloudfront-bot-verification-role-989usgrm",
+    "Handler": "index.handler",
+    "CodeSize": 2715,
+    "Description": "",
+    "Timeout": 3,
+    "MemorySize": 128,
+    "LastModified": "2025-09-12T22:54:36.000+0000",
+    "CodeSha256": "yA9YVGDSv7yMWsBHl57hUbJgefZufZXwoCdl9lHjFZw=",
+    "Version": "$LATEST",
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    },
+    "RevisionId": "38975132-3fa4-4cbb-ad23-3ee3754a9a3d",
+    "State": "Active",
+    "LastUpdateStatus": "Successful",
+    "PackageType": "Zip",
+    "Architectures": [
+        "x86_64"
+    ],
+    "EphemeralStorage": {
+        "Size": 512
+    },
+    "SnapStart": {
+        "ApplyOn": "None",
+        "OptimizationStatus": "Off"
+    },
+    "RuntimeVersionConfig": {
+        "RuntimeVersionArn": "arn:aws:lambda:ap-southeast-2::runtime:95d75816ec5ca62f98dd61443748491f631a78c967b17393a9c60b763a4cb014"
+    },
+    "LoggingConfig": {
+        "LogFormat": "Text",
+        "LogGroup": "/aws/lambda/cloudfront-bot-verification"
+    }
+}
