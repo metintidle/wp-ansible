@@ -17,23 +17,6 @@
         state: present
 
 
-    - name: Create GeoIP filter configuration
-      ansible.builtin.copy:
-        src: security/filter/geoip.conf
-        dest: /etc/fail2ban/filter.d/geoip.conf
-        owner: root
-        group: root
-        mode: '0644'
-
-
-    - name: Configure fail2ban jail for GeoIP blocking
-      ansible.builtin.copy:
-        src: security/jail/geoip.conf
-        dest: /etc/fail2ban/jail.d/geoip.conf
-        owner: root
-        group: root
-        mode: '0644'
-
     - name: Create Nginx unknown script filter configuration
       ansible.builtin.copy:
         src: security/filter/nginx-unknown-script.conf
