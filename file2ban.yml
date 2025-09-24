@@ -16,7 +16,6 @@
         name: fail2ban
         state: present
 
-
     - name: Create Nginx unknown script filter configuration
       ansible.builtin.copy:
         src: security/filter/nginx-unknown-script.conf
@@ -25,11 +24,26 @@
         group: root
         mode: '0644'
 
-
     - name: Configure fail2ban jail for unknown script errors
       ansible.builtin.copy:
         src: security/jail/nginx-unknown-script.conf
         dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Copy local defaults for Fail2Ban
+      ansible.builtin.copy:
+        src: security/jail/defaults-local.conf
+        dest: /etc/fail2ban/jail.d/defaults-local.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Copy WordPress jail for Fail2Ban
+      ansible.builtin.copy:
+        src: security/jail/wordpress.conf
+        dest: /etc/fail2ban/jail.d/wordpress.conf
         owner: root
         group: root
         mode: '0644'
@@ -54,62 +68,36 @@
         state: started
         enabled: yes
 
-    - name: Create Fail2Ban local configuration
-      copy:
-        dest: /etc/fail2ban/jail.local
-        content: |
-          [DEFAULT]
-          ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
-          bantime = 3600
-          findtime = 600
-          maxretry = 3
-          banaction = iptables-multiport
-          backend = auto
-          [sshd]
-          enabled = true
-
-          [xmlrpc]
-          enabled = true
-          port = http,https
-          filter = wordpress-xmlrpc
-          logpath = /var/log/nginx/access.log
-          maxretry = 1
-          bantime = 86400
-          findtime = 600
-
-        owner: root
-        group: root
-        mode: '0644'
-
-    - name: Check fail2ban status
-      command: fail2ban-client status
-      register: fail2ban_status
-      changed_when: false
-
-    - name: Display fail2ban status
-      debug:
-        var: fail2ban_status.stdout_lines
-
-    - name: Restart Fail2Ban service
+    - name: Restart Fail2Ban service to apply changes
       service:
         name: fail2ban
         state: restarted
+
     - name: Restart Nginx service
       service:
         name: nginx
         state: restarted
 
     - name: Allow SSH connections
-      ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: false
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 22
+        ctstate: NEW
+        jump: ACCEPT
 
     - name: Allow HTTP connections
-      ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: false
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 80
+        ctstate: NEW
+        jump: ACCEPT
 
     - name: Allow HTTPS connections
-      ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: false
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 443
+        ctstate: NEW
+        jump: ACCEPT
