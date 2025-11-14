@@ -112,6 +112,7 @@
     - name: Fix WordPress FTP error
       lineinfile:
         path: "/home/ec2-user/html/wp-config.php"
+        insertafter: 'DB_COLLATE'
         regexp: "^define\\('FS_METHOD',"
         line: "define('FS_METHOD', 'direct');"
         backup: yes
@@ -158,7 +159,7 @@
 
 
     - name: install SQLite Object Cache plugin
-      command: wp plugin install sqlite-object-cache 
+      command: wp plugin install sqlite-object-cache
       args:
         chdir: /home/ec2-user/html
 
