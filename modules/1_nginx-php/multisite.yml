@@ -32,9 +32,9 @@
     register: nginx_status
     ignore_errors: yes
 
-  - name: Display Nginx status
-    debug:
-      var: nginx_status.stdout
+  # - name: Display Nginx status
+  #   debug:
+  #     var: nginx_status.stdout
 
   # Wordpress and plugins has issue with upper than PHP version 8.1
   # memory regression issues on v 8.4

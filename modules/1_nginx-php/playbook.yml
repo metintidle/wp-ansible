@@ -7,22 +7,6 @@
     web_user: "{{ ansible_user | default('ec2-user') }}"
 
   tasks:
-
-  # run bash file Updatepython.sh This file needs to be uploaded from the repository or downloaded on the remote server.
-  # - name: Copy Updatepython.sh to remote server
-  #   ansible.builtin.copy:
-  #     src: bash/updatepython.sh
-  #     dest: /tmp/updatepython.sh
-  #     mode: '0755'
-  #     owner: root
-  #     group: root
-
-  # - name: Run Updatepython.sh
-  #   ansible.builtin.shell: bash /tmp/updatepython.sh
-  #   args:
-  #     chdir: /tmp
-  #   become: true
-
   - name: Show current user
     debug:
       msg: "Detected current user is '{{ web_user }}'"
@@ -175,7 +159,7 @@
 
   - name: Copy nginx.config
     ansible.builtin.copy:
-      src: modules/1_nginx-php/files/nginx.conf
+      src: files/nginx.conf
       dest: /etc/nginx/nginx.conf
       owner: root
       group: root
@@ -183,21 +167,12 @@
 
   - name: add security
     ansible.builtin.copy:
-      src: modules/1_nginx-php/files/security/general.conf
+      src: files/security/general.conf
       dest: /etc/nginx/conf.d/security.conf
       owner: root
       group: root
       mode: '0644'
     tags: security
-
-  # - name: add security rules
-  #   ansible.builtin.copy:
-  #     src: configs/security-rules.conf
-  #     dest: /etc/nginx/default.d/security.conf
-  #     owner: root
-  #     group: root
-  #     mode: '0644'
-  #   tags: security
 
   - name: Create symbolic link from web server’s document root to home directory
     file:
@@ -282,7 +257,7 @@
 
   - name: Copy fpm.sh to /usr/local/bin
     copy:
-      src: modules/1_nginx-php/scripts/fpm.sh
+      src: scripts/fpm.sh
       dest: /usr/local/bin/fpm.sh
       mode: 755
       owner: root
@@ -316,7 +291,7 @@
 
   - name: Copy cleanlogs.sh to /usr/local/bin
     copy:
-      src: modules/1_nginx-php/scripts/cleanlogs.sh
+      src: scripts/cleanlogs.sh
       dest: /usr/local/bin/cleanlogs.sh
       mode: 755
       owner: root
