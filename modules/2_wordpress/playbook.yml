@@ -5,16 +5,16 @@
    site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
 
   tasks:
-    - name: Install MySQL client
-      command: "yum install -y mysql"
+    - name: Install MariaDB client
+      command: "dnf install -y mariadb105"
       become: yes
 
-    - name: Create database for WordPress
+    - name: Create WordPress database if it doesn't exist
       command: >
         mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} -e "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
 
-    - name: remove mysql
-      command: "yum remove -y mysql"
+    - name: remove mariadb
+      command: "dnf remove -y mariadb105"
       become: yes
 
     - name: Check if WP-CLI is already installed
@@ -23,9 +23,9 @@
       register: wp_cli_installed
       become: yes
 
-    - name: Download WP-CLI
+    - name: Download WP-CLI (latest version)
       get_url:
-        url: https://github.com/wp-cli/wp-cli/releases/download/v2.11.0/wp-cli-2.11.0.phar
+        url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
         dest: /usr/local/bin/wp-cli.phar
         mode: "0755"
       become: yes
@@ -58,17 +58,17 @@
         msg: "WordPress is already installed."
       when: wordpress_downloaded.stat.exists
 
-    - name: Download WordPress tarball
+    - name: Download WordPress tarball (latest version)
       get_url:
-        url: https://en-au.wordpress.org/wordpress-6.7.1-en_AU.tar.gz
-        dest: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
+        url: https://wordpress.org/latest.tar.gz
+        dest: /home/ec2-user/wordpress-latest.tar.gz
         mode: "0644"
       become: yes
       when: not wordpress_downloaded.stat.exists
 
     - name: Extract WordPress tarball directly to html directory
       unarchive:
-        src: /home/ec2-user/wordpress-6.7.1-en_AU.tar.gz
+        src: /home/ec2-user/wordpress-latest.tar.gz
         dest: /home/ec2-user/html/
         remote_src: yes
         extra_opts: [--strip-components=1]
@@ -96,7 +96,7 @@
         path: /home/ec2-user/html/wp-config.php
       register: wp_config_exists
 
-    - name: Create wp-config.php
+    - name: config
       command: >
         /usr/local/bin/wp config create
         --dbname={{db_name}}
@@ -112,21 +112,22 @@
     - name: Fix WordPress FTP error
       lineinfile:
         path: "/home/ec2-user/html/wp-config.php"
+        insertafter: 'DB_COLLATE'
         regexp: "^define\\('FS_METHOD',"
         line: "define('FS_METHOD', 'direct');"
         backup: yes
       when: not wp_config_exists.stat.exists
 
-    # - name: Set WordPress memory limit
-    #   blockinfile:
-    #     path: /home/ec2-user/html/wp-config.php
-    #     marker: "# {mark} WP_MEMORY_LIMIT block"
-    #     insertafter: 'DB_COLLATE'
-    #     block: |
-    #       if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
-    #           define( 'WP_MEMORY_LIMIT', '128M' );
-    #       }
-    #   backup: yes
+    - name: Set WordPress memory limit
+      blockinfile:
+        path: /home/ec2-user/html/wp-config.php
+        marker: "# {mark} WP_MEMORY_LIMIT block"
+        insertafter: 'DB_COLLATE'
+        backup: yes
+        block: |
+          if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
+              define( 'WP_MEMORY_LIMIT', '128M' );
+          }
 
 
     - name: Install WordPress
@@ -149,16 +150,17 @@
       command: wp plugin install better-search-replace --activate
       args:
         chdir: /home/ec2-user/html
-    - name: Install All 404 Redirect to Homepage Plugin
-      command: wp plugin install all-404-redirect-to-homepage --activate
-      args:
-        chdir: /home/ec2-user/html
 
-
-
-    # - name: install SQLite Object Cache plugin
-    #   command: wp plugin install sqlite-object-cache --activate
+    # - name: Install All 404 Redirect to Homepage Plugin
+    #   command: wp plugin install all-404-redirect-to-homepage --activate
     #   args:
     #     chdir: /home/ec2-user/html
+
+
+
+    - name: install SQLite Object Cache plugin
+      command: wp plugin install sqlite-object-cache
+      args:
+        chdir: /home/ec2-user/html
 
 
