@@ -1,311 +1,416 @@
 ---
-- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
+- name: Setup Nginx and PHP on Amazon Linux 2 (512MB RAM) For WordPress
   hosts: all
   become: yes
-  
+
   vars:
     web_user: "{{ ansible_user | default('ec2-user') }}"
 
   tasks:
 
-    # - name: Get current user from remote host
-    #   command: whoami
-    #   register: current_user
+  # run bash file Updatepython.sh This file needs to be uploaded from the repository or downloaded on the remote server.
+  # - name: Copy Updatepython.sh to remote server
+  #   ansible.builtin.copy:
+  #     src: bash/updatepython.sh
+  #     dest: /tmp/updatepython.sh
+  #     mode: '0755'
+  #     owner: root
+  #     group: root
 
-    # - name: Set web_user as fact
-    #   set_fact:
-    #     web_user: "{{ current_user.stdout }}"
+  # - name: Run Updatepython.sh
+  #   ansible.builtin.shell: bash /tmp/updatepython.sh
+  #   args:
+  #     chdir: /tmp
+  #   become: true
 
-    - name: Show current user
-      debug:
-        msg: "Detected current user is '{{ web_user }}'"
+  - name: Show current user
+    debug:
+      msg: "Detected current user is '{{ web_user }}'"
 
-    - name: Update the package index
-      dnf:
-        name: "*"
-        state: latest
+  - name: Update the package index
+    dnf:
+      name: "*"
+      state: latest
 
-    - name: Install Nginx
-      dnf:
-        name: nginx
-        state: present
+  - name: Install Nginx
+    dnf:
+      name: nginx
+      state: present
 
-    - name: Start and enable Nginx service
-      systemd:
-        name: nginx
-        state: started
-        enabled: yes
+  - name: Start and enable Nginx service
+    systemd:
+      name: nginx
+      state: started
+      enabled: yes
 
-    - name: Check if Nginx is running
-      command: systemctl status nginx
-      register: nginx_status
-      ignore_errors: yes
+  - name: Check if Nginx is running
+    command: systemctl status nginx
+    register: nginx_status
+    ignore_errors: yes
 
-    - name: Display Nginx status
-      debug:
-        var: nginx_status.stdout
+  - name: Display Nginx status
+    debug:
+      var: nginx_status.stdout
 
-    - name: Install PHP and PHP-FPM dependencies
-      dnf:
-        name:
-          - php
-          - php-fpm
-          - php-mysqlnd
-          - php-mbstring
-          - php-intl
-          - gcc
-          - ImageMagick
-          - ImageMagick-devel
-          - php-pear
-          - php-devel
-          - php-gd
-          - php-sqlite3
-          - php-zip
-        state: present
+  # Wordpress and plugins has issue with upper than PHP version 8.1
+  # memory regression issues on v 8.4
+  # plugin ecosystem incompatibilities make it unsuitable for production use on resource-constrained servers
+  - name: Install PHP and PHP-FPM dependencies
+    dnf:
+      name:
+      - php8.1
+      - php8.1-fpm
+      - php8.1-mysqlnd
+      - php8.1-mbstring
+      - php8.1-intl
+      - gcc
+      - ImageMagick
+      - ImageMagick-devel
+      - php-pear
+      - php8.1-devel
+      - php8.1-gd
+      - php-sqlite3
+      - php8.1-zip
+      - libwebp-tools
+      - netpbm-progs
+      - libjpeg-turbo-utils
+      state: present
 
-    - name: Check if igbinary is already installed
-      command: pecl list | grep igbinary
-      register: igbinary_check
-      ignore_errors: yes
+  - name: Check if igbinary is already installed
+    command: pecl list | grep igbinary
+    register: igbinary_check
+    ignore_errors: yes
 
-    - name: Start and enable php igbinary
-      ansible.builtin.command: sudo pecl install igbinary
-      when: igbinary_check.rc != 0
+  - name: Start and enable php igbinary
+    ansible.builtin.command: sudo pecl install igbinary
+    when: igbinary_check.rc != 0
 
-    - name: Install Python pip
-      dnf:
-        name: python3-pip
-        state: present
+  - name: Install Python pip
+    dnf:
+      name: python3-pip
+      state: present
 
-    - name: Ensure pexpect is installed
-      pip:
-        name: pexpect
-        state: present
+  - name: Ensure pexpect is installed
+    pip:
+      name: pexpect
+      state: present
 
-    - name: Update PHP-FPM configuration for 512MB RAM
-      lineinfile:
-        path: /etc/php-fpm.d/www.conf
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-      with_items:
-        - { regexp: "^pm =", line: "pm = dynamic" }
-        - { regexp: "^pm.max_children =.*", line: "pm.max_children = 3" }
-        - { regexp: "^pm.start_servers =.*", line: "pm.start_servers = 1" }
-        - {
-            regexp: "^pm.min_spare_servers =.*",
-            line: "pm.min_spare_servers = 1",
-          }
-        - {
-            regexp: "^pm.max_spare_servers =.*",
-            line: "pm.max_spare_servers = 2",
-          }
-        - { regexp: "^;?pm.max_requests =.*", line: "pm.max_requests = 500" } # Ensure it handles commented or uncommented
+  - name: Update PHP-FPM configuration for 512MB RAM
+    lineinfile:
+      path: /etc/php-fpm.d/www.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+    with_items:
+    - { regexp: "^pm =", line: "pm = dynamic" }
+    - { regexp: "^pm.max_children =.*", line: "pm.max_children = 2" }
+    - { regexp: "^pm.start_servers =.*", line: "pm.start_servers = 1" }
+    - { regexp: "^pm.min_spare_servers =.*", line: "pm.min_spare_servers = 1" }
+    - { regexp: "^pm.max_spare_servers =.*", line: "pm.max_spare_servers = 2" }
+    - { regexp: "^;?pm.max_requests =.*", line: "pm.max_requests = 500" } # Ensure it handles commented or uncommented
 
-    - name: Increase PHP upload size
-      lineinfile:
-        path: /etc/php.ini
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-      with_items:
-        - {
-            regexp: "^upload_max_filesize =.*",
-            line: "upload_max_filesize = 300M",
-          }
-        - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
+  - name: Increase PHP upload size
+    lineinfile:
+      path: /etc/php.ini
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+    with_items:
+    - { regexp: "^upload_max_filesize =.*", line: "upload_max_filesize = 300M" }
+    - { regexp: "^post_max_size =.*", line: "post_max_size = 300M" }
+    - { regexp: "^post_max_size =.*", line: "post_max_size = 50M" }
+    - { regexp: "^max_execution_time =.*", line: "max_execution_time = 300" }
 
-    - name: Increase PHP memory limit
-      lineinfile:
-        path: /etc/php.ini
-        regexp: "^memory_limit =.*"
-        line: "memory_limit = 96M"
-      become: yes
+  - name: Increase PHP memory limit
+    lineinfile:
+      path: /etc/php.ini
+      regexp: "^memory_limit =.*"
+      line: "memory_limit = 96M"
+    become: yes
 
-    - name: Update PHP realpath cache size
-      lineinfile:
-        path: /etc/php.ini
-        line: "realpath_cache_size = 1024k"
-        state: present
-      become: yes
+  - name: Update PHP realpath cache size
+    lineinfile:
+      path: /etc/php.ini
+      line: "realpath_cache_size = 1024k"
+      state: present
+    become: yes
 
-    - name: Update PHP realpath cache TTL
-      lineinfile:
-        path: /etc/php.ini
-        line: "realpath_cache_ttl = 300"
-        state: present
-      become: yes
+  - name: Update PHP realpath cache TTL
+    lineinfile:
+      path: /etc/php.ini
+      line: "realpath_cache_ttl = 300"
+      state: present
+    become: yes
 
-    - name: Set PHP session storage to memory
-      lineinfile:
-        path: /etc/php.ini
-        line: "session.save_path = \"/tmp\""
-        state: present
-      become: yes
+  - name: Set PHP session storage to memory
+    lineinfile:
+      path: /etc/php.ini
+      line: "session.save_path = \"/tmp\""
+      state: present
+    become: yes
 
-    - name: Restart PHP-FPM and Nginx
-      service:
-        name: "{{ item }}"
-        state: restarted
-      with_items:
-        - nginx
-        - php-fpm
-      tags: restart
+  - name: Restart PHP-FPM and Nginx
+    service:
+      name: "{{ item }}"
+      state: restarted
+    with_items:
+    - nginx
+    - php-fpm
+    tags: restart
 
-    - name: Test Nginx configuration
-      command: nginx -t
-      register: nginx_test_result
-      ignore_errors: yes
+  - name: Test Nginx configuration
+    command: nginx -t
+    register: nginx_test_result
+    ignore_errors: yes
 
-    - name: Restart Nginx
-      service:
-        name: nginx
-        state: restarted
-      when: nginx_test_result.rc == 0
+  - name: Restart Nginx
+    service:
+      name: nginx
+      state: restarted
+    when: nginx_test_result.rc == 0
 
-    - name: Add {{ web_user }} to nginx group
-      user:
-        name: "{{ web_user }}"
-        groups: nginx
-        append: yes
+  - name: Add {{ web_user }} to nginx group
+    user:
+      name: "{{ web_user }}"
+      groups: nginx
+      append: yes
 
-    - name: Copy nginx.config
-      ansible.builtin.copy:
-        src: configs/nginx.conf
-        dest: /etc/nginx/nginx.conf
-        owner: root
-        group: root
-        mode: '0644'
+  - name: Copy nginx.config
+    ansible.builtin.copy:
+      src: configs/nginx.conf
+      dest: /etc/nginx/nginx.conf
+      owner: root
+      group: root
+      mode: '0644'
 
-    - name: add security
-      ansible.builtin.copy:
-        src: configs/security/general.conf
-        dest: /etc/nginx/conf.d/security.conf
-        owner: root
-        group: root
-        mode: '0644'
-      tags: security
+  - name: add security
+    ansible.builtin.copy:
+      src: configs/security/general.conf
+      dest: /etc/nginx/conf.d/security.conf
+      owner: root
+      group: root
+      mode: '0644'
+    tags: security
 
-    # - name: add security rules
-    #   ansible.builtin.copy:
-    #     src: configs/security-rules.conf
-    #     dest: /etc/nginx/default.d/security.conf
-    #     owner: root
-    #     group: root
-    #     mode: '0644'
-    #   tags: security
+  # - name: add security rules
+  #   ansible.builtin.copy:
+  #     src: configs/security-rules.conf
+  #     dest: /etc/nginx/default.d/security.conf
+  #     owner: root
+  #     group: root
+  #     mode: '0644'
+  #   tags: security
 
-    - name: Create symbolic link from web server’s document root to home directory
-      file:
-        src: /usr/share/nginx/html
-        dest: /home/{{ web_user }}/html
-        state: link
+  - name: Create symbolic link from web server’s document root to home directory
+    file:
+      src: /usr/share/nginx/html
+      dest: /home/{{ web_user }}/html
+      state: link
 
-    - name: Change ownership of WordPress files to ec2-user and nginx
-      lineinfile:
-        path: /etc/php-fpm.d/www.conf
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
-      with_items:
-        - { regexp: "^user =.*", line: "user = {{ web_user }}" }
-        - { regexp: "^group =.*", line: "group = nginx" }
+  - name: Change ownership of WordPress files to ec2-user and nginx
+    lineinfile:
+      path: /etc/php-fpm.d/www.conf
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+    with_items:
+    - { regexp: "^user =.*", line: "user = {{ web_user }}" }
+    - { regexp: "^group =.*", line: "group = nginx" }
 
-    - name: Restart PHP-FPM and Nginx
-      service:
-        name: "{{ item }}"
-        state: restarted
-      with_items:
-        - php-fpm
-        - nginx
+  - name: Restart PHP-FPM and Nginx
+    service:
+      name: "{{ item }}"
+      state: restarted
+    with_items:
+    - php-fpm
+    - nginx
 
-    - name: Change ownership of WordPress files to ec2-user and nginx
-      file:
-        path: /usr/share/nginx/html/
-        owner: "{{ web_user }}"
-        group: nginx
-        recurse: yes
+  - name: Change ownership of WordPress files to ec2-user and nginx
+    file:
+      path: /usr/share/nginx/html/
+      owner: "{{ web_user }}"
+      group: nginx
+      recurse: yes
 
-    - name: Update the PECL channel
-      command: pecl channel-update pecl.php.net
+  - name: Update the PECL channel
+    command: pecl channel-update pecl.php.net
 
-    - name: Install imagick PHP extension non-interactively
-      expect:
-        command: pecl install imagick
-        responses:
-          'Please provide the prefix of ImageMagick installation \[autodetect\] :': "\r"
+  # - name: Install imagick PHP extension non-interactively
+  #   expect:
+  #     command: pecl install imagick
+  #     responses:
+  #       'Please provide the prefix of ImageMagick installation \[autodetect\] :': "\r"
 
-    - name: Enable the imagick extension
-      lineinfile:
-        path: /etc/php.d/20-imagick.ini # Corrected path based on typical configurations
-        line: "extension=imagick.so"
-        create: yes
+  # - name: Enable the imagick extension
+  #   lineinfile:
+  #     path: /etc/php.d/20-imagick.ini # Corrected path based on typical configurations
+  #     line: "extension=imagick.so"
+  #     create: yes
 
-    - name: install php opcache
-      ansible.builtin.command:
-        cmd: sudo dnf install php-opcache -y
+  - name: install php opcache
+    ansible.builtin.command:
+      cmd: sudo dnf install php-opcache -y
 
-    - name: Configure Opcache settings
-      lineinfile:
-        path: /etc/php.d/10-opcache.ini # Standard Opcache config file
-        regexp: "^{{ item.regexp }}"
-        line: "{{ item.line }}"
-        state: present
-        create: yes # Create the file if it doesn't exist
-      with_items:
-        - { regexp: "opcache.enable=.*", line: "opcache.enable=1" }
-        - { regexp: "opcache.memory_consumption=.*", line: "opcache.memory_consumption=64" }
-        - { regexp: "opcache.interned_strings_buffer=.*", line: "opcache.interned_strings_buffer=4" }
-        - { regexp: "opcache.max_accelerated_files=.*", line: "opcache.max_accelerated_files=2000" }
-        - { regexp: "opcache.revalidate_freq=.*", line: "opcache.revalidate_freq=300" }
-        - { regexp: "opcache.save_comments=.*", line: "opcache.save_comments=0" }
-        - { regexp: "opcache.max_file_size=.*", line: "opcache.max_file_size=1M" } # Value from fix.yml
-        - { regexp: "opcache.huge_code_pages=.*", line: "opcache.huge_code_pages=0" } # Value from fix.yml
-      become: yes
+  - name: Configure Opcache settings
+    lineinfile:
+      path: /etc/php.d/10-opcache.ini # Standard Opcache config file
+      regexp: "^{{ item.regexp }}"
+      line: "{{ item.line }}"
+      state: present
+      create: yes # Create the file if it doesn't exist
+    with_items:
+    - { regexp: "opcache.enable=.*", line: "opcache.enable=1" }
+    - { regexp: "opcache.memory_consumption=.*", line: "opcache.memory_consumption=64" }
+    - { regexp: "opcache.interned_strings_buffer=.*", line: "opcache.interned_strings_buffer=8" }
+    - { regexp: "opcache.max_accelerated_files=.*", line: "opcache.max_accelerated_files=2000" }
+    - { regexp: "opcache.revalidate_freq=.*", line: "opcache.revalidate_freq=300" }
+    - { regexp: "opcache.fast_shutdown=.*", line: "opcache.fast_shutdown=1" }
+    - { regexp: "opcache.save_comments=.*", line: "opcache.save_comments=0" }
+    - { regexp: "opcache.load_comments=.*", line: "opcache.load_comments=0" }
+    - { regexp: "opcache.max_file_size=.*", line: "opcache.max_file_size=1M" } # Value from fix.yml
+    - { regexp: "opcache.huge_code_pages=.*", line: "opcache.huge_code_pages=0" } # Value from fix.yml
+    become: yes
 
-    - name: Restart PHP-FPM service
-      service:
-        name: php-fpm
-        state: restarted
+  - name: Restart PHP-FPM service
+    service:
+      name: php-fpm
+      state: restarted
 
-    ## Path: fix.yml
-    - name: Check if fpm.sh exists in /usr/local/bin
-      stat:
-        path: /usr/local/bin/fpm.sh
-      register: fpm_file
-      tags: fpm
+  ## Path: fix.yml
+  - name: Check if fpm.sh exists in /usr/local/bin
+    stat:
+      path: /usr/local/bin/fpm.sh
+    register: fpm_file
+    tags: fpm
 
-    - name: Copy fpm.sh to /usr/local/bin
-      copy:
-        src: bash/fpm.sh
-        dest: /usr/local/bin/fpm.sh
-        mode: 0755
-        owner: root
-        group: root
-        force: yes
+  - name: Copy fpm.sh to /usr/local/bin
+    copy:
+      src: modules/1_nginx-php/scripts/fpm.sh
+      dest: /usr/local/bin/fpm.sh
+      mode: 755
+      owner: root
+      group: root
+      force: yes
 
-    - name: Install bc for fpm.sh script
-      dnf:
-        name: bc
-        state: present
+  - name: fix "ASCII text executable" without "CRLF line terminators"
+    ansible.builtin.command: sudo sed -i 's/\r$//' /usr/local/bin/fpm.sh
 
-    - name: Install cronie
-      yum:
-        name: cronie
-        state: present
+  - name: Install bc for fpm.sh script
+    dnf:
+      name: bc
+      state: present
 
-    - name: Start and enable cronie service
-      systemd:
-        name: crond
-        state: started
-        enabled: yes
+  - name: Install cronie
+    yum:
+      name: cronie
+      state: present
 
-    - name: Add a cron job to run fpm.sh every 5 minutes
-      cron:
-        name: "Run fpm.sh every 5 minutes"
-        minute: "*/5"
-        job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
-      # when: not fmp_file.stat.exists # This condition might need adjustment if we always want to ensure the cron job
-    - name: Install Wordfence
-      command: pip3 install wordfence
+  - name: Start and enable cronie service
+    systemd:
+      name: crond
+      state: started
+      enabled: yes
 
+  - name: Add a cron job to run fpm.sh every 5 minutes
+    cron:
+      name: "Run fpm.sh every 5 minutes"
+      minute: "*/5"
+      job: "/usr/local/bin/fpm.sh >> /var/log/fpm.log 2>&1"
 
+  - name: Copy cleanlogs.sh to /usr/local/bin
+    copy:
+      src: bash/cleanlogs.sh
+      dest: /usr/local/bin/cleanlogs.sh
+      mode: 755
+      owner: root
+      group: root
+      force: yes
+  - name: Add a cron job to run cleanlogs.sh every day
+    cron:
+      name: "Run cleanlogs.sh daily"
+      minute: "0"
+      hour: "0"
+      job: "/usr/local/bin/cleanlogs.sh >> /var/log/cleanlogs.log 2>&1"
 
+  # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
+  # Include these tasks in your existing playbook
 
+  - name: Remove existing tmpfs entry from fstab if it exists
+    lineinfile:
+      path: /etc/fstab
+      regexp: '^tmpfs\s+/tmp\s+tmpfs.*'
+      state: absent
+    become: yes
+
+  - name: Create disk-based tmp directory
+    file:
+      path: /var/tmp_disk
+      state: directory
+      mode: '1777'
+      owner: root
+      group: root
+    become: yes
+
+  - name: Add bind mount entry to fstab
+    lineinfile:
+      path: /etc/fstab
+      line: "/var/tmp_disk /tmp none bind 0 0"
+      state: present
+      backup: yes
+    become: yes
+
+  - name: Check if /tmp is currently a tmpfs
+    shell: mount | grep -q "tmpfs on /tmp"
+    register: tmp_is_tmpfs
+    failed_when: false
+    changed_when: false
+
+  - name: Backup current /tmp contents if it's tmpfs
+    shell: cp -a /tmp/* /var/tmp_disk/ 2>/dev/null || true
+    when: tmp_is_tmpfs.rc == 0
+    become: yes
+
+  - name: Unmount tmpfs /tmp if it exists
+    mount:
+      path: /tmp
+      state: unmounted
+    when: tmp_is_tmpfs.rc == 0
+    become: yes
+    ignore_errors: yes
+
+  - name: Mount disk-based /tmp
+    mount:
+      path: /tmp
+      src: /var/tmp_disk
+      fstype: none
+      opts: bind
+      state: mounted
+    become: yes
+
+  - name: Verify /tmp is mounted from disk
+    shell: df -h /tmp | grep -v tmpfs
+    register: tmp_mount_check
+    failed_when: tmp_mount_check.rc != 0
+
+  - name: Display /tmp mount status
+    debug:
+      msg: "/tmp is now mounted from disk: {{ tmp_mount_check.stdout }}"
+
+  - name: Install micro editor
+    shell: |
+      cd /usr/local/bin
+      curl https://getmic.ro | sudo bash
+
+  - name: Create a 1G swap file
+    command: sudo fallocate -l 1G /swapfile
+    args:
+      creates: /swapfile
+
+  - name: Set permissions on swap file
+    command: sudo chmod 600 /swapfile
+    when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+
+  - name: Set up swap area
+    command: sudo mkswap /swapfile
+    when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+
+  - name: Enable swap file
+    command: sudo swapon /swapfile
+    when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
