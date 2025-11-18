@@ -175,7 +175,7 @@
 
   - name: Copy nginx.config
     ansible.builtin.copy:
-      src: configs/nginx.conf
+      src: modules/1_nginx-php/files/nginx.conf
       dest: /etc/nginx/nginx.conf
       owner: root
       group: root
@@ -183,7 +183,7 @@
 
   - name: add security
     ansible.builtin.copy:
-      src: configs/security/general.conf
+      src: modules/1_nginx-php/files/security/general.conf
       dest: /etc/nginx/conf.d/security.conf
       owner: root
       group: root
@@ -316,7 +316,7 @@
 
   - name: Copy cleanlogs.sh to /usr/local/bin
     copy:
-      src: bash/cleanlogs.sh
+      src: modules/1_nginx-php/scripts/cleanlogs.sh
       dest: /usr/local/bin/cleanlogs.sh
       mode: 755
       owner: root
