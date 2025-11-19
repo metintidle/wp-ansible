@@ -141,20 +141,37 @@
       args:
         chdir: /home/ec2-user/html
 
-    - name: Set Multisite constants in wp-config.php
+    - name: Set WP_ALLOW_MULTISITE constant in wp-config.php
       blockinfile:
         path: /home/ec2-user/html/wp-config.php
-        marker: "# {mark} WordPress Multisite block"
+        marker: "# {mark} WordPress Multisite Allow block"
         insertafter: 'DB_COLLATE'
         backup: yes
         block: |
           define('WP_ALLOW_MULTISITE', true);
+
+    - name: Convert to multisite network
+      command: >
+        wp core multisite-convert
+        --title="Multisite Network"
+        --base="/"
+      args:
+        chdir: /home/ec2-user/html
+
+    - name: Set additional Multisite constants in wp-config.php
+      blockinfile:
+        path: /home/ec2-user/html/wp-config.php
+        marker: "# {mark} WordPress Multisite Network block"
+        insertafter: 'WordPress Multisite Allow block'
+        backup: yes
+        block: |
           define('MULTISITE', true);
           define('SUBDOMAIN_INSTALL', false);
           define('DOMAIN_CURRENT_SITE', '{{ inventory_hostname }}');
           define('PATH_CURRENT_SITE', '/');
           define('SITE_ID_CURRENT_SITE', 1);
           define('BLOG_ID_CURRENT_SITE', 1);
+      tags: ['multisite', 'never']
 
 
     # - name: Install WPvivid Backup Plugin
@@ -163,22 +180,22 @@
     #     chdir: /home/ec2-user/html
 
     - name: Install Better Search Replace Plugin
-      command: wp plugin install better-search-replace --activate
+      command: wp plugin install better-search-replace --activate --url="{{ site_url }}"
       args:
         chdir: /home/ec2-user/html
 
     # - name: Install All 404 Redirect to Homepage Plugin
-    #   command: wp plugin install all-404-redirect-to-homepage --activate
+    #   command: wp plugin install all-404-redirect-to-homepage --activate --url="{{ site_url }}"
     #   args:
     #     chdir: /home/ec2-user/html
+
     - name: install Wp Super Cache plugin
-      command: wp plugin install wp-super-cache --activate
+      command: wp plugin install wp-super-cache --activate --url="{{ site_url }}"
       args:
         chdir: /home/ec2-user/html
 
-
     - name: install SQLite Object Cache plugin
-      command: wp plugin install sqlite-object-cache
+      command: wp plugin install sqlite-object-cache --url="{{ site_url }}"
       args:
         chdir: /home/ec2-user/html
 
