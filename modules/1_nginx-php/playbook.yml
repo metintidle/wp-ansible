@@ -36,25 +36,25 @@
     debug:
       var: nginx_status.stdout
 
-  # Wordpress and plugins has issue with upper than PHP version 8.1
+  # Wordpress and plugins has issue with upper than PHP version 8.2
   # memory regression issues on v 8.4
   # plugin ecosystem incompatibilities make it unsuitable for production use on resource-constrained servers
   - name: Install PHP and PHP-FPM dependencies
     dnf:
       name:
-      - php8.1
-      - php8.1-fpm
-      - php8.1-mysqlnd
-      - php8.1-mbstring
-      - php8.1-intl
+      - php8.2
+      - php8.2-fpm
+      - php8.2-mysqlnd
+      - php8.2-mbstring
+      - php8.2-intl
       - gcc
       - ImageMagick
       - ImageMagick-devel
       - php-pear
-      - php8.1-devel
-      - php8.1-gd
+      - php8.2-devel
+      - php8.2-gd
       - php-sqlite3
-      - php8.1-zip
+      - php8.2-zip
       - libwebp-tools
       - netpbm-progs
       - libjpeg-turbo-utils
