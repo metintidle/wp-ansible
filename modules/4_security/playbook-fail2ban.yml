@@ -3,14 +3,27 @@
   hosts: all
   become: yes
   tasks:
+    - name: Upload security configuration file
+      ansible.builtin.copy:
+        src: files/security.conf
+        dest: /etc/nginx/conf.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Install Fail2Ban
+      ansible.builtin.dnf:
+        name: fail2ban
+        state: present
+
     - name: Allow SSH connections
       ansible.builtin.command:
         cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
       changed_when: false
 
-    - name: Allow HTTP connections
+    - name: Allow outgoing HTTP connections (established and related)
       ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
+        cmd: sudo iptables -A INPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       changed_when: false
 
     - name: Allow HTTPS connections
@@ -30,66 +43,18 @@
       ansible.builtin.command:
         cmd: yum install fail2ban -y
 
-    # - name: Upload Nginx PHP URL attack filter configuration
-    #   ansible.builtin.copy:
-    #     src: security/filter/nginx-php-url-hack.conf
-    #     dest: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
-    #     owner: root
-    #     group: root
-    #     mode: '0644'
-    # - name: Configure fail2ban jail for PHP URL attacks
-    #   ansible.builtin.copy:
-    #     src: security/jail/nginx-php-url-hack.conf
-    #     dest: /etc/fail2ban/jail.d/nginx-php-url-hack.conf
-    #     owner: root
-    #     group: root
-    #     mode: '0644'
-
-
-    # - name: Create None WordPress Requests filter configuration
-    #   ansible.builtin.copy:
-    #     src: security/filter/non-wordpress-requests.conf
-    #     dest: /etc/fail2ban/filter.d/non-wordpress-requests.conf
-    #     owner: root
-    #     group: root
-    #     mode: '0644'
-    # - name: Configure fail2ban jail for None WordPress Requests
-        #   ansible.builtin.copy:
-        #     src: security/jail/non-wordpress-requests.conf
-        #     dest: /etc/fail2ban/jail.d/non-wordpress-requests.conf
-        #     owner: root
-        #     group: root
-        #     mode: '0644'
-
-
-   
     - name: Create Nginx unknown script filter configuration
       ansible.builtin.copy:
-        src: security/filter/nginx-unknown-script.conf
+        src: files/fail2ban/filter/nginx-unknown-script.conf
         dest: /etc/fail2ban/filter.d/nginx-unknown-script.conf
         owner: root
         group: root
         mode: '0644'
 
-
     - name: Configure fail2ban jail for unknown script errors
       ansible.builtin.copy:
-        src: security/jail/nginx-unknown-script.conf
+        src: files/fail2ban/jail/nginx-unknown-script.conf
         dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
-        owner: root
-        group: root
-        mode: '0644'
-
-    - name: Create custom action configuration
-      copy:
-        dest: /etc/fail2ban/action.d/nginx-wp.conf
-        content: |
-          [Definition]
-          actionstart =
-          actionstop =
-          actioncheck =
-          actionban = iptables -I INPUT -s <ip> -j DROP
-          actionunban = iptables -D INPUT -s <ip> -j DROP
         owner: root
         group: root
         mode: '0644'
