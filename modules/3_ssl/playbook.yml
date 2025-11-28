@@ -1,5 +1,5 @@
 ---
-- name: Setup SSL on Amazon Linux
+- name: Setup SSL on Amazon Linux 2023
   hosts: all
   become: yes
   vars:
@@ -38,23 +38,12 @@
       name: nginx
       state: restarted
 
-  - name: Check if EPEL repository is installed
-    stat:
-      path: /etc/yum.repos.d/epel.repo
-    register: epel_repo
-
-  - name: Install EPEL repository
-    command: amazon-linux-extras install epel -y
-    when: not epel_repo.stat.exists
-
-  - name: Check if Certbot is installed
-    stat:
-      path: /usr/bin/certbot
-    register: certbot_installed
-
-  - name: Install Certbot
-    command: yum install certbot certbot-nginx -y
-    when: not certbot_installed.stat.exists
+  - name: Install Certbot using dnf
+    dnf:
+      name:
+        - certbot
+        - python3-certbot-nginx
+      state: present
 
   - name: Obtain Let's Encrypt SSL certificate
     set_fact:
@@ -99,9 +88,9 @@
     shell: "crontab -l | grep -v 'certbot renew --quiet' | crontab -"
     when: cron_job_exists.rc == 0
 
-  - name: Run Certbot renewal and reload Nginx if the cron job existed
-    shell: "sudo certbot renew --nginx --force-renewal && sudo systemctl reload nginx"
-    when: cron_job_exists.rc == 0
+  # - name: Run Certbot renewal and reload Nginx if the cron job existed
+  #   shell: "sudo certbot renew --nginx --force-renewal && sudo systemctl reload nginx"
+  #   when: cron_job_exists.rc == 0
 
   - name: Enable certbot-renew.timer
     command: systemctl enable certbot-renew.timer
@@ -132,7 +121,7 @@
 
   - name: Fetch public IP address
     uri:
-      url: http://checkip.amazonaws.com
+      url: https://checkip.amazonaws.com
       return_content: yes
     register: public_ip
     become: false
@@ -146,35 +135,8 @@
     become: false
     become_user: ec2-user
 
-  # - name: Display search-replace result
-  #   debug:
-  #     var: wp_search_replace.stdout
-  #   become: false
-  #   become_user: ec2-user
-
-  # - name: Check if Wordfence is installed
-  #   command: /usr/local/bin/wp plugin is-installed wordfence
-  #   args:
-  #     chdir: /home/ec2-user/html
-  #   register: wp_wordfence_installed
-  #   failed_when: false
-  #   become: false
-  #   become_user: ec2-user
-
-  # - name: Activate Wordfence if installed
-  #   command: /usr/local/bin/wp plugin activate wordfence
-  #   args:
-  #     chdir: /home/ec2-user/html
-  #   when: wp_wordfence_installed.rc == 0
-  #   register: wp_wordfence_activated
-  #   become: false
-  #   become_user: ec2-user
-
-  # - name: Install and activate Wordfence if not installed
-  #   command: /usr/local/bin/wp plugin install wordfence --activate
-  #   args:
-  #     chdir: /home/ec2-user/html
-  #   when: wp_wordfence_installed.rc != 0
-  #   register: wp_wordfence
-  #   become: false
-  #   become_user: ec2-user
+  - name: Display search-replace result
+    debug:
+      var: wp_search_replace.stdout
+    become: false
+    become_user: ec2-user
