@@ -65,6 +65,32 @@
         state: started
         enabled: yes
 
+    - name: Create fail2ban log directory
+      ansible.builtin.file:
+        path: /var/log/fail2ban
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create custom logban action for banned IPs
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/action.d/logban.conf
+        content: |
+          # Custom action to log banned IPs
+          [Definition]
+          actionstart =
+          actionstop =
+          actioncheck =
+          actionban = echo "$(date '+%%Y-%%m-%%d %%H:%%M:%%S') [<name>] BANNED <ip> for <failures> failures" >> <logpath>
+          actionunban = echo "$(date '+%%Y-%%m-%%d %%H:%%M:%%S') [<name>] UNBANNED <ip>" >> <logpath>
+
+          [Init]
+          logpath = /var/log/fail2ban/banned-ips.log
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Create Fail2Ban local configuration
       copy:
         dest: /etc/fail2ban/jail.local
@@ -76,8 +102,15 @@
           maxretry = 3
           banaction = iptables-multiport
           backend = auto
+          # Log banned IPs to a dedicated file
+          logtarget = /var/log/fail2ban/fail2ban.log
+          loglevel = INFO
+
           [sshd]
           enabled = true
+          # Custom action to log banned IPs to a separate file
+          action = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+                   logban[logpath=/var/log/fail2ban/banned-ips.log]
 
         owner: root
         group: root
@@ -92,11 +125,93 @@
       debug:
         var: fail2ban_status.stdout_lines
 
+    - name: Create log rotation for banned IPs log
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/fail2ban-banned-ips
+        content: |
+          /var/log/fail2ban/banned-ips.log {
+              daily
+              rotate 30
+              compress
+              delaycompress
+              missingok
+              notifempty
+              create 644 root root
+              postrotate
+                  /bin/systemctl reload fail2ban > /dev/null 2>&1 || true
+              endscript
+          }
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create script to view banned IPs
+      ansible.builtin.copy:
+        dest: /usr/local/bin/fail2ban-banned-ips
+        content: |
+          #!/bin/bash
+          # Script to view fail2ban banned IPs
+
+          case "$1" in
+              "current")
+                  echo "=== Currently Banned IPs ==="
+                  fail2ban-client status | grep "Jail list" | sed 's/.*Jail list://' | tr ',' '\n' | while read jail; do
+                      jail=$(echo $jail | xargs)
+                      if [ ! -z "$jail" ]; then
+                          echo "--- $jail ---"
+                          fail2ban-client status "$jail" | grep "Banned IP list"
+                      fi
+                  done
+                  ;;
+              "log")
+                  echo "=== Recent Banned IPs from Log ==="
+                  if [ -f /var/log/fail2ban/banned-ips.log ]; then
+                      tail -n 50 /var/log/fail2ban/banned-ips.log
+                  else
+                      echo "No banned IPs log found"
+                  fi
+                  ;;
+              "today")
+                  echo "=== Today's Banned IPs ==="
+                  if [ -f /var/log/fail2ban/banned-ips.log ]; then
+                      grep "$(date '+%Y-%m-%d')" /var/log/fail2ban/banned-ips.log
+                  else
+                      echo "No banned IPs log found"
+                  fi
+                  ;;
+              *)
+                  echo "Usage: $0 {current|log|today}"
+                  echo "  current - Show currently banned IPs"
+                  echo "  log     - Show recent 50 entries from banned IPs log"
+                  echo "  today   - Show today's banned IPs"
+                  exit 1
+                  ;;
+          esac
+        owner: root
+        group: root
+        mode: '0755'
+
     - name: Restart Fail2Ban service
       service:
         name: fail2ban
         state: restarted
+
     - name: Restart Nginx service
       service:
         name: nginx
         state: restarted
+
+    - name: Display information about banned IPs logging
+      debug:
+        msg: |
+          Fail2ban is now configured to log banned IPs to:
+          - Main log: /var/log/fail2ban/fail2ban.log
+          - Banned IPs log: /var/log/fail2ban/banned-ips.log
+
+          Use the following commands to view banned IPs:
+          - fail2ban-banned-ips current  (currently banned IPs)
+          - fail2ban-banned-ips log      (recent 50 log entries)
+          - fail2ban-banned-ips today    (today's banned IPs)
+
+          Or directly view the log:
+          - tail -f /var/log/fail2ban/banned-ips.log
