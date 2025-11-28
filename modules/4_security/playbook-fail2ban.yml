@@ -31,18 +31,6 @@
         cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
       changed_when: false
 
-    - name: Upload security configuration file
-      ansible.builtin.copy:
-        src: configs/security.conf
-        dest: /etc/nginx/conf.d/security.conf
-        owner: root
-        group: root
-        mode: '0644'
-
-    - name: Install Fail2Ban
-      ansible.builtin.command:
-        cmd: yum install fail2ban -y
-
     - name: Create Nginx unknown script filter configuration
       ansible.builtin.copy:
         src: files/fail2ban/filter/nginx-unknown-script.conf
