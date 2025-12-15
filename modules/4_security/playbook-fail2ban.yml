@@ -5,7 +5,15 @@
   tasks:
     - name: Upload security configuration file
       ansible.builtin.copy:
-        src: files/security.conf
+        src: files/security/security-rules.conf
+        dest: /etc/nginx/default.d/security.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Uploal http security file
+      ansible.builtin.copy:
+        src: files/security/general.conf
         dest: /etc/nginx/conf.d/security.conf
         owner: root
         group: root
