@@ -1,5 +1,5 @@
 {
-  "ansible.python.interpreterPath": "/usr/local/bin/python",
+  "ansible.python.interpreterPath": "/opt/homebrew/bin/python3",
   "CodeGPT.apiKey": "LM Studio",
   "gitdoc.enabled": true,
   "files.autoSave": "afterDelay",
