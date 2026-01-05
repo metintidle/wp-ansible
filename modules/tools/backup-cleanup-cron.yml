@@ -1,0 +1,59 @@
+---
+- name: Setup Backup Cleanup Cron Job
+  hosts: all
+  become: yes
+  vars:
+    backup_dir: "/var/www/backups"  # Update this to your actual backup directory
+    script_path: "/root/remove-old-backup.sh"
+
+  tasks:
+    - name: Create backup directory if it doesn't exist
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+      tags: backup-cleanup
+
+    - name: Copy backup cleanup script to server
+      copy:
+        src: "script/remove-old-backup.sh"
+        dest: "{{ script_path }}"
+        mode: '0755'
+        owner: root
+        group: root
+      tags: backup-cleanup
+
+    - name: Update backup directory path in script
+      lineinfile:
+        path: "{{ script_path }}"
+        regexp: '^BACKUP_DIR='
+        line: 'BACKUP_DIR="{{ backup_dir }}"'
+        state: present
+      tags: backup-cleanup
+
+    - name: Setup cron job to run backup cleanup script at midnight
+      cron:
+        name: "Cleanup old backup files"
+        minute: "0"
+        hour: "0"
+        day: "*"
+        month: "*"
+        weekday: "*"
+        job: "{{ script_path }} >> /var/log/backup-cleanup.log 2>&1"
+        user: root
+        state: present
+      tags: backup-cleanup
+
+    - name: Create log file for backup cleanup
+      file:
+        path: /var/log/backup-cleanup.log
+        state: touch
+        mode: '0644'
+        owner: root
+        group: root
+      tags: backup-cleanup
+
+    - name: Display cron job status
+      debug:
+        msg: "Backup cleanup cron job has been configured to run every midnight (00:00). Logs will be written to /var/log/backup-cleanup.log"
+      tags: backup-cleanup
