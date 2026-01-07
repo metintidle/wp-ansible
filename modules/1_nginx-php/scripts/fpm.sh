@@ -11,6 +11,25 @@ timestamp() {
   date +"%Y-%m-%d %H:%M:%S"
 }
 
+# Ensure service is running; if stopped, start it and verify
+if ! systemctl is-active --quiet "$SERVICE"; then
+  echo "$(timestamp) - $SERVICE is not active. Attempting to start." >>"$LOG_FILE"
+  systemctl start "$SERVICE"
+  sleep 2
+  if systemctl is-active --quiet "$SERVICE"; then
+    echo "$(timestamp) - $SERVICE started successfully." >>"$LOG_FILE"
+  else
+    echo "$(timestamp) - Failed to start $SERVICE; attempting restart." >>"$LOG_FILE"
+    systemctl restart "$SERVICE"
+    sleep 2
+    if systemctl is-active --quiet "$SERVICE"; then
+      echo "$(timestamp) - $SERVICE restarted successfully." >>"$LOG_FILE"
+    else
+      echo "$(timestamp) - ERROR: $SERVICE still not active after restart." >>"$LOG_FILE"
+    fi
+  fi
+fi
+
 # Get current system load (1 min average)
 CURRENT_LOAD=$(awk '{print $1}' /proc/loadavg)
 
