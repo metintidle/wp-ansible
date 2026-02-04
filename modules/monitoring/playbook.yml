@@ -50,9 +50,9 @@
         group: root
       become: yes
 
-    # - name: Move wp-agent.sh from temp to /usr/local/bin
-    #   command: mv /tmp/wp-agent.sh /usr/local/bin/wp-agent.sh
-    #   become: yes
+    - name: Move wp-agent.sh from temp to /usr/local/bin
+      command: mv /tmp/wp-agent.sh /usr/local/bin/wp-agent.sh
+      become: yes
 
     # - name: Create cron job for wp agent bash script (runs 3x daily)
     #   cron:
