@@ -41,14 +41,17 @@
       register: fpm_file
       tags: fpm
 
-    - name: Copy wp-agent.sh to /usr/local/bin
+    - name: Copy wp-agent.sh to a temporary location
       copy:
         src: scripts/wp-agent.sh
-        dest: /usr/local/bin/wp-agent.sh
+        dest: /tmp/wp-agent.sh
         mode: 755
         owner: root
         group: root
-        force: yes
+      become: yes
+
+    - name: Move wp-agent.sh from temp to /usr/local/bin
+      command: mv /tmp/wp-agent.sh /usr/local/bin/wp-agent.sh
       become: yes
 
     - name: Create cron job for wp agent bash script (runs 3x daily)
