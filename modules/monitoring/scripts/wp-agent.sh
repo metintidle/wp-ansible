@@ -9,7 +9,7 @@ set -e
 
 # --- Config (override with env) ---
 MONITOR_URL="${MONITOR_URL:-https://48vlro2uil.execute-api.ap-southeast-2.amazonaws.com/dev/api/services/wordpress/maintenance}"
-WP_PATH="${WP_PATH:-/var/www/html}"
+WP_PATH="${WP_PATH:-/usr/share/nginx/html}"
 STATE_DIR="${STATE_DIR:-/var/lib/wp-agent}"
 NGINX_LOG="${NGINX_LOG:-/var/log/nginx/error.log}"
 FAIL2BAN_FILTER="${FAIL2BAN_FILTER:-nginx-unknown-script}"
