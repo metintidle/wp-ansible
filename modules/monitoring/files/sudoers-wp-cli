@@ -1,0 +1,4 @@
+# Allow ec2-user to run WP-CLI with sudo without password (for cron/scripts)
+# Deployed by modules/monitoring/playbook.yml
+ec2-user ALL=(ALL) NOPASSWD: /usr/local/bin/wp
+
