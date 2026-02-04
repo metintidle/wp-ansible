@@ -35,6 +35,12 @@
       become: yes
       when: not wp_cli_installed.stat.exists
 
+    - name: Install jq for JSON processing
+      yum:
+        name: jq
+        state: present
+      become: yes
+
     - name: Check if wp-agent.sh exists in /usr/local/bin
       stat:
         path: /usr/local/bin/wp-agent.sh
