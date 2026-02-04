@@ -35,6 +35,15 @@
       become: yes
       when: not wp_cli_installed.stat.exists
 
+    # Allow ec2-user to run WP-CLI with sudo (e.g. sudo wp plugin list ...)
+    - name: Deploy sudoers rule for WP-CLI (sudo wp without password)
+      copy:
+        src: files/sudoers-wp-cli
+        dest: /etc/sudoers.d/wp-cli
+        mode: "0440"
+        validate: "visudo -cf %s"
+      become: yes
+
     - name: Install jq for JSON processing
       yum:
         name: jq
@@ -60,9 +69,10 @@
       command: mv /tmp/wp-agent.sh /usr/local/bin/wp-agent.sh
       become: yes
 
-    - name: Create cron job for wp agent bash script (runs 3x daily)
+    - name: Create cron job for wp agent bash script (runs 3x daily as current user)
       cron:
         name: "wp agent bash script"
+        user: "ec2-user"
         hour: "6,14,22"
         minute: "0"
         job: "/usr/local/bin/wp-agent.sh --site-id \"{{ my_site_id }}\" --site-name \"{{ my_site }}\""
