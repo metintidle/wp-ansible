@@ -54,7 +54,7 @@
 
     - name: Add fastcgi cache configuration to nginx.conf
       ansible.builtin.copy:
-        src: configs/file_cache.conf
+        src: files/file_cache.conf
         dest: /etc/nginx/conf.d/fastcgi_cache_file.conf
         owner: root
         group: root
@@ -62,7 +62,7 @@
 
     - name: Add cache control configuration to nginx.conf
       ansible.builtin.copy:
-        src: configs/cache_block.conf
+        src: files/cache_block.conf
         dest: /etc/nginx/default.d/fastcgi_cache_block.conf
         owner: root
         group: root
@@ -71,7 +71,7 @@
     - name: Create nginx cache directory
       ansible.builtin.command:
         cmd: sudo mkdir -p {{ nginx_cache_dir }}
-        
+
     - name: Change ownership of nginx cache directory to nginx user
       ansible.builtin.command:
         cmd: sudo chown -R nginx:nginx {{ nginx_cache_dir }}
@@ -80,7 +80,7 @@
       ansible.builtin.command:
         cmd: sudo chmod -R 774 {{ nginx_cache_dir }}
 
-        
+
     - name: Create cron job to set ownership and permissions of nginx cache directory
       ansible.builtin.cron:
         name: "Set nginx cache directory permissions"
