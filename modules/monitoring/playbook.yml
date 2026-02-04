@@ -1,0 +1,60 @@
+---
+- name: Create WP-CLI and cron job for WP Maintenance or security agent
+  hosts: all
+  vars:
+    my_site_id: "{{ my_site| replace(' ', '_')  }}" # Use the inventory IP for the site URL
+
+  tasks:
+    - name: Check if WP-CLI is already installed
+      stat:
+        path: /usr/local/bin/wp
+      register: wp_cli_installed
+      become: yes
+
+    - name: Download WP-CLI (latest version)
+      get_url:
+        url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+        dest: /usr/local/bin/wp-cli.phar
+        mode: "0755"
+      become: yes
+      when: not wp_cli_installed.stat.exists
+
+    - name: List details of wp-cli.phar
+      command: ls -al /usr/local/bin/wp-cli.phar
+      register: wp_cli_phar_details
+      become: yes
+      when: not wp_cli_installed.stat.exists
+
+    - name: Display wp-cli.phar details
+      debug:
+        var: wp_cli_phar_details.stdout
+      when: not wp_cli_installed.stat.exists
+
+    - name: Move WP-CLI to /usr/local/bin/wp
+      command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
+      become: yes
+      when: not wp_cli_installed.stat.exists
+
+    - name: Check if wp-agent.sh exists in /usr/local/bin
+      stat:
+        path: /usr/local/bin/wp-agent.sh
+      register: fpm_file
+      tags: fpm
+
+    - name: Copy wp-agent.sh to /usr/local/bin
+      copy:
+        src: scripts/wp-agent.sh
+        dest: /usr/local/bin/wp-agent.sh
+        mode: 755
+        owner: root
+        group: root
+        force: yes
+
+    - name: Create cron job for wp agent bash script (runs 3x daily)
+      cron:
+        name: "wp agent bash script"
+        hour: "6,14,22"
+        minute: "0"
+        job: "/usr/local/bin/wp-agent.sh --site-id \"{{ my_site_id }}\" --site-name \"{{ my_site }}\""
+      become: yes
+
