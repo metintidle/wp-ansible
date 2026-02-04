@@ -29,7 +29,8 @@
         cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
       changed_when: false
 
-    - name: Allow outgoing HTTP connections (established and related)
+    # Allow return traffic for server's outbound HTTP (so curl/wget to port 80 get responses)
+    - name: Allow return traffic on port 80 (ESTABLISHED,RELATED)
       ansible.builtin.command:
         cmd: sudo iptables -A INPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       changed_when: false
@@ -37,6 +38,12 @@
     - name: Allow HTTPS connections
       ansible.builtin.command:
         cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: false
+
+    # Force HTTPS-only: block new incoming HTTP so only 443 is used for web traffic
+    - name: Block new incoming connections on port 80 (HTTP)
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j DROP
       changed_when: false
 
     - name: Create Nginx unknown script filter configuration
