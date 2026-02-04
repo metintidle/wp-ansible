@@ -54,11 +54,11 @@
       command: mv /tmp/wp-agent.sh /usr/local/bin/wp-agent.sh
       become: yes
 
-    # - name: Create cron job for wp agent bash script (runs 3x daily)
-    #   cron:
-    #     name: "wp agent bash script"
-    #     hour: "6,14,22"
-    #     minute: "0"
-    #     job: "/usr/local/bin/wp-agent.sh --site-id \"{{ my_site_id }}\" --site-name \"{{ my_site }}\""
-    #   become: yes
+    - name: Create cron job for wp agent bash script (runs 3x daily)
+      cron:
+        name: "wp agent bash script"
+        hour: "6,14,22"
+        minute: "0"
+        job: "/usr/local/bin/wp-agent.sh --site-id \"{{ my_site_id }}\" --site-name \"{{ my_site }}\""
+      become: yes
 
