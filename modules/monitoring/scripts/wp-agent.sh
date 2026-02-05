@@ -51,7 +51,7 @@ fi
 
 # --- 2. Nginx error log (from last index) ---
 LAST_TS=""
-[[ -f "$LAST_TS_FILE" ]] && LAST_TS=$(cat "$LAST_TS_FILE")
+[[ -f "$LAST_TS_FILE" ]] && LAST_TS=$(tr -d '\r\n' < "$LAST_TS_FILE")
 # Default: from start of yesterday (YYYY/MM/DD 00:00:00) UTC
 if [[ -z "$LAST_TS" ]]; then
   LAST_TS=$(date -u -d "yesterday" "+%Y/%m/%d 00:00:00")
@@ -60,8 +60,8 @@ log "step 2 nginx error log: from_ts=$LAST_TS"
 
 NGINX_JSON="[]"
 if [[ -r "$NGINX_LOG" ]]; then
-  NGINX_JSON=$(sudo awk -v from="$LAST_TS" '$0 >= from' "$NGINX_LOG" | awk '
-    BEGIN { print "[" }
+  NGINX_JSON=$(sudo awk -v from="$LAST_TS" '( $1 " " $2 ) >= from' "$NGINX_LOG" | awk '
+    BEGIN { print "["; first = 1 }
     {
       created = $1 " " $2
       match($0, /client: ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/, ip_arr)
@@ -72,7 +72,8 @@ if [[ -r "$NGINX_LOG" ]]; then
       if ($0 ~ /Primary script unknown/) { detail = "Primary script unknown" }
       else if ($0 ~ /access forbidden by rule/) { detail = "access forbidden by rule" }
       if (created != "" && ip != "" && req != "" && detail != "") {
-        if (NR>1) printf ",\n"
+        if (!first) printf ",\n"
+        first = 0
         printf "{\"created\":\"%s\",\"IP\":\"%s\",\"request\":\"%s\",\"detail\":\"%s\"}", created, ip, req, detail
       }
     }
