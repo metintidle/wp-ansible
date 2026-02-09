@@ -1,0 +1,87 @@
+---
+# Strict Path Whitelist for WordPress
+#
+# Purpose: Block all requests except whitelisted paths for anonymous visitors.
+# Logged-in users (WordPress cookie) bypass the whitelist entirely.
+#
+# Usage:
+#   ansible-playbook -i hosts modules/4_security/playbook-strict-whitelist.yml
+#
+# Variables (set in inventory or group_vars):
+#   strict_whitelist_enabled: true/false (default: false)
+#
+# When enabled:
+#   - Deploys map definitions to /etc/nginx/conf.d/strict-whitelist-maps.conf
+#   - Deploys deny rule to /etc/nginx/default.d/00-strict-whitelist.conf
+#
+# When disabled:
+#   - Removes both files if they exist
+#
+# Allowed paths for anonymous users:
+#   - / (home), /contact-us, /our-services
+#   - /modri (custom login URL)
+#   - /wp-admin/admin-ajax.php (for forms)
+#   - /wp-json/* (REST API for front-end features)
+#   - /wp-cron.php, /robots.txt, /favicon.ico, /sitemap*
+#   - Static files (js, css, images, fonts, etc.)
+#
+# After login (WordPress cookie present):
+#   - All restrictions are bypassed
+#   - Full access to wp-admin and entire site
+
+- name: Configure strict path whitelist for WordPress
+  hosts: all
+  become: yes
+  vars:
+    strict_whitelist_enabled: false  # Override in inventory or group_vars
+  
+  tasks:
+    # Deploy strict whitelist when enabled
+    - name: Deploy strict whitelist maps (http context)
+      ansible.builtin.copy:
+        src: files/security/restricts/strict-whitelist-maps.conf
+        dest: /etc/nginx/conf.d/strict-whitelist-maps.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: strict_whitelist_enabled | default(false) | bool
+      notify: Reload Nginx
+
+    - name: Deploy strict whitelist deny rule (server context)
+      ansible.builtin.copy:
+        src: files/security/restricts/00-strict-whitelist.conf
+        dest: /etc/nginx/default.d/00-strict-whitelist.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when: strict_whitelist_enabled | default(false) | bool
+      notify: Reload Nginx
+
+    # Remove strict whitelist when disabled
+    - name: Remove strict whitelist maps when disabled
+      ansible.builtin.file:
+        path: /etc/nginx/conf.d/strict-whitelist-maps.conf
+        state: absent
+      when: not (strict_whitelist_enabled | default(false) | bool)
+      notify: Reload Nginx
+
+    - name: Remove strict whitelist deny rule when disabled
+      ansible.builtin.file:
+        path: /etc/nginx/default.d/00-strict-whitelist.conf
+        state: absent
+      when: not (strict_whitelist_enabled | default(false) | bool)
+      notify: Reload Nginx
+
+    # Test Nginx config before reload
+    - name: Test Nginx configuration
+      ansible.builtin.command:
+        cmd: nginx -t
+      register: nginx_test
+      changed_when: false
+      failed_when: nginx_test.rc != 0
+
+  handlers:
+    - name: Reload Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded

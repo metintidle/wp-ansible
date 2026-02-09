@@ -51,7 +51,8 @@ The system uses a sequential deployment approach with separate playbooks for eac
 - `tools/` - Additional service installations (Redis, NewRelic, SMTP, Vector)
 - `utility/` - Helper scripts (Bitwarden, domain management, password generation)
 - `snippets/` - Reusable Ansible task snippets
-- `bash/` - Shell scripts for maintenance tasks
+- `bash/` - Shell scripts for maintenance tasks (e.g. `fix-wordpress-siteurl.sh`, `database/backupdb.sh`)
+- `docs/` - Documentation (e.g. `fix-wrong-site-url-assets.md`, `FILE2BAN.md`)
 
 ### Optimization and Monitoring
 - `optimize/` - Performance tuning configurations
@@ -116,6 +117,37 @@ The system expects these environment variables for database connectivity:
 - Security headers configuration in Nginx
 - CrowdSec integration for advanced threat detection
 - Separate security configuration files in `configs/security/`
+- **Strict Path Whitelist** - Optional feature for small fixed-content sites (see below)
+
+### Strict Path Whitelist (Optional)
+
+For small sites with fixed content (e.g., 2-3 pages), you can enable a strict whitelist that blocks all requests except allowed paths.
+
+**Location:** `modules/4_security/files/security/restricts/`
+
+**Files:**
+- `strict-whitelist-maps.conf` - Map definitions (deployed to `/etc/nginx/conf.d/`)
+- `00-strict-whitelist.conf` - Deny rule (deployed to `/etc/nginx/default.d/`)
+
+**Playbook:** `modules/4_security/playbook-strict-whitelist.yml`
+
+**Usage:**
+```bash
+# Enable strict whitelist
+ansible-playbook -i hosts modules/4_security/playbook-strict-whitelist.yml -e "strict_whitelist_enabled=true"
+
+# Disable strict whitelist
+ansible-playbook -i hosts modules/4_security/playbook-strict-whitelist.yml -e "strict_whitelist_enabled=false"
+```
+
+**Allowed for anonymous users:**
+- `/`, `/contact-us`, `/our-services` (public pages)
+- `/modri` (custom login URL)
+- `/wp-admin/admin-ajax.php`, `/wp-json/*` (for forms and features)
+- `/wp-cron.php`, `/robots.txt`, `/favicon.ico`, `/sitemap*`
+- Static files (js, css, images, fonts, etc.)
+
+**After login:** All restrictions are bypassed (WordPress cookie detected)
 
 ## Performance Tuning
 

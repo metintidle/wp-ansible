@@ -50,31 +50,57 @@
         state: present
       become: yes
 
-    - name: Check if wp-agent.sh exists in /usr/local/bin
-      stat:
-        path: /usr/local/bin/wp-agent.sh
-      register: fpm_file
-      tags: fpm
-
-    - name: Copy wp-agent.sh to a temporary location
+    - name: Copy wp-agent-wp.sh to /usr/local/bin
       copy:
-        src: scripts/wp-agent.sh
-        dest: /tmp/wp-agent.sh
-        mode: 755
+        src: scripts/wp-agent-wp.sh
+        dest: /usr/local/bin/wp-agent-wp.sh
+        mode: "0755"
         owner: root
         group: root
       become: yes
 
-    - name: Move wp-agent.sh from temp to /usr/local/bin
-      command: mv /tmp/wp-agent.sh /usr/local/bin/wp-agent.sh
+    - name: Copy wp-agent-root.sh to /usr/local/bin
+      copy:
+        src: scripts/wp-agent-root.sh
+        dest: /usr/local/bin/wp-agent-root.sh
+        mode: "0755"
+        owner: root
+        group: root
       become: yes
 
-    - name: Create cron job for wp agent bash script (runs 3x daily as current user)
+    - name: Create state directory for wp-agent (root)
+      file:
+        path: /var/lib/wp-agent
+        state: directory
+        mode: "0755"
+        owner: root
+        group: root
+      become: yes
+
+    - name: Create plugins directory for wp-agent (ec2-user writable)
+      file:
+        path: /var/lib/wp-agent/plugins
+        state: directory
+        mode: "0755"
+        owner: ec2-user
+        group: ec2-user
+      become: yes
+
+    - name: Create cron job for wp-agent-wp.sh (WP-CLI, runs 30 min before root)
       cron:
-        name: "wp agent bash script"
-        user: "ec2-user"
+        name: "wp agent wp-cli (plugins)"
+        user: ec2-user
+        hour: "5,13,21"
+        minute: "30"
+        job: "STATE_DIR=/var/lib/wp-agent WP_PATH=/usr/share/nginx/html /usr/local/bin/wp-agent-wp.sh --site-id {{ my_site_id }} --site-name {{ my_site }}"
+      become: yes
+
+    - name: Create cron job for wp-agent-root.sh (nginx, fail2ban, POST)
+      cron:
+        name: "wp agent root (report)"
+        user: root
         hour: "6,14,22"
         minute: "0"
-        job: "/usr/local/bin/wp-agent.sh --site-id \"{{ my_site_id }}\" --site-name \"{{ my_site }}\""
+        job: "/usr/local/bin/wp-agent-root.sh --site-id {{ my_site_id }} --site-name {{ my_site }}"
       become: yes
 
