@@ -128,6 +128,19 @@
           if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
               define( 'WP_MEMORY_LIMIT', '128M' );
           }
+    - name: Disable WordPress WP-Cron
+      lineinfile:
+        path: /home/ec2-user/html/wp-config.php
+        line: "define('DISABLE_WP_CRON', true);"
+        insertbefore: '/\* That.s all, stop editing!/'
+        backup: yes
+
+    - name: Add system cron job for WordPress
+      cron:
+        name: "WordPress Cron"
+        minute: "*/15"
+        job: "cd /home/ec2-user/html && /usr/local/bin/wp cron event run --due-now > /dev/null 2>&1"
+        user: ec2-user
 
 
     - name: Install WordPress
