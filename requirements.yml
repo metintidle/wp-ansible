@@ -1,9 +1,0 @@
----
-collections:
-- name: community.general
-  version: ">=8.0.0" # Current latest is ~9.x
-
-roles:
-- name: teleport
-  src: https://github.com/gravitational/teleport-ansible.git
-  version: v13 # Use a specific release tag instead of master
