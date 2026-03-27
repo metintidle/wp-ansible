@@ -176,4 +176,14 @@
       args:
         chdir: /home/ec2-user/html
 
+    - name: Install Plus WebP or AVIF plugin
+      command: wp plugin install plus-webp --activate
+      args:
+        chdir: /home/ec2-user/html
+
+    - name: Install UpdraftPlus Backup/Restore plugin
+      command: wp plugin install updraftplus --activate
+      args:
+        chdir: /home/ec2-user/html
+
 
