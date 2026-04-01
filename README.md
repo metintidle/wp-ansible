@@ -1,5 +1,5 @@
 # SSL Certificate
-it need to add AAA records in Rout53 and A Record for www and main.
+Add **A records** in **Route53** for both the main domain and **www** (e.g. `example.com` and `www.example.com`) pointing to your server’s public IP. **AAAA** (IPv6) is optional. See [docs/ssl-dns-troubleshooting.md](docs/ssl-dns-troubleshooting.md) if Certbot renewal fails with DNS errors; see [ssl-error.log](ssl-error.log) for an example failure log.
 
 # FTP
 it need to open ports:
@@ -16,6 +16,10 @@ PORTS:
 5. ftp.yml
 6. tools.yml
 7. newrelic.yml
+
+# Troubleshooting
+- **SSL / Certbot:** [docs/ssl-dns-troubleshooting.md](docs/ssl-dns-troubleshooting.md)
+- **Firewall & connectivity:** [docs/firewall-connectivity-checklist.md](docs/firewall-connectivity-checklist.md)
 
 # HOW TO START FROM A SPECIAL TASK
 
