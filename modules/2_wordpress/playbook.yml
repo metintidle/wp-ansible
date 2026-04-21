@@ -128,12 +128,12 @@
           if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
               define( 'WP_MEMORY_LIMIT', '128M' );
           }
-    - name: Disable WordPress WP-Cron
-      lineinfile:
-        path: /home/ec2-user/html/wp-config.php
-        line: "define('DISABLE_WP_CRON', true);"
-        insertbefore: '/\* That.s all, stop editing!/'
-        backup: yes
+    # - name: Disable WordPress WP-Cron
+    #   lineinfile:
+    #     path: /home/ec2-user/html/wp-config.php
+    #     line: "define('DISABLE_WP_CRON', true);"
+    #     insertbefore: '/\* That.s all, stop editing!/'
+    #     backup: yes
 
     - name: Add system cron job for WordPress
       cron:
