@@ -1,5 +1,5 @@
 ---
-- name: Setup WordPress on Amazon Linux 2023 with Nginx and PHP
+- name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
   hosts: all
   vars:
    site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
@@ -134,7 +134,7 @@
         path: /home/ec2-user/html/wp-config.php
         insertafter: 'DB_COLLATE'
         regexp: "^define\\('WP_POST_REVISIONS',"
-        line: "define('WP_POST_REVISIONS', 3);"
+        line: "define('WP_POST_REVISIONS', 5);"
         backup: yes
 
     # - name: Disable WordPress WP-Cron
@@ -196,79 +196,3 @@
         chdir: /home/ec2-user/html
 
 
-
-    - name: Ensure mu-plugins directory exists
-      file:
-        path: /home/ec2-user/html/wp-content/mu-plugins
-        state: directory
-        owner: ec2-user
-        group: nginx
-        mode: '0755'
-      become: yes
-
-    - name: Create Heartbeat throttle mu-plugin
-      copy:
-        dest: /home/ec2-user/html/wp-content/mu-plugins/heartbeat-throttle.php
-        content: |
-          <?php
-          /**
-           * Plugin Name: Heartbeat & Editor Throttle
-           * Description: Reduces PHP-FPM worker contention on low-RAM servers.
-           */
-          // Throttle WordPress Heartbeat in admin (post editor)
-          add_filter('heartbeat_settings', function($settings) {
-              $settings['interval'] = 120; // default 15s → 120s (max allowed)
-              return $settings;
-          }, PHP_INT_MAX);
-
-          // Throttle Elementor's own editor heartbeat
-          add_filter('elementor/editor/heartbeat_options', function($settings) {
-              if (is_array($settings)) {
-                  $settings['interval'] = 180; // 3 minutes
-              }
-              return $settings;
-          }, 10, 1);
-
-          // Kill heartbeat entirely on the frontend (nothing needs it there)
-          add_action('init', function() {
-              if (!is_admin()) {
-                  wp_deregister_script('heartbeat');
-              }
-          });
-        owner: ec2-user
-        group: nginx
-        mode: '0644'
-      become: yes
-
-    - name: Set WordPress constants for low-RAM optimization
-      blockinfile:
-        path: /home/ec2-user/html/wp-config.php
-        marker: "# {mark} Elementor low-ram constants"
-        insertafter: 'DB_COLLATE'
-        backup: yes
-        block: |
-          define('WP_POST_REVISIONS', 3);
-          define('AUTOSAVE_INTERVAL', 300);
-          define('EMPTY_TRASH_DAYS', 7);
-          define('DISALLOW_FILE_EDIT', true);
-
-    - name: "One-time WP-CLI cleanup - delete revisions"
-      shell: /usr/local/bin/wp post delete $(/usr/local/bin/wp post list --post_type='revision' --format=ids) --force
-      args:
-        chdir: /home/ec2-user/html
-      become: yes
-      ignore_errors: yes
-
-    - name: "One-time WP-CLI cleanup - delete expired transients"
-      command: /usr/local/bin/wp transient delete --expired
-      args:
-        chdir: /home/ec2-user/html
-      become: yes
-      ignore_errors: yes
-
-    - name: "One-time WP-CLI cleanup - optimize database"
-      command: /usr/local/bin/wp db optimize
-      args:
-        chdir: /home/ec2-user/html
-      become: yes
-      ignore_errors: yes
