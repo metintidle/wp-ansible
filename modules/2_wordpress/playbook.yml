@@ -128,6 +128,15 @@
           if ( ! defined( 'WP_MEMORY_LIMIT' ) ) {
               define( 'WP_MEMORY_LIMIT', '128M' );
           }
+
+    - name: Limit WordPress post revisions
+      lineinfile:
+        path: /home/ec2-user/html/wp-config.php
+        insertafter: 'DB_COLLATE'
+        regexp: "^define\\('WP_POST_REVISIONS',"
+        line: "define('WP_POST_REVISIONS', 5);"
+        backup: yes
+
     # - name: Disable WordPress WP-Cron
     #   lineinfile:
     #     path: /home/ec2-user/html/wp-config.php
