@@ -252,23 +252,4 @@
           define('EMPTY_TRASH_DAYS', 7);
           define('DISALLOW_FILE_EDIT', true);
 
-    - name: "One-time WP-CLI cleanup - delete revisions"
-      shell: /usr/local/bin/wp post delete $(/usr/local/bin/wp post list --post_type='revision' --format=ids) --force
-      args:
-        chdir: /home/ec2-user/html
-      become: yes
-      ignore_errors: yes
 
-    - name: "One-time WP-CLI cleanup - delete expired transients"
-      command: /usr/local/bin/wp transient delete --expired
-      args:
-        chdir: /home/ec2-user/html
-      become: yes
-      ignore_errors: yes
-
-    - name: "One-time WP-CLI cleanup - optimize database"
-      command: /usr/local/bin/wp db optimize
-      args:
-        chdir: /home/ec2-user/html
-      become: yes
-      ignore_errors: yes
