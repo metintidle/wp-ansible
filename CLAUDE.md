@@ -4,20 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Ansible-based WordPress deployment and management system designed specifically for Amazon Linux 2 servers. The project provides complete infrastructure automation for deploying production-ready WordPress sites with modern web stack components.
+This is an Ansible-based WordPress deployment and management system for **Amazon Linux 2023** (and legacy AL2) WordPress hosts. The project provides complete infrastructure automation for deploying production-ready WordPress sites with modern web stack components.
 
 ## Architecture
 
 The system uses a sequential deployment approach with separate playbooks for each component:
 
 ### Core Playbooks (Execute in Order)
-1. **nginx-php.yml** - Nginx web server and PHP-FPM setup with performance optimizations
-2. **wordpress.yml** - WordPress installation using WP-CLI with database integration
-3. **ssl-certbot.yml** - SSL certificate automation with Let's Encrypt
-4. **cache.yml** - FastCGI caching and object caching (SQLite-based)
-5. **ftp.yml** - FTP server configuration for file management
-6. **tools.yml** - Additional tools installation
-7. **newrelic.yml** - Monitoring and performance tracking
+1. **modules/1_nginx-php** - Nginx web server and PHP-FPM setup with performance optimizations
+2. **modules/2_wordpress** - WordPress installation using WP-CLI with database integration
+3. **modules/3_ssl** - SSL certificate automation with Let's Encrypt (imports **4_agent** by default)
+4. **modules/4_agent** - Resmon wp-agent (Socket.io to monitoring hub; see `modules/4_agent/README.md`)
+5. **modules/6_cache** - FastCGI caching and object caching (SQLite-based)
+6. **tools** - Additional tools installation
+7. **newrelic** - Monitoring and performance tracking (if used)
 
 ### Key Components
 
@@ -97,6 +97,22 @@ The system expects these environment variables for database connectivity:
 - `DB_PASS` - Database password  
 - `DB_HOST` - Database host
 - `db_name` - Database name (defined in playbook vars)
+
+### resmon hub (wp_site_mapping webhook)
+
+After SSL + `wp search-replace` (HTTPS siteurl), `modules/3_ssl/playbook.yml` POSTs final `siteurl`/`blogname` to the resmon hub. Set on the **Semaphore / Ansible controller** (not on the WP host):
+
+- `WP_MAINTENANCE_WEBHOOK_TOKEN` — shared secret; must match hub env `WP_MAINTENANCE_WEBHOOK_TOKEN`
+- `WP_MAINTENANCE_WEBHOOK_URL` — optional; default `https://monitoring.itt.com.au/api/website/maintenance/webhook/new-site`
+
+If the token is unset, the notify task is skipped (provision still succeeds).
+
+### Resmon wp-agent (modules/4_agent)
+
+- Installed automatically at the end of **modules/3_ssl** unless `install_wp_agent=false`.
+- Ships prebuilt `modules/4_agent/files/wp-agent-linux-x86_64` (AL2023 x86_64 musl static). Rebuild: `modules/4_agent/scripts/build-wp-agent-binary.sh` or `wp_agent_build_on_host=true`.
+- Set `WP_AGENT_TOKEN` on the controller (must match hub `WP_AGENT_TOKEN` on monitoring.itt.com.au).
+- Legacy cron “wp-agent” scripts live under `modules/monitoring/` — different system.
 
 ## Prerequisites
 

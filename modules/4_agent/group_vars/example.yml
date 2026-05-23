@@ -1,0 +1,7 @@
+# Copy to inventory group_vars or pass with -e @vault.yml
+# wp_agent_token: "{{ vault_wp_agent_token }}"
+install_wp_agent: true
+agent_server_url: https://monitoring.itt.com.au
+wp_root: /usr/share/nginx/html
+wp_cli_path: /usr/local/bin/wp
+wp_agent_build_on_host: false

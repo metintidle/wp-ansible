@@ -1,0 +1,27 @@
+[Unit]
+Description=Resmon WordPress Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/wp-agent/wp-agent
+Restart=always
+RestartSec=5
+User=root
+Group=root
+
+EnvironmentFile=-/etc/wp-agent/env
+Environment=AGENT_SERVER_URL={{ agent_server_url }}
+Environment=WP_ROOT={{ wp_root }}
+Environment=WP_CLI_PATH={{ wp_cli_path }}
+Environment=RUST_LOG=info
+
+NoNewPrivileges=true
+ProtectSystem=false
+ProtectHome=false
+PrivateTmp=true
+ReadWritePaths={{ wp_root }} /tmp
+
+[Install]
+WantedBy=multi-user.target

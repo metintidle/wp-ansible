@@ -1,0 +1,175 @@
+---
+# Resmon wp-agent — Rust Socket.io client to monitoring.itt.com.au (/wp-agent).
+# Run after WordPress + WP-CLI (module 2) and ideally after SSL (module 3) so siteurl is HTTPS.
+# Not the legacy cron scripts in modules/monitoring/ (wp-agent-wp.sh).
+- name: Install Resmon wp-agent on Amazon Linux 2023
+  hosts: all
+  become: true
+  vars:
+    wp_root: /usr/share/nginx/html
+    wp_cli_path: /usr/local/bin/wp
+    agent_server_url: https://monitoring.itt.com.au
+    wp_agent_binary_name: wp-agent-linux-x86_64
+    # Sibling checkout: ~/Projects/resmon next to ~/Projects/wp-ansible
+    wp_agent_src_path: "{{ playbook_dir }}/../../resmon/apps/wp-agent"
+    wp_agent_build_on_host: false
+    install_wp_agent: true
+  tags:
+    - wp-agent
+
+  tasks:
+    - name: Skip wp-agent when install_wp_agent is false
+      ansible.builtin.meta: end_play
+      when: not (install_wp_agent | default(true) | bool)
+
+    - name: Resolve wp_agent_token
+      ansible.builtin.set_fact:
+        wp_agent_token_resolved: >-
+          {{
+            wp_agent_token
+            | default(lookup('env', 'WP_AGENT_TOKEN'), true)
+            | default('', true)
+          }}
+
+    - name: Require wp_agent_token (same as hub WP_AGENT_TOKEN)
+      ansible.builtin.assert:
+        that:
+          - wp_agent_token_resolved | length > 0
+        fail_msg: >-
+          Set wp_agent_token (-e), group_vars, ansible-vault, or export WP_AGENT_TOKEN
+          (must match WP_AGENT_TOKEN on the monitoring hub).
+
+    - name: Require WP-CLI
+      ansible.builtin.stat:
+        path: "{{ wp_cli_path }}"
+      register: wp_cli_stat
+      failed_when: not wp_cli_stat.stat.exists
+
+    - name: Require WordPress install under WP_ROOT
+      ansible.builtin.stat:
+        path: "{{ wp_root }}/wp-config.php"
+      register: wp_config_stat
+      failed_when: not wp_config_stat.stat.exists
+
+    - name: Stat prebuilt wp-agent binary on controller
+      ansible.builtin.stat:
+        path: "{{ playbook_dir }}/files/{{ wp_agent_binary_name }}"
+      register: wp_agent_prebuilt
+      delegate_to: localhost
+      become: false
+
+    - name: Fail when prebuilt binary is missing and host build disabled
+      ansible.builtin.fail:
+        msg: >-
+          Place a Linux x86_64 binary at
+          modules/4_agent/files/{{ wp_agent_binary_name }}
+          (from resmon: pnpm nx run wp-agent:build:linux, then copy
+          apps/wp-agent/target/x86_64-unknown-linux-musl/release/wp-agent),
+          or set wp_agent_build_on_host=true.
+      when:
+        - not wp_agent_prebuilt.stat.exists
+        - not (wp_agent_build_on_host | bool)
+
+    - name: Install build dependencies (on-host build only)
+      ansible.builtin.dnf:
+        name:
+          - openssl-devel
+          - perl-IPC-Cmd
+          - perl-FindBin
+          - gcc
+        state: present
+      when: wp_agent_build_on_host | bool
+
+    - name: Install Rust via rustup (on-host build only)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        if ! command -v cargo >/dev/null 2>&1; then
+          curl -sSf https://sh.rustup.rs | sh -s -- -y
+        fi
+        source "$HOME/.cargo/env"
+        cargo --version
+      args:
+        creates: /root/.cargo/bin/cargo
+        executable: /bin/bash
+      when: wp_agent_build_on_host | bool
+
+    - name: Sync wp-agent source from controller (on-host build only)
+      ansible.builtin.synchronize:
+        src: "{{ wp_agent_src_path }}/"
+        dest: /tmp/wp-agent-src/
+        delete: true
+        rsync_opts:
+          - "--exclude=target"
+      when: wp_agent_build_on_host | bool
+
+    - name: Build wp-agent release on host (on-host build only)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        source /root/.cargo/env
+        cd /tmp/wp-agent-src
+        cargo build --release
+      args:
+        creates: /tmp/wp-agent-src/target/release/wp-agent
+        executable: /bin/bash
+      when: wp_agent_build_on_host | bool
+
+    - name: Create /opt/wp-agent
+      ansible.builtin.file:
+        path: /opt/wp-agent
+        state: directory
+        mode: "0755"
+
+    - name: Install prebuilt wp-agent binary
+      ansible.builtin.copy:
+        src: "{{ wp_agent_binary_name }}"
+        dest: /opt/wp-agent/wp-agent
+        mode: "0755"
+      when: wp_agent_prebuilt.stat.exists
+
+    - name: Install wp-agent binary from on-host build
+      ansible.builtin.copy:
+        src: /tmp/wp-agent-src/target/release/wp-agent
+        dest: /opt/wp-agent/wp-agent
+        mode: "0755"
+        remote_src: true
+      when:
+        - wp_agent_build_on_host | bool
+        - not wp_agent_prebuilt.stat.exists
+
+    - name: Create /etc/wp-agent directory
+      ansible.builtin.file:
+        path: /etc/wp-agent
+        state: directory
+        mode: "0750"
+        owner: root
+        group: root
+
+    - name: Deploy wp-agent environment file
+      ansible.builtin.template:
+        src: templates/wp-agent.env.j2
+        dest: /etc/wp-agent/env
+        mode: "0600"
+        owner: root
+        group: root
+      notify: Restart wp-agent
+
+    - name: Deploy wp-agent systemd unit
+      ansible.builtin.template:
+        src: templates/wp-agent.service.j2
+        dest: /etc/systemd/system/wp-agent.service
+        mode: "0644"
+      notify: Restart wp-agent
+
+    - name: Enable and start wp-agent
+      ansible.builtin.systemd:
+        name: wp-agent
+        enabled: true
+        state: started
+        daemon_reload: true
+
+  handlers:
+    - name: Restart wp-agent
+      ansible.builtin.systemd:
+        name: wp-agent
+        state: restarted
+        daemon_reload: true

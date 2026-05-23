@@ -1,22 +1,25 @@
 ---
 - name: Setup SSL on Amazon Linux 2023
   hosts: all
-  become: yes
+  become: true
   vars:
     domain_names:
     - "{{ domain_name | default('') }}"
     - "{{ domain_name1 | default('') }}"
     - "{{ domain_name2 | default('') }}"
     - "{{ domain_name3 | default('') }}"
+    resmon_webhook_url: "{{ lookup('env', 'WP_MAINTENANCE_WEBHOOK_URL') | default('https://monitoring.itt.com.au/api/website/maintenance/webhook/new-site', true) }}"
 
   tasks:
   - name: if domain name is not provided, exit
     fail:
       msg: "Please provide a domain name using --extra-vars 'domain_name=example.com'"
     when: domain_names == ['']
+
   - name: find the domain name in nginx.conf
     shell: "grep -oP 'server_name\\s+\\K[^;]+' /etc/nginx/nginx.conf"
     register: nginx_domain_names
+    ignore_errors: true
 
   - name: Set domain names with www subdomains
     set_fact:
@@ -82,7 +85,7 @@
   - name: Check if the cron job for Certbot exists
     shell: "crontab -l | grep -q 'certbot renew --quiet'"
     register: cron_job_exists
-    ignore_errors: yes
+    ignore_errors: true
 
   - name: Remove the cron job for Certbot if it exists
     shell: "crontab -l | grep -v 'certbot renew --quiet' | crontab -"
@@ -111,7 +114,7 @@
   - name: Test Nginx configuration
     command: nginx -t
     register: nginx_test_result
-    ignore_errors: yes
+    ignore_errors: true
 
   - name: Restart Nginx
     service:
@@ -140,3 +143,56 @@
       var: wp_search_replace.stdout
     become: false
     become_user: ec2-user
+
+  # resmon wp_site_mapping — after HTTPS siteurl/blogname are final (wp search-replace above).
+  - name: Read WordPress siteurl (final)
+    command: /usr/local/bin/wp option get siteurl
+    args:
+      chdir: /home/ec2-user/html
+    register: wp_siteurl_final
+    become: false
+    become_user: ec2-user
+    when: db_name is defined
+
+  - name: Read WordPress blogname
+    command: /usr/local/bin/wp option get blogname
+    args:
+      chdir: /home/ec2-user/html
+    register: wp_blogname_final
+    become: false
+    become_user: ec2-user
+    when: db_name is defined
+
+  - name: Register WordPress site in resmon (wp_site_mapping)
+    ansible.builtin.uri:
+      url: "{{ resmon_webhook_url }}"
+      method: POST
+      headers:
+        Content-Type: application/json
+        X-Webhook-Token: "{{ lookup('env', 'WP_MAINTENANCE_WEBHOOK_TOKEN') }}"
+      body_format: json
+      body:
+        db_name: "{{ db_name }}"
+        website_url: "{{ wp_siteurl_final.stdout | trim }}"
+        website_title: "{{ wp_blogname_final.stdout | trim }}"
+      status_code: [200, 201]
+      return_content: true
+    delegate_to: localhost
+    become: false
+    when:
+      - db_name is defined
+      - (lookup('env', 'WP_MAINTENANCE_WEBHOOK_TOKEN') | default('', true) | length) > 0
+    register: resmon_webhook_result
+    failed_when: false
+
+  - name: Log resmon webhook result
+    ansible.builtin.debug:
+      msg: >-
+        resmon wp_site_mapping:
+        status={{ resmon_webhook_result.status | default('skipped') }}
+        {{ resmon_webhook_result.json | default(resmon_webhook_result.msg) }}
+    when: resmon_webhook_result is defined and not resmon_webhook_result.skipped | default(false)
+
+# Resmon wp-agent — after HTTPS siteurl is final (see modules/4_agent/README.md).
+- ansible.builtin.import_playbook: ../4_agent/playbook.yml
+  when: install_wp_agent | default(true) | bool
