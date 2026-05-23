@@ -15,9 +15,10 @@ The system uses a sequential deployment approach with separate playbooks for eac
 2. **modules/2_wordpress** - WordPress installation using WP-CLI with database integration
 3. **modules/3_ssl** - SSL certificate automation with Let's Encrypt (imports **4_agent** by default)
 4. **modules/4_agent** - Resmon wp-agent (Socket.io to monitoring hub; see `modules/4_agent/README.md`)
-5. **modules/6_cache** - FastCGI caching and object caching (SQLite-based)
-6. **tools** - Additional tools installation
-7. **newrelic** - Monitoring and performance tracking (if used)
+5. **modules/5_security** - Fail2Ban, CrowdSec, geo firewall, strict whitelist
+6. **modules/6_cache** - FastCGI caching and object caching (SQLite-based)
+7. **tools** - Additional tools installation
+8. **newrelic** - Monitoring and performance tracking (if used)
 
 ### Key Components
 
@@ -139,21 +140,21 @@ If the token is unset, the notify task is skipped (provision still succeeds).
 
 For small sites with fixed content (e.g., 2-3 pages), you can enable a strict whitelist that blocks all requests except allowed paths.
 
-**Location:** `modules/4_security/files/security/restricts/`
+**Location:** `modules/5_security/files/security/restricts/`
 
 **Files:**
 - `strict-whitelist-maps.conf` - Map definitions (deployed to `/etc/nginx/conf.d/`)
 - `00-strict-whitelist.conf` - Deny rule (deployed to `/etc/nginx/default.d/`)
 
-**Playbook:** `modules/4_security/playbook-strict-whitelist.yml`
+**Playbook:** `modules/5_security/playbook-strict-whitelist.yml`
 
 **Usage:**
 ```bash
 # Enable strict whitelist
-ansible-playbook -i hosts modules/4_security/playbook-strict-whitelist.yml -e "strict_whitelist_enabled=true"
+ansible-playbook -i hosts modules/5_security/playbook-strict-whitelist.yml -e "strict_whitelist_enabled=true"
 
 # Disable strict whitelist
-ansible-playbook -i hosts modules/4_security/playbook-strict-whitelist.yml -e "strict_whitelist_enabled=false"
+ansible-playbook -i hosts modules/5_security/playbook-strict-whitelist.yml -e "strict_whitelist_enabled=false"
 ```
 
 **Allowed for anonymous users:**

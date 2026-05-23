@@ -5,7 +5,7 @@
 # Logged-in users (WordPress cookie) bypass the whitelist entirely.
 #
 # Usage:
-#   ansible-playbook -i hosts modules/4_security/playbook-strict-whitelist.yml
+#   ansible-playbook -i hosts modules/5_security/playbook-strict-whitelist.yml
 #
 # Variables (set in inventory or group_vars):
 #   strict_whitelist_enabled: true/false (default: false)

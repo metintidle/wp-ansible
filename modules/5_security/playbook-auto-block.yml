@@ -1,0 +1,160 @@
+---
+- name: Deploy Auto-Block Malicious PHP Script
+  hosts: all
+  become: yes
+  vars:
+    # Set to true to enable automatic daily updates
+    enable_cron: false
+    # How often to run (daily, weekly, monthly)
+    cron_schedule: daily
+  tasks:
+    - name: Upload auto-block script to server
+      ansible.builtin.copy:
+        src: ../../bash/auto-block-malicious-php.sh
+        dest: /usr/local/bin/auto-block-malicious-php
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create backup directory for security configs
+      ansible.builtin.file:
+        path: /var/backups/nginx-security
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create log directory for auto-block script
+      ansible.builtin.file:
+        path: /var/log/auto-block-security
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Run auto-block script in dry-run mode (to show current threats)
+      ansible.builtin.command:
+        cmd: /usr/local/bin/auto-block-malicious-php --dry-run --days 7
+      register: auto_block_dryrun
+      changed_when: false
+      failed_when: false
+
+    - name: Display dry-run results
+      ansible.builtin.debug:
+        var: auto_block_dryrun.stdout_lines
+
+    - name: Create wrapper script for automatic execution
+      ansible.builtin.copy:
+        dest: /usr/local/bin/auto-block-malicious-php-auto
+        content: |
+          #!/bin/bash
+          # Automatic wrapper for auto-block-malicious-php script
+          # This runs in non-interactive mode with automatic yes
+
+          LOG_FILE="/var/log/auto-block-security/auto-block-$(date +%Y%m%d).log"
+
+          echo "=== Auto-Block Malicious PHP - $(date) ===" | tee -a "$LOG_FILE"
+
+          # Run the script with dry-run first
+          /usr/local/bin/auto-block-malicious-php --dry-run --days 1 | tee -a "$LOG_FILE"
+
+          # Check if there are any malicious files found
+          if /usr/local/bin/auto-block-malicious-php --dry-run --days 1 2>&1 | grep -q "Found [1-9]"; then
+            echo "Malicious files detected. Updating security rules..." | tee -a "$LOG_FILE"
+            # Run the actual update (auto-yes via echo)
+            echo "yes" | /usr/local/bin/auto-block-malicious-php --days 1 --block-ips 2>&1 | tee -a "$LOG_FILE"
+            echo "Security rules updated successfully!" | tee -a "$LOG_FILE"
+          else
+            echo "No new malicious files detected." | tee -a "$LOG_FILE"
+          fi
+
+          echo "=== Completed - $(date) ===" | tee -a "$LOG_FILE"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Setup daily cron job for auto-block script
+      ansible.builtin.cron:
+        name: "Auto-block malicious PHP requests"
+        minute: "0"
+        hour: "2"
+        job: "/usr/local/bin/auto-block-malicious-php-auto"
+        user: root
+        state: "{{ 'present' if enable_cron else 'absent' }}"
+      when: cron_schedule == 'daily'
+
+    - name: Setup weekly cron job for auto-block script
+      ansible.builtin.cron:
+        name: "Auto-block malicious PHP requests"
+        minute: "0"
+        hour: "2"
+        weekday: "0"
+        job: "/usr/local/bin/auto-block-malicious-php-auto"
+        user: root
+        state: "{{ 'present' if enable_cron else 'absent' }}"
+      when: cron_schedule == 'weekly'
+
+    - name: Create log rotation for auto-block logs
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/auto-block-security
+        content: |
+          /var/log/auto-block-security/*.log {
+              daily
+              rotate 30
+              compress
+              delaycompress
+              missingok
+              notifempty
+              create 644 root root
+          }
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Display script usage information
+      ansible.builtin.debug:
+        msg: |
+
+          ========================================================
+          Auto-Block Malicious PHP Script Installed Successfully!
+          ========================================================
+
+          The script has been installed at: /usr/local/bin/auto-block-malicious-php
+
+          MANUAL USAGE:
+          -------------
+          # View what would be blocked (dry-run):
+          sudo /usr/local/bin/auto-block-malicious-php --dry-run
+
+          # Update security rules interactively:
+          sudo /usr/local/bin/auto-block-malicious-php
+
+          # Update rules and block IPs:
+          sudo /usr/local/bin/auto-block-malicious-php --block-ips
+
+          # Analyze only last 24 hours:
+          sudo /usr/local/bin/auto-block-malicious-php --days 1
+
+          AUTOMATIC MODE:
+          ---------------
+          {% if enable_cron %}
+          ✓ Automatic updates are ENABLED ({{ cron_schedule }})
+          The script runs automatically at 2 AM {{ 'every night' if cron_schedule == 'daily' else 'every Sunday' }}
+          {% else %}
+          ✗ Automatic updates are DISABLED
+          To enable automatic daily updates, run:
+            ansible-playbook -i hosts modules/5_security/playbook-auto-block.yml -e "enable_cron=true"
+          {% endif %}
+
+          Logs are stored in: /var/log/auto-block-security/
+
+          BACKUPS:
+          --------
+          Before any changes, the script creates backups in:
+          /var/backups/nginx-security/
+
+          To restore a backup:
+          sudo cp /var/backups/nginx-security/security.conf.YYYYMMDD_HHMMSS.bak /etc/nginx/default.d/security.conf
+          sudo nginx -t && sudo systemctl reload nginx
+
+          ========================================================

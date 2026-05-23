@@ -175,7 +175,7 @@ if [[ $TOTAL_REQUESTS -gt 0 ]]; then
   log_warning "ACTION REQUIRED:"
   echo "  1. The security rules in security-rules.conf need to be updated"
   echo "  2. Deploy updated rules to server using Ansible:"
-  echo "     ansible-playbook -i hosts modules/4_security/playbook-fail2ban.yml"
+  echo "     ansible-playbook -i hosts modules/5_security/playbook-fail2ban.yml"
   echo ""
   echo "  3. Consider blocking repeat offender IPs with fail2ban"
   echo ""
@@ -183,7 +183,7 @@ if [[ $TOTAL_REQUESTS -gt 0 ]]; then
   if [[ $IP_COUNT -gt 10 ]]; then
     log_warning "High number of attacking IPs detected ($IP_COUNT)"
     echo "     Consider setting up fail2ban auto-blocking:"
-    echo "     ansible-playbook -i hosts modules/4_security/playbook-auto-block.yml -e 'enable_cron=true'"
+    echo "     ansible-playbook -i hosts modules/5_security/playbook-auto-block.yml -e 'enable_cron=true'"
     echo ""
   fi
 else
@@ -199,7 +199,7 @@ if [[ $ROOT_COUNT -gt 0 ]] || [[ $PLUGIN_COUNT -gt 0 ]]; then
   read -p "Would you like to automatically update security-rules.conf? (yes/no): " -r
 
   if [[ $REPLY =~ ^[Yy]es$ ]]; then
-    SECURITY_RULES="modules/4_security/files/security/security-rules.conf"
+    SECURITY_RULES="modules/5_security/files/security/security-rules.conf"
 
     if [[ ! -f "$SECURITY_RULES" ]]; then
       log_error "Security rules file not found: $SECURITY_RULES"
@@ -249,7 +249,7 @@ if [[ $ROOT_COUNT -gt 0 ]] || [[ $PLUGIN_COUNT -gt 0 ]]; then
     log_info "Next steps:"
     echo "  1. Review the changes in: $SECURITY_RULES"
     echo "  2. Deploy to server with:"
-    echo "     ansible-playbook -i hosts modules/4_security/playbook-fail2ban.yml"
+    echo "     ansible-playbook -i hosts modules/5_security/playbook-fail2ban.yml"
     echo ""
   else
     log_info "Skipped automatic update. You can manually update the security rules."

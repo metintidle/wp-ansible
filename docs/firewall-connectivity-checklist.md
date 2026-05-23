@@ -46,7 +46,7 @@ Non-5xx means Nginx is responding locally; if the site is unreachable from the i
 - Fail2Ban: `sudo systemctl status fail2ban`
 - CrowdSec: `sudo systemctl status crowdsec`
 
-If not installed, see [modules/4_security/](../modules/4_security/) and [docs/FILE2BAN.md](FILE2BAN.md).
+If not installed, see [modules/5_security/](../modules/5_security/) and [docs/FILE2BAN.md](FILE2BAN.md).
 
 ---
 
@@ -80,4 +80,4 @@ When you attach a **new Elastic IP** (or a new instance) and point the domain to
 - [CLAUDE.md](../CLAUDE.md) — Prerequisites, security groups, ports
 - [README.md](../README.md) — FTP ports
 - [docs/ssl-dns-troubleshooting.md](ssl-dns-troubleshooting.md) — DNS and Certbot
-- [modules/4_security/](../modules/4_security/) — Fail2Ban, CrowdSec, strict whitelist
+- [modules/5_security/](../modules/5_security/) — Fail2Ban, CrowdSec, strict whitelist
