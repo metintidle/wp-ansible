@@ -1,0 +1,128 @@
+---
+# =============================================================================
+# PHP / Nginx web-shell hardening (reusable task file)
+#
+# Imported by:
+#   - modules/1_nginx-php/playbook.yml             (new provisioning)
+#   - modules/2_wordpress/fix-db-credentials.yml   (existing fleet remediation)
+#
+# Goal: assume an attacker can upload/inject PHP, and make it useless.
+#   1. Disable the shell-spawning PHP functions web shells rely on — applied to
+#      PHP-FPM ONLY (php_admin_value in the pool), so WP-CLI/cron keep full power.
+#   2. Deny PHP execution under writable dirs (uploads/cache/upgrade) in Nginx —
+#      even an uploaded .php in wp-content/uploads returns 403.
+#   3. Hide the PHP version and block remote PHP includes / source disclosure.
+#
+# Toggle each layer with the vars below (defaults chosen to be WP-safe).
+# open_basedir is OFF by default because it most often breaks plugins; enable
+# it per-host once tested: -e php_harden_open_basedir=true
+# =============================================================================
+
+- name: Set hardening defaults
+  set_fact:
+    web_user: "{{ web_user | default('ec2-user') }}"
+    php_fpm_pool: "{{ php_fpm_pool | default('/etc/php-fpm.d/www.conf') }}"
+    php_harden_disable_functions: "{{ php_harden_disable_functions | default(true) }}"
+    php_harden_deny_uploads_php: "{{ php_harden_deny_uploads_php | default(true) }}"
+    php_harden_expose_off: "{{ php_harden_expose_off | default(true) }}"
+    php_harden_open_basedir: "{{ php_harden_open_basedir | default(false) }}"
+    # Functions web shells need but WordPress core does NOT. Backup plugins
+    # (UpdraftPlus/WPvivid) fall back to PHP-native zip/dump if exec is gone.
+    php_disabled_functions: >-
+      {{ php_disabled_functions | default(
+         'exec,passthru,shell_exec,system,proc_open,popen,proc_close,proc_terminate,proc_get_status,proc_nice,pcntl_exec,pcntl_fork,dl') }}
+
+# --- PHP-FPM pool: disable dangerous functions (FPM only, not CLI/WP-CLI) -----
+- name: "Harden: disable shell-spawning PHP functions for FPM requests"
+  lineinfile:
+    path: "{{ php_fpm_pool }}"
+    regexp: '^\s*;?\s*php_admin_value\[disable_functions\]\s*='
+    line: "php_admin_value[disable_functions] = {{ php_disabled_functions }}"
+    insertafter: EOF
+    backup: yes
+  become: yes
+  register: h_disable_funcs
+  when: php_harden_disable_functions | bool
+
+- name: "Harden: block remote PHP includes (allow_url_include) for FPM requests"
+  lineinfile:
+    path: "{{ php_fpm_pool }}"
+    regexp: '^\s*;?\s*php_admin_flag\[allow_url_include\]\s*='
+    line: "php_admin_flag[allow_url_include] = off"
+    insertafter: EOF
+  become: yes
+  register: h_url_include
+  when: php_harden_disable_functions | bool
+
+# --- Optional: confine PHP file access to the web root (OFF by default) --------
+- name: "Harden: confine PHP-FPM with open_basedir (opt-in)"
+  lineinfile:
+    path: "{{ php_fpm_pool }}"
+    regexp: '^\s*;?\s*php_admin_value\[open_basedir\]\s*='
+    line: "php_admin_value[open_basedir] = /usr/share/nginx/html/:/home/{{ web_user }}/html/:/tmp/:/var/tmp/:/dev/urandom"
+    insertafter: EOF
+    backup: yes
+  become: yes
+  register: h_open_basedir
+  when: php_harden_open_basedir | bool
+
+# --- php.ini: hide version --------------------------------------------------
+- name: "Harden: expose_php = Off"
+  lineinfile:
+    path: /etc/php.ini
+    regexp: '^\s*;?\s*expose_php\s*='
+    line: "expose_php = Off"
+  become: yes
+  register: h_expose
+  when: php_harden_expose_off | bool
+
+- name: Reload PHP-FPM if any PHP setting changed
+  service:
+    name: php-fpm
+    state: reloaded
+  become: yes
+  when: >
+    not (skip_hardening_service_reload | default(false) | bool) and (
+    (h_disable_funcs is defined and h_disable_funcs.changed) or
+    (h_url_include is defined and h_url_include.changed) or
+    (h_open_basedir is defined and h_open_basedir.changed) or
+    (h_expose is defined and h_expose.changed))
+
+# --- Nginx: deny PHP execution in writable dirs + source disclosure ----------
+- name: "Harden: deny PHP execution under writable dirs (Nginx drop-in)"
+  copy:
+    dest: /etc/nginx/default.d/00-deny-php-execution.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by snippets/php-webshell-hardening.yml — anti web-shell.
+      # Named 00- so its regex locations are matched before the \.php$ FastCGI block.
+      # Block execution of PHP uploaded into user-writable directories.
+      location ~* /(?:uploads|files|cache|upgrade)/.*\.(?:php|phtml|php3|php4|php5|php7|phps|phar|pht)$ {
+          deny all;
+      }
+      # Prevent source disclosure of sensitive files.
+      location ~* ^/(?:wp-config\.php|wp-config-sample\.php|readme\.html|license\.txt|xmlrpc\.php)$ {
+          deny all;
+      }
+  become: yes
+  register: h_nginx_dropin
+  when: php_harden_deny_uploads_php | bool
+
+- name: Validate Nginx configuration
+  command: nginx -t
+  become: yes
+  register: h_nginx_test
+  changed_when: false
+  when: h_nginx_dropin is defined and h_nginx_dropin.changed
+
+- name: Reload Nginx (only if config is valid)
+  service:
+    name: nginx
+    state: reloaded
+  become: yes
+  when:
+    - not (skip_hardening_service_reload | default(false) | bool)
+    - h_nginx_dropin is defined and h_nginx_dropin.changed
+    - h_nginx_test is defined and h_nginx_test.rc == 0
