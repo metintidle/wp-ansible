@@ -26,11 +26,14 @@
     php_harden_deny_uploads_php: "{{ php_harden_deny_uploads_php | default(true) }}"
     php_harden_expose_off: "{{ php_harden_expose_off | default(true) }}"
     php_harden_open_basedir: "{{ php_harden_open_basedir | default(false) }}"
-    # Functions web shells need but WordPress core does NOT. Backup plugins
-    # (UpdraftPlus/WPvivid) fall back to PHP-native zip/dump if exec is gone.
+    # Group 1 — shell execution: functions web shells need; WP core never calls these.
+    #   Backup plugins (UpdraftPlus/WPvivid) fall back to native PHP zip/dump if exec is gone.
+    # Group 2 — recon/disclosure: source disclosure + system-info + POSIX privilege escalation.
+    #   All safe to disable under FPM; WP-CLI/cron (CLI) keep full access.
+    #   Deliberately excluded: mail, putenv, symlink (used by WP plugin ecosystem).
     php_disabled_functions: >-
       {{ php_disabled_functions | default(
-         'exec,passthru,shell_exec,system,proc_open,popen,proc_close,proc_terminate,proc_get_status,proc_nice,pcntl_exec,pcntl_fork,dl') }}
+         'exec,passthru,shell_exec,system,proc_open,popen,proc_close,proc_terminate,proc_get_status,proc_nice,pcntl_exec,pcntl_fork,dl,show_source,highlight_file,php_uname,posix_getpwuid,posix_kill,posix_mkfifo,posix_setpgid,posix_setsid,posix_setuid,posix_uname') }}
 
 # --- PHP-FPM pool: disable dangerous functions (FPM only, not CLI/WP-CLI) -----
 - name: "Harden: disable shell-spawning PHP functions for FPM requests"
@@ -52,6 +55,16 @@
     insertafter: EOF
   become: yes
   register: h_url_include
+  when: php_harden_disable_functions | bool
+
+- name: "Harden: restrict FPM to execute only .php files (security.limit_extensions)"
+  lineinfile:
+    path: "{{ php_fpm_pool }}"
+    regexp: '^\s*;?\s*security\.limit_extensions\s*='
+    line: "security.limit_extensions = .php"
+    insertafter: EOF
+  become: yes
+  register: h_limit_ext
   when: php_harden_disable_functions | bool
 
 # --- Optional: confine PHP file access to the web root (OFF by default) --------
@@ -76,6 +89,14 @@
   register: h_expose
   when: php_harden_expose_off | bool
 
+- name: "Harden: cgi.fix_pathinfo = 0 (block PATH_INFO mis-execution of uploads)"
+  lineinfile:
+    path: /etc/php.ini
+    regexp: '^\s*;?\s*cgi\.fix_pathinfo\s*='
+    line: "cgi.fix_pathinfo = 0"
+  become: yes
+  register: h_cgi_fix
+
 - name: Reload PHP-FPM if any PHP setting changed
   service:
     name: php-fpm
@@ -85,8 +106,10 @@
     not (skip_hardening_service_reload | default(false) | bool) and (
     (h_disable_funcs is defined and h_disable_funcs.changed) or
     (h_url_include is defined and h_url_include.changed) or
+    (h_limit_ext is defined and h_limit_ext.changed) or
     (h_open_basedir is defined and h_open_basedir.changed) or
-    (h_expose is defined and h_expose.changed))
+    (h_expose is defined and h_expose.changed) or
+    (h_cgi_fix is defined and h_cgi_fix.changed))
 
 # --- Nginx: deny PHP execution in writable dirs + source disclosure ----------
 - name: "Harden: deny PHP execution under writable dirs (Nginx drop-in)"

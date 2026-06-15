@@ -1,21 +1,128 @@
 ---
 - name: Setup WordPress on Amazon Linux 2023 with Nginx and PHP
   hosts: all
+  gather_facts: false
   vars:
    site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
+   wp: /usr/local/bin/wp
+   docroot: "{{ wp_root | default('/home/ec2-user/html') }}"
+   db_host: "{{ lookup('env', 'DB_HOST') }}"
+   # MySQL admin (CREATE DATABASE/USER + GRANT). Falls back to the legacy shared
+   # DB_USER/DB_PASS if DB_ADMIN_* is unset, but a dedicated admin is recommended.
+   db_admin_user: "{{ lookup('env', 'DB_ADMIN_USER') | default(lookup('env', 'DB_USER'), true) }}"
+   db_admin_pass: "{{ lookup('env', 'DB_ADMIN_PASS') | default(lookup('env', 'DB_PASS'), true) }}"
+   # Bind the per-site user to this host's source address ('auto' = detect it).
+   # Pass -e db_grant_host='%' to fall back to a wildcard grant.
+   # Per-site DB identity — NEVER shared across sites. Username <= 32 chars.
+   cred_dir: "{{ playbook_dir }}/.db-credentials"
+   site_db_user: >-
+     {{ ('wp_' ~ (inventory_hostname | regex_replace('[^a-zA-Z0-9]', '')))[:24]
+        ~ '_' ~ (inventory_hostname | hash('md5'))[:6] }}
+   # Includes specials for MySQL validate_password MEDIUM policy.
+   site_db_pass: "{{ lookup('password', cred_dir ~ '/' ~ inventory_hostname ~ '.pass length=32 chars=ascii_letters,digits,!@#%^*_-') }}"
+
+  pre_tasks:
+    - name: Stop nginx before DB setup (free RAM)
+      raw: systemctl stop nginx 2>/dev/null || true
+      become: yes
+      when: pause_web_stack_for_ram | default(true) | bool
+
+    - name: Stop php-fpm before DB setup (free RAM)
+      raw: systemctl stop php-fpm 2>/dev/null || true
+      become: yes
+      when: pause_web_stack_for_ram | default(true) | bool
+
+    - name: Drop kernel page cache to free RAM
+      raw: sync; echo 3 > /proc/sys/vm/drop_caches
+      become: yes
+      when: pause_web_stack_for_ram | default(true) | bool
+
+    - name: Ensure MySQL client is installed (after freeing RAM)
+      raw: |
+        if command -v mysql >/dev/null 2>&1; then
+          if mysql --version 2>&1 | grep -qE 'Ver (8\.|15\.|10\.[6-9]|10\.[1-9][0-9])'; then
+            echo "MYSQL_CLIENT_STATUS=already_present"
+            exit 0
+          fi
+        fi
+        if command -v dnf >/dev/null 2>&1; then
+          dnf install -y mariadb105
+        elif command -v yum >/dev/null 2>&1; then
+          rpm -q mysql80-community-release >/dev/null 2>&1 || \
+            yum install -y https://dev.mysql.com/get/mysql80-community-release-el7-7.noarch.rpm
+          yum install -y --nogpgcheck mysql-community-client
+        else
+          echo "No dnf/yum package manager found" >&2; exit 1
+        fi
+        echo "MYSQL_CLIENT_STATUS=installed"
+      become: yes
+      register: mysql_client_install
+
+    - name: Verify MySQL client is available for remote DB access
+      raw: command -v mysql >/dev/null && mysql --version
+      become: yes
+      changed_when: false
 
   tasks:
-    - name: Install MariaDB client
-      command: "dnf install -y mariadb105"
-      become: yes
+    - name: Detect this host's source address as seen by the central DB
+      raw: >
+        MYSQL_PWD='{{ db_admin_pass }}' mysql --user='{{ db_admin_user }}'
+        --host='{{ db_host }}' --protocol=TCP -N -B
+        -e "SELECT SUBSTRING_INDEX(USER(), '@', -1);"
+      register: db_src_host
+      changed_when: false
+      no_log: true
+      when: (db_grant_host | default('auto')) == 'auto'
 
-    - name: Create WordPress database if it doesn't exist
-      command: >
-        mysql -u {{ lookup('env', 'DB_USER') }} -p{{ lookup('env', 'DB_PASS') }} -h {{ lookup('env', 'DB_HOST') }} -e "CREATE DATABASE IF NOT EXISTS {{ db_name }};"
+    - name: Resolve the grant host
+      set_fact:
+        grant_host: "{{ (db_src_host.stdout_lines[0] | default('') | trim) if (db_grant_host | default('auto')) == 'auto' else db_grant_host }}"
 
-    - name: remove mariadb
-      command: "dnf remove -y mariadb105"
-      become: yes
+    - name: Sanity-check the grant host was resolved
+      raw: 'test -n "{{ grant_host }}"'
+      changed_when: false
+
+    - name: Create database, per-site host-bound user, and scoped grant
+      raw: |
+        MYSQL_PWD='{{ db_admin_pass }}' mysql --user='{{ db_admin_user }}' --host='{{ db_host }}' --protocol=TCP -e "
+        CREATE DATABASE IF NOT EXISTS \`{{ db_name }}\`;
+        CREATE USER IF NOT EXISTS '{{ site_db_user }}'@'{{ grant_host }}' IDENTIFIED BY '{{ site_db_pass }}';
+        ALTER USER '{{ site_db_user }}'@'{{ grant_host }}' IDENTIFIED BY '{{ site_db_pass }}';
+        GRANT ALL PRIVILEGES ON \`{{ db_name }}\`.* TO '{{ site_db_user }}'@'{{ grant_host }}';
+        FLUSH PRIVILEGES;"
+      no_log: true
+
+    - name: Verify the per-site DB user can reach the database
+      raw: >
+        MYSQL_PWD='{{ site_db_pass }}' mysql --user='{{ site_db_user }}'
+        --host='{{ db_host }}' --protocol=TCP
+        -e "USE \`{{ db_name }}\`; SELECT 1;"
+      no_log: true
+      changed_when: false
+
+    - name: Drop over-broad wildcard account for this site user (if any)
+      raw: |
+        MYSQL_PWD='{{ db_admin_pass }}' mysql --user='{{ db_admin_user }}' --host='{{ db_host }}' --protocol=TCP -e "
+        DROP USER IF EXISTS '{{ site_db_user }}'@'%';
+        FLUSH PRIVILEGES;"
+      no_log: true
+      when: grant_host != '%'
+
+    - name: Record the per-site DB credentials on the controller
+      delegate_to: localhost
+      become: false
+      copy:
+        dest: "{{ cred_dir }}/{{ inventory_hostname }}.yml"
+        mode: "0600"
+        content: |
+          host: {{ inventory_hostname }}
+          db_name: {{ db_name }}
+          db_host: {{ db_host }}
+          db_user: {{ site_db_user }}
+          db_pass: {{ site_db_pass }}
+          grant_host: {{ grant_host }}
+          created_at: {{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}
+      no_log: true
 
     - name: Check if WP-CLI is already installed
       stat:
@@ -49,7 +156,7 @@
 
     - name: Check if WordPress is already installed
       stat:
-        path: /home/ec2-user/html/wp-signup.php
+        path: "{{ docroot }}/wp-signup.php"
       register: wordpress_downloaded
       become: yes
 
@@ -69,14 +176,14 @@
     - name: Extract WordPress tarball directly to html directory
       unarchive:
         src: /home/ec2-user/wordpress-latest.tar.gz
-        dest: /home/ec2-user/html/
+        dest: "{{ docroot }}/"
         remote_src: yes
         extra_opts: [--strip-components=1]
       when: not wordpress_downloaded.stat.exists
 
     - name: Change ownership of all files in html directory
       file:
-        path: /home/ec2-user/html/
+        path: "{{ docroot }}/"
         owner: ec2-user
         group: nginx
         recurse: yes
@@ -93,25 +200,26 @@
 
     - name: Check if wp-config.php exists
       stat:
-        path: /home/ec2-user/html/wp-config.php
+        path: "{{ docroot }}/wp-config.php"
       register: wp_config_exists
 
     - name: config
       command: >
         /usr/local/bin/wp config create
         --dbname={{db_name}}
-        --dbuser={{ lookup('env', 'DB_USER') }}
-        --dbpass={{ lookup('env', 'DB_PASS') }}
-        --dbhost={{ lookup('env', 'DB_HOST') }}
+        --dbuser={{ site_db_user }}
+        --dbpass={{ site_db_pass }}
+        --dbhost={{ db_host }}
         --dbprefix={{db_prefix}}
       args:
-        chdir: /home/ec2-user/html
+        chdir: "{{ docroot }}"
       when: not wp_config_exists.stat.exists
+      no_log: true
 
 
     - name: Fix WordPress FTP error
       lineinfile:
-        path: "/home/ec2-user/html/wp-config.php"
+        path: "{{ docroot }}/wp-config.php"
         insertafter: 'DB_COLLATE'
         regexp: "^define\\('FS_METHOD',"
         line: "define('FS_METHOD', 'direct');"
@@ -120,7 +228,7 @@
 
     - name: Set WordPress memory limit
       blockinfile:
-        path: /home/ec2-user/html/wp-config.php
+        path: "{{ docroot }}/wp-config.php"
         marker: "# {mark} WP_MEMORY_LIMIT block"
         insertafter: 'DB_COLLATE'
         backup: yes
@@ -131,7 +239,7 @@
 
     - name: Limit WordPress post revisions
       lineinfile:
-        path: /home/ec2-user/html/wp-config.php
+        path: "{{ docroot }}/wp-config.php"
         insertafter: 'DB_COLLATE'
         regexp: "^define\\('WP_POST_REVISIONS',"
         line: "define('WP_POST_REVISIONS', 3);"
@@ -139,7 +247,7 @@
 
     # - name: Disable WordPress WP-Cron
     #   lineinfile:
-    #     path: /home/ec2-user/html/wp-config.php
+    #     path: "{{ docroot }}/wp-config.php"
     #     line: "define('DISABLE_WP_CRON', true);"
     #     insertbefore: '/\* That.s all, stop editing!/'
     #     backup: yes
@@ -148,7 +256,7 @@
       cron:
         name: "WordPress Cron"
         minute: "*/15"
-        job: "cd /home/ec2-user/html && /usr/local/bin/wp cron event run --due-now > /dev/null 2>&1"
+        job: "cd {{ docroot }} && /usr/local/bin/wp cron event run --due-now > /dev/null 2>&1"
         user: ec2-user
 
 
@@ -161,45 +269,44 @@
         --admin_password="itt@123"
         --admin_email="wp.monitoring.log@gmail.com"
       args:
-        chdir: /home/ec2-user/html
+        chdir: "{{ docroot }}"
 
     - name: Install WPvivid Backup Plugin
       command: wp plugin install wpvivid-backuprestore --activate
       args:
-        chdir: /home/ec2-user/html
+        chdir: "{{ docroot }}"
 
     - name: Install Better Search Replace Plugin
       command: wp plugin install better-search-replace --activate
       args:
-        chdir: /home/ec2-user/html
+        chdir: "{{ docroot }}"
 
     # - name: Install All 404 Redirect to Homepage Plugin
     #   command: wp plugin install all-404-redirect-to-homepage --activate
     #   args:
-    #     chdir: /home/ec2-user/html
-
+    #     chdir: "{{ docroot }}"
 
 
     - name: install SQLite Object Cache plugin
       command: wp plugin install sqlite-object-cache
       args:
-        chdir: /home/ec2-user/html
+        chdir: "{{ docroot }}"
 
     - name: Install Plus WebP or AVIF plugin
       command: wp plugin install plus-webp --activate
       args:
-        chdir: /home/ec2-user/html
+        chdir: "{{ docroot }}"
 
     - name: Install UpdraftPlus Backup/Restore plugin
       command: wp plugin install updraftplus --activate
       args:
-        chdir: /home/ec2-user/html
+        chdir: "{{ docroot }}"
 
 
 
     - name: Ensure mu-plugins directory exists
       file:
-        path: /home/ec2-user/html/wp-content/mu-plugins
+        path: "{{ docroot }}/wp-content/mu-plugins"
         state: directory
         owner: ec2-user
         group: nginx
@@ -208,7 +315,7 @@
 
     - name: Create Heartbeat throttle mu-plugin
       copy:
-        dest: /home/ec2-user/html/wp-content/mu-plugins/heartbeat-throttle.php
+        dest: "{{ docroot }}/wp-content/mu-plugins/heartbeat-throttle.php"
         content: |
           <?php
           /**
@@ -242,7 +349,7 @@
 
     - name: Set WordPress constants for low-RAM optimization
       blockinfile:
-        path: /home/ec2-user/html/wp-config.php
+        path: "{{ docroot }}/wp-config.php"
         marker: "# {mark} Elementor low-ram constants"
         insertafter: 'DB_COLLATE'
         backup: yes
@@ -252,4 +359,29 @@
           define('EMPTY_TRASH_DAYS', 7);
           define('DISALLOW_FILE_EDIT', true);
 
+  post_tasks:
+    - name: Remove temporary MySQL client installed for DB setup
+      raw: |
+        if command -v dnf >/dev/null 2>&1; then dnf remove -y mariadb105
+        elif command -v yum >/dev/null 2>&1; then yum remove -y mysql-community-client
+        else exit 0; fi
+      become: yes
+      when: mysql_client_install.stdout is search('MYSQL_CLIENT_STATUS=installed')
+
+    - name: Start php-fpm after DB setup
+      raw: systemctl start php-fpm
+      become: yes
+      when: pause_web_stack_for_ram | default(true) | bool
+
+    - name: Validate Nginx config before bringing web stack up
+      raw: nginx -t
+      become: yes
+      when: pause_web_stack_for_ram | default(true) | bool
+      failed_when: false
+      register: nginx_final_test
+
+    - name: Start nginx after DB setup
+      raw: systemctl start nginx
+      become: yes
+      when: pause_web_stack_for_ram | default(true) | bool and (nginx_final_test.rc | default(0)) == 0
 
