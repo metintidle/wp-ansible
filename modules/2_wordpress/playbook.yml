@@ -276,8 +276,8 @@
       args:
         chdir: "{{ docroot }}"
 
-    - name: Install Better Search Replace Plugin
-      command: wp plugin install better-search-replace --activate
+    - name: Install BBQ Firewall – Fast & Powerful Firewall Security
+      command: wp plugin install block-bad-queries --activate
       args:
         chdir: "{{ docroot }}"
 
