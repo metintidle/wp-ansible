@@ -1,38 +1,81 @@
-#!/bin/bash
-# Disable WordPress built-in cron and setup system cron
-# Run this on the server to immediately fix WP-Cron issues
+#!/usr/bin/env bash
+# Disable WordPress pseudo-cron on page load; run due events via system cron (WP-CLI).
+# Usage:
+#   ./bash/disable-wp-cron.sh              # local (wp at /home/ec2-user/html)
+#   ./bash/disable-wp-cron.sh lake cccls   # remote via SSH
+#   SSH_CONFIG=~/.ssh/config ./bash/disable-wp-cron.sh cccls
 
-set -e
+set -euo pipefail
 
-echo "=== Disabling WordPress built-in cron ==="
+WP_BIN="${WP_BIN:-/usr/local/bin/wp}"
+CRON_SCHEDULE="${CRON_SCHEDULE:-*/5 * * * *}"
 
-# Add DISABLE_WP_CRON to wp-config.php if not already present
-if ! grep -q "DISABLE_WP_CRON" /home/ec2-user/html/wp-config.php; then
-    # Find the line with DB_COLLATE and add after it
-    sudo sed -i "/define.*DB_COLLATE/a define('DISABLE_WP_CRON', true);" /home/ec2-user/html/wp-config.php
-    echo "✓ Added DISABLE_WP_CRON to wp-config.php"
-else
-    echo "✓ DISABLE_WP_CRON already exists in wp-config.php"
-fi
+apply_local() {
+  local wp_root="${1:-/home/ec2-user/html}"
+  [[ -f "$wp_root/wp-config.php" ]] || wp_root="/var/www/html"
+  local config="$wp_root/wp-config.php"
 
-echo ""
-echo "=== Setting up system cron job ==="
+  if ! grep -q "DISABLE_WP_CRON" "$config" 2>/dev/null; then
+    sudo cp -a "$config" "${config}.bak-disable-wp-cron-$(date +%Y%m%d%H%M%S)"
+    sudo sed -i "/That's all, stop editing/i define('DISABLE_WP_CRON', true);" "$config"
+    echo "  wp-config: added DISABLE_WP_CRON"
+  else
+    echo "  wp-config: DISABLE_WP_CRON already set"
+  fi
 
-# Add cron job if it doesn't exist
-(crontab -l 2>/dev/null | grep -q "wp cron event run") && echo "✓ Cron job already exists" || {
-    (crontab -l 2>/dev/null; echo "*/5 * * * * cd /home/ec2-user/html && /usr/local/bin/wp cron event run --due-now > /dev/null 2>&1") | crontab -
-    echo "✓ Added system cron job (runs every 5 minutes)"
+  local cron_line="${CRON_SCHEDULE} cd ${wp_root} && ${WP_BIN} cron event run --due-now --path=${wp_root} >> /home/ec2-user/wp-cron.log 2>&1"
+  if crontab -l 2>/dev/null | grep -qF "wp cron event run"; then
+    echo "  crontab: wp cron job already present"
+  else
+    { crontab -l 2>/dev/null || true; echo "$cron_line"; } | crontab -
+    echo "  crontab: added (${CRON_SCHEDULE})"
+  fi
+
+  grep DISABLE_WP_CRON "$config" || true
+  crontab -l | grep -F "wp cron event run" || true
 }
 
-echo ""
-echo "=== Verification ==="
-echo "Checking DISABLE_WP_CRON setting:"
-grep "DISABLE_WP_CRON" /home/ec2-user/html/wp-config.php || echo "NOT FOUND"
+apply_remote() {
+  local host="$1"
+  local ssh_config="${SSH_CONFIG:-$HOME/.ssh/ohara/config}"
+  [[ "$host" == "cccls" || "$host" == "bateys" ]] && ssh_config="${SSH_CONFIG:-$HOME/.ssh/config}"
 
-echo ""
-echo "Current cron jobs for ec2-user:"
-crontab -l
+  echo "========== $host =========="
+  ssh -F "$ssh_config" "$host" 'bash -s' <<'REMOTE'
+set -eu
+WP_BIN=/usr/local/bin/wp
+CRON_SCHEDULE='*/5 * * * *'
+WP=/home/ec2-user/html
+[[ -f "$WP/wp-config.php" ]] || WP=/var/www/html
+CONFIG="$WP/wp-config.php"
 
-echo ""
-echo "✓ Done! WordPress cron will now run via system cron every 5 minutes."
-echo "✓ This will significantly reduce PHP-FPM usage."
+if ! grep -q "DISABLE_WP_CRON" "$CONFIG" 2>/dev/null; then
+  sudo cp -a "$CONFIG" "${CONFIG}.bak-disable-wp-cron-$(date +%Y%m%d%H%M%S)"
+  sudo sed -i "/That's all, stop editing/i define('DISABLE_WP_CRON', true);" "$CONFIG"
+  echo "  wp-config: added DISABLE_WP_CRON"
+else
+  echo "  wp-config: DISABLE_WP_CRON already set"
+fi
+
+CRON_LINE="${CRON_SCHEDULE} cd ${WP} && ${WP_BIN} cron event run --due-now --path=${WP} >> /home/ec2-user/wp-cron.log 2>&1"
+if crontab -l 2>/dev/null | grep -qF "wp cron event run"; then
+  echo "  crontab: wp cron job already present"
+else
+  { crontab -l 2>/dev/null || true; echo "$CRON_LINE"; } | crontab -
+  echo "  crontab: added every 5 minutes"
+fi
+
+grep DISABLE_WP_CRON "$CONFIG" || true
+crontab -l | grep -F "wp cron event run" || true
+REMOTE
+}
+
+if [[ $# -eq 0 ]]; then
+  apply_local
+else
+  for h in "$@"; do
+    apply_remote "$h"
+  done
+fi
+
+echo "Done."
