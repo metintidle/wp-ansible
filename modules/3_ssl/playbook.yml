@@ -148,21 +148,24 @@
     shell: /usr/local/bin/wp post delete $(/usr/local/bin/wp post list --post_type='revision' --format=ids) --force
     args:
         chdir: /home/ec2-user/html
-    become: true
+    become: false
+    become_user: ec2-user
     ignore_errors: true
 
   - name: "One-time WP-CLI cleanup - delete expired transients"
     command: /usr/local/bin/wp transient delete --expired
     args:
         chdir: /home/ec2-user/html
-    become: true
+    become: false
+    become_user: ec2-user
     ignore_errors: true
 
   - name: "One-time WP-CLI cleanup - optimize database"
     command: /usr/local/bin/wp db optimize
     args:
         chdir: /home/ec2-user/html
-    become: true
+    become: false
+    become_user: ec2-user
     ignore_errors: true
   # resmon wp_site_mapping — after HTTPS siteurl/blogname are final (wp search-replace above).
   - name: Read WordPress siteurl (final)
