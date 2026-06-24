@@ -1,71 +1,158 @@
 [DEFAULT]
+
 # Trusted nets: localhost + verified search-engine crawlers.
-# Review these CIDRs periodically — broad /16 ranges can be abused.
-ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16 
 
-# --- Aggressive detection window/threshold ---
+ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
+
+
+
 findtime = 600
-maxretry = 2
-bantime  = 86400          ; first offence: 24h
 
-# --- Ban ALL ports for the offending IP, not just http/https ---
+maxretry = 2
+
+bantime  = 86400
+
+
+
+bantime.increment    = true
+
+bantime.factor       = 2
+
+bantime.maxtime      = 4w
+
+bantime.rndtime      = 600
+
+bantime.overalljails = true
+
+
+
 banaction          = iptables-allports
+
 banaction_allports = iptables-allports
+
 backend            = auto
 
-# --- Exponential escalation for repeat offenders (persistent sqlite db) ---
-bantime.increment    = true
-bantime.factor       = 2
-bantime.maxtime      = 4w  ; cap escalation at 4 weeks
-bantime.rndtime      = 600
-bantime.overalljails = true ; an IP's history counts across all jails
 
-# --- Logging ---
+
 logtarget = /var/log/fail2ban/fail2ban.log
+
 loglevel  = INFO
 
-# Append custom logban action to every jail (writes to banned-ips.log)
+
+
 action = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+
          logban[logpath=/var/log/fail2ban/banned-ips.log]
 
-# ---------------------------------------------------------------------
-# SSH — AL2023 logs sshd to journald, so use the systemd backend here
-# ---------------------------------------------------------------------
+
+
 [sshd]
+
 enabled  = true
+
 mode     = aggressive
+
 backend  = systemd
+
 maxretry = 2
+
 bantime  = 1w
 
 
-# ---------------------------------------------------------------------
-# Nginx — fail2ban built-in jails (ship with the fail2ban package)
-# ---------------------------------------------------------------------
-#[nginx-http-auth]
-#enabled  = true
-#maxretry = 3
 
-[nginx-botsearch]
+[nginx-unknown-script]
+
 enabled  = true
+
+filter   = nginx-unknown-script
+
+port     = http,https
+
+logpath  = /var/log/nginx/error.log
+
 maxretry = 2
 
-[nginx-limit-req]
+bantime  = 86400
+
+
+
+[nginx-php-url-hack]
+
 enabled  = true
+
+filter   = nginx-php-url-hack
+
+port     = http,https
+
+logpath  = /var/log/nginx/access.log
+
+maxretry = 2
+
+bantime  = 86400
+
+
+
+[nginx-non-wordpress]
+
+enabled  = true
+
+filter   = non-wordpress-requests
+
+port     = http,https
+
+logpath  = /var/log/nginx/access.log
+
+maxretry = 3
+
+findtime = 300
+
+bantime  = 86400
+
+
+
+[nginx-http-auth]
+
+enabled  = true
+
+maxretry = 3
+
+
+
+[nginx-botsearch]
+
+enabled  = true
+
+maxretry = 2
+
+
+
+[nginx-limit-req]
+
+enabled  = true
+
 maxretry = 5
 
-#[nginx-bad-request]
-#enabled  = true
-#maxretry = 3
 
-# ---------------------------------------------------------------------
-# Recidive — re-ban IPs that keep getting banned. Long ban, all ports.
-# Watches fail2ban's OWN log, so it sits on top of every jail above.
-# ---------------------------------------------------------------------
+
+[nginx-bad-request]
+
+enabled  = true
+
+maxretry = 3
+
+
+
 [recidive]
+
 enabled   = true
+
 logpath   = /var/log/fail2ban/fail2ban.log
+
 banaction = iptables-allports
+
 bantime   = 4w
+
 findtime  = 1d
+
 maxretry  = 3
+

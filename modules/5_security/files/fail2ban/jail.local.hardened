@@ -1,0 +1,111 @@
+# =====================================================================
+# Fail2Ban — HARDENED / highest-security jail.local
+# Target: Amazon Linux 2023 WordPress + Nginx host
+# Deploy to: /etc/fail2ban/jail.local
+#
+# Requires these filters present in /etc/fail2ban/filter.d/:
+#   nginx-unknown-script.conf   (already deployed)
+#   nginx-php-url-hack.conf      (deploy from files/fail2ban/filter/)
+#   non-wordpress-requests.conf  (deploy from files/fail2ban/filter/)
+# =====================================================================
+
+[DEFAULT]
+# Trusted nets: localhost + verified search-engine crawlers.
+# Review these CIDRs periodically — broad /16 ranges can be abused.
+ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
+
+# --- Aggressive detection window/threshold ---
+findtime = 600
+maxretry = 2
+bantime  = 86400          ; first offence: 24h
+
+# --- Exponential escalation for repeat offenders (persistent sqlite db) ---
+bantime.increment    = true
+bantime.factor       = 2
+bantime.maxtime      = 4w  ; cap escalation at 4 weeks
+bantime.rndtime      = 600
+bantime.overalljails = true ; an IP's history counts across all jails
+
+# --- Ban ALL ports for the offending IP, not just http/https ---
+banaction          = iptables-allports
+banaction_allports = iptables-allports
+backend            = auto
+
+# --- Logging ---
+logtarget = /var/log/fail2ban/fail2ban.log
+loglevel  = INFO
+
+# Append custom logban action to every jail (writes to banned-ips.log)
+action = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+         logban[logpath=/var/log/fail2ban/banned-ips.log]
+
+# ---------------------------------------------------------------------
+# SSH — AL2023 logs sshd to journald, so use the systemd backend here
+# ---------------------------------------------------------------------
+[sshd]
+enabled  = true
+mode     = aggressive
+backend  = systemd
+maxretry = 2
+bantime  = 1w
+
+# ---------------------------------------------------------------------
+# Nginx — custom WordPress attack filters (this repo)
+# ---------------------------------------------------------------------
+[nginx-unknown-script]
+enabled  = true
+filter   = nginx-unknown-script
+port     = http,https
+logpath  = /var/log/nginx/error.log
+maxretry = 2
+bantime  = 86400
+
+[nginx-php-url-hack]
+enabled  = true
+filter   = nginx-php-url-hack
+port     = http,https
+logpath  = /var/log/nginx/access.log
+maxretry = 2
+bantime  = 86400
+
+# Broad malicious-pattern matcher. Overlaps nginx-php-url-hack on .php 404s;
+# overlap only means an IP may be caught by both jails — harmless (still banned).
+[nginx-non-wordpress]
+enabled  = true
+filter   = non-wordpress-requests
+port     = http,https
+logpath  = /var/log/nginx/access.log
+maxretry = 3
+findtime = 300
+bantime  = 86400
+
+# ---------------------------------------------------------------------
+# Nginx — fail2ban built-in jails (ship with the fail2ban package)
+# ---------------------------------------------------------------------
+[nginx-http-auth]
+enabled  = true
+maxretry = 3
+
+[nginx-botsearch]
+enabled  = true
+maxretry = 2
+
+[nginx-limit-req]
+enabled  = true
+maxretry = 5
+
+[nginx-bad-request]
+enabled  = true
+maxretry = 3
+
+# ---------------------------------------------------------------------
+# Recidive — re-ban IPs that keep getting banned. Long ban, all ports.
+# Watches fail2ban's OWN log, so it sits on top of every jail above.
+# ---------------------------------------------------------------------
+[recidive]
+enabled   = true
+logpath   = /var/log/fail2ban/fail2ban.log
+banaction = iptables-allports
+bantime   = 4w
+findtime  = 1d
+maxretry  = 3

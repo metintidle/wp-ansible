@@ -54,19 +54,26 @@
         group: root
         mode: '0644'
 
-    - name: Configure fail2ban jail for unknown script errors
+    - name: Create Nginx PHP URL hack filter configuration
       ansible.builtin.copy:
-        src: files/fail2ban/jail/nginx-unknown-script.conf
-        dest: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+        src: files/fail2ban/filter/nginx-php-url-hack.conf
+        dest: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
         owner: root
         group: root
         mode: '0644'
 
-    - name: Ensure Fail2Ban service is enabled and started
-      service:
-        name: fail2ban
-        state: started
-        enabled: yes
+    - name: Create non-WordPress requests filter configuration
+      ansible.builtin.copy:
+        src: files/fail2ban/filter/non-wordpress-requests.conf
+        dest: /etc/fail2ban/filter.d/non-wordpress-requests.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Remove legacy jail.d snippets superseded by jail.local
+      ansible.builtin.file:
+        path: /etc/fail2ban/jail.d/nginx-unknown-script.conf
+        state: absent
 
     - name: Create fail2ban log directory
       ansible.builtin.file:
@@ -75,6 +82,17 @@
         owner: root
         group: root
         mode: '0755'
+
+    - name: Ensure fail2ban log files exist for recidive jail
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: touch
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - /var/log/fail2ban/fail2ban.log
+        - /var/log/fail2ban/banned-ips.log
 
     - name: Create custom logban action for banned IPs
       ansible.builtin.copy:
@@ -94,39 +112,13 @@
         group: root
         mode: '0644'
 
-    - name: Create Fail2Ban local configuration
-      copy:
+    - name: Deploy Fail2Ban local configuration
+      ansible.builtin.copy:
+        src: files/fail2ban/jail.local
         dest: /etc/fail2ban/jail.local
-        content: |
-          [DEFAULT]
-          ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
-          bantime = 3600
-          findtime = 600
-          maxretry = 3
-          banaction = iptables-multiport
-          backend = auto
-          # Log banned IPs to a dedicated file
-          logtarget = /var/log/fail2ban/fail2ban.log
-          loglevel = INFO
-
-          [sshd]
-          enabled = true
-          # Custom action to log banned IPs to a separate file
-          action = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
-                   logban[logpath=/var/log/fail2ban/banned-ips.log]
-
         owner: root
         group: root
         mode: '0644'
-
-    - name: Check fail2ban status
-      command: fail2ban-client status
-      register: fail2ban_status
-      changed_when: false
-
-    - name: Display fail2ban status
-      debug:
-        var: fail2ban_status.stdout_lines
 
     - name: Create log rotation for banned IPs log
       ansible.builtin.copy:
@@ -195,9 +187,19 @@
         mode: '0755'
 
     - name: Restart Fail2Ban service
-      service:
+      ansible.builtin.service:
         name: fail2ban
         state: restarted
+        enabled: true
+
+    - name: Check fail2ban status
+      ansible.builtin.command: fail2ban-client status
+      register: fail2ban_status
+      changed_when: false
+
+    - name: Display fail2ban status
+      ansible.builtin.debug:
+        var: fail2ban_status.stdout_lines
 
     - name: Restart Nginx service
       service:
