@@ -130,6 +130,10 @@ maxretry = 2
 
 enabled  = true
 
+filter   = nginx-limit-req-login
+
+logpath  = /var/log/nginx/error.log
+
 maxretry = 5
 
 

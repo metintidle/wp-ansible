@@ -70,6 +70,14 @@
         group: root
         mode: '0644'
 
+    - name: Create Nginx limit-req login zone filter configuration
+      ansible.builtin.copy:
+        src: files/fail2ban/filter/nginx-limit-req-login.conf
+        dest: /etc/fail2ban/filter.d/nginx-limit-req-login.conf
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Remove legacy jail.d snippets superseded by jail.local
       ansible.builtin.file:
         path: /etc/fail2ban/jail.d/nginx-unknown-script.conf
@@ -186,11 +194,90 @@
         group: root
         mode: '0755'
 
+    - name: Validate Nginx configuration
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Reload Nginx (apply rate-limit zones before fail2ban)
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
     - name: Restart Fail2Ban service
       ansible.builtin.service:
         name: fail2ban
         state: restarted
         enabled: true
+
+    - name: Validate fail2ban filter regex (must not match legitimate editor traffic)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        logfile=$(mktemp)
+        printf '%s\n' "$TEST_LINE" > "$logfile"
+        output=$(fail2ban-regex "$logfile" "{{ item.filter }}" 2>&1)
+        rm -f "$logfile"
+        count=$(echo "$output" | awk '/^Failregex:/ {print $2; exit}')
+        if [ "${count:-0}" -ne 0 ]; then
+          echo "Expected 0 Failregex matches for: {{ item.name }}"
+          echo "$output"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        TEST_LINE: "{{ item.line }}"
+      loop:
+        - name: wp-admin elementor 200
+          filter: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /wp-admin/post.php?action=elementor HTTP/1.1" 200 1234 "-" "Mozilla/5.0"'
+        - name: admin-ajax 500
+          filter: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "POST /wp-admin/admin-ajax.php HTTP/1.1" 500 1234 "-" "Mozilla/5.0"'
+        - name: wp-admin edit 403
+          filter: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /wp-admin/edit.php HTTP/1.1" 403 1234 "-" "Mozilla/5.0"'
+        - name: wp-admin elementor 200 (non-wordpress)
+          filter: /etc/fail2ban/filter.d/non-wordpress-requests.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /wp-admin/post.php?action=elementor HTTP/1.1" 200 1234 "-" "Mozilla/5.0"'
+        - name: admin-ajax 500 (non-wordpress)
+          filter: /etc/fail2ban/filter.d/non-wordpress-requests.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "POST /wp-admin/admin-ajax.php HTTP/1.1" 500 1234 "-" "Mozilla/5.0"'
+        - name: elementor preview pretty-url 403
+          filter: /etc/fail2ban/filter.d/non-wordpress-requests.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /sample-page/?elementor-preview=abc123 HTTP/1.1" 403 1234 "-" "Mozilla/5.0"'
+        - name: limit_req zone one
+          filter: /etc/fail2ban/filter.d/nginx-limit-req-login.conf
+          line: '2025/06/25 10:00:00 [error] 1234#5678: *9 limiting requests, excess: 5.123 by zone "one", client: 1.2.3.4, server: example.com, request: "GET / HTTP/1.1", host: "example.com"'
+      changed_when: false
+
+    - name: Validate fail2ban filter regex (must match attack patterns)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        logfile=$(mktemp)
+        printf '%s\n' "$TEST_LINE" > "$logfile"
+        output=$(fail2ban-regex "$logfile" "{{ item.filter }}" 2>&1)
+        rm -f "$logfile"
+        count=$(echo "$output" | awk '/^Failregex:/ {print $2; exit}')
+        if [ "${count:-0}" -lt 1 ]; then
+          echo "Expected >=1 Failregex matches for: {{ item.name }}"
+          echo "$output"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        TEST_LINE: "{{ item.line }}"
+      loop:
+        - name: random php 404 probe
+          filter: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /random-probe.php HTTP/1.1" 404 1234 "-" "curl/7.88"'
+        - name: shell.php hit
+          filter: /etc/fail2ban/filter.d/nginx-php-url-hack.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /shell.php HTTP/1.1" 200 1234 "-" "curl/7.88"'
+        - name: limit_req zone security_login
+          filter: /etc/fail2ban/filter.d/nginx-limit-req-login.conf
+          line: '2025/06/25 10:00:00 [error] 1234#5678: *9 limiting requests, excess: 2.000 by zone "security_login", client: 1.2.3.4, server: example.com, request: "POST /wp-login.php HTTP/1.1", host: "example.com"'
+      changed_when: false
 
     - name: Check fail2ban status
       ansible.builtin.command: fail2ban-client status
@@ -200,11 +287,6 @@
     - name: Display fail2ban status
       ansible.builtin.debug:
         var: fail2ban_status.stdout_lines
-
-    - name: Restart Nginx service
-      service:
-        name: nginx
-        state: restarted
 
     - name: Display information about banned IPs logging
       debug:
