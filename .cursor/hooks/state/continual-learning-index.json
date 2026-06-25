@@ -1,85 +1,205 @@
 {
   "version": 1,
   "transcripts": {
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/02f1d351-f492-4c76-85b2-c9aff32965df/02f1d351-f492-4c76-85b2-c9aff32965df.jsonl": {
+      "mtime": 1781778914,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/03f615e0-c3a4-445d-81d6-c20877e7d27f/03f615e0-c3a4-445d-81d6-c20877e7d27f.jsonl": {
       "mtime": 1779549708,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/0778948d-866f-4177-ab89-d2880dc6746f/0778948d-866f-4177-ab89-d2880dc6746f.jsonl": {
       "mtime": 1781518575,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/086590a4-def1-4c91-a7fc-52579c4e7f84/086590a4-def1-4c91-a7fc-52579c4e7f84.jsonl": {
       "mtime": 1781517871,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a12598e-62c6-47b9-a490-05a64e7e869a/1a12598e-62c6-47b9-a490-05a64e7e869a.jsonl": {
       "mtime": 1779579844,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a12598e-62c6-47b9-a490-05a64e7e869a/subagents/3ccb06fc-9711-433c-b1b8-11e6ecccfe10.jsonl": {
       "mtime": 1779576245,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/1a831b85-406b-48e5-ad30-7d4908b8551f.jsonl": {
-      "mtime": 1781546629,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "mtime": 1781548874,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/0778948d-866f-4177-ab89-d2880dc6746f.jsonl": {
       "mtime": 1781518560,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/3ba41088-4d2f-4bd1-ad9a-30bc8f0182ee.jsonl": {
       "mtime": 1781522716,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/556d0b2c-9bb9-402c-a845-3b72b8c7f4e4.jsonl": {
-      "mtime": 1781546610,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "mtime": 1781546929,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/5adc67f4-d60d-425d-a96f-e10755fc8701.jsonl": {
       "mtime": 1781519899,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/657c1341-da22-4084-a5b0-b15167589397.jsonl": {
+      "mtime": 1781548621,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/720f56eb-8de5-405a-b693-37e3a020cfcc.jsonl": {
-      "mtime": 1781546630,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "mtime": 1781546684,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/7bb8fa12-9760-4ca1-abac-f1b2c23d9d98.jsonl": {
+      "mtime": 1781547662,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/8650b78f-7bcf-45bd-bfea-3b586fa1fea9.jsonl": {
+      "mtime": 1781548249,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/1a831b85-406b-48e5-ad30-7d4908b8551f/subagents/b1424345-de14-491b-b13e-ed719643ba8e.jsonl": {
       "mtime": 1781528543,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/22385fd6-e443-42e5-8b60-58a723e9cc4a/22385fd6-e443-42e5-8b60-58a723e9cc4a.jsonl": {
+      "mtime": 1782185478,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/281f973b-3fef-4908-8e7a-9be08fbd3cb6/281f973b-3fef-4908-8e7a-9be08fbd3cb6.jsonl": {
+      "mtime": 1782346304,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/281f973b-3fef-4908-8e7a-9be08fbd3cb6/subagents/3a17f599-f008-4d8a-a144-8509fd1ed530.jsonl": {
+      "mtime": 1782346320,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/35aebd92-9ca8-4c8d-a5a5-bf37f29c8657/35aebd92-9ca8-4c8d-a5a5-bf37f29c8657.jsonl": {
+      "mtime": 1781780330,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/3ba41088-4d2f-4bd1-ad9a-30bc8f0182ee/3ba41088-4d2f-4bd1-ad9a-30bc8f0182ee.jsonl": {
       "mtime": 1781522731,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/40f48b5b-ca92-4b3e-a2db-3e99bd9575d2/40f48b5b-ca92-4b3e-a2db-3e99bd9575d2.jsonl": {
+      "mtime": 1782284871,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/40f48b5b-ca92-4b3e-a2db-3e99bd9575d2/subagents/33be4200-5690-4c35-a56d-f15339acef13.jsonl": {
+      "mtime": 1782278273,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/556d0b2c-9bb9-402c-a845-3b72b8c7f4e4/556d0b2c-9bb9-402c-a845-3b72b8c7f4e4.jsonl": {
+      "mtime": 1781546937,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/55975f01-b9a7-44ee-9817-eb7c0f7fa783/55975f01-b9a7-44ee-9817-eb7c0f7fa783.jsonl": {
+      "mtime": 1782181612,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/5a3757fc-b21f-42f8-8c2d-18bcc1cb5ee6/5a3757fc-b21f-42f8-8c2d-18bcc1cb5ee6.jsonl": {
+      "mtime": 1781775818,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/7559e546-076d-4d89-a66f-f4b4ab2f1066/7559e546-076d-4d89-a66f-f4b4ab2f1066.jsonl": {
+      "mtime": 1782290071,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/7878af6a-3765-411e-ba3c-7ba7d9f49ef5/7878af6a-3765-411e-ba3c-7ba7d9f49ef5.jsonl": {
+      "mtime": 1782287335,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/7878af6a-3765-411e-ba3c-7ba7d9f49ef5/subagents/11098444-dd9f-4a1d-bdd8-fa20409e5b63.jsonl": {
+      "mtime": 1782285922,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/7b2ca1a2-f39f-4ae4-afb9-5c2a734073b8/7b2ca1a2-f39f-4ae4-afb9-5c2a734073b8.jsonl": {
+      "mtime": 1782285832,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/951fb522-6ed3-4cbc-8a1a-8724d16e4dcf/951fb522-6ed3-4cbc-8a1a-8724d16e4dcf.jsonl": {
+      "mtime": 1782277260,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/a18efef6-96f9-4a1f-90cc-3f0a3b3cb102/a18efef6-96f9-4a1f-90cc-3f0a3b3cb102.jsonl": {
+      "mtime": 1782323619,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/b40e33da-bfba-4681-b75d-fe9f5dd0344e/b40e33da-bfba-4681-b75d-fe9f5dd0344e.jsonl": {
+      "mtime": 1782338178,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/b81de663-fdc2-478c-86b9-5a068f62a8f1/b81de663-fdc2-478c-86b9-5a068f62a8f1.jsonl": {
       "mtime": 1781528772,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/bd918755-3b14-4d99-b524-3d57a7423456/bd918755-3b14-4d99-b524-3d57a7423456.jsonl": {
+      "mtime": 1782323125,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/bf83bbe1-b2e8-4398-9542-8a6956b22e61/bf83bbe1-b2e8-4398-9542-8a6956b22e61.jsonl": {
+      "mtime": 1782191004,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/bf83bbe1-b2e8-4398-9542-8a6956b22e61/subagents/ee7ac6d1-58f7-494e-98e8-14a6eff158af.jsonl": {
+      "mtime": 1782190995,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/c70d3c2c-0fa3-42b2-9cd5-2a909cb30b08/c70d3c2c-0fa3-42b2-9cd5-2a909cb30b08.jsonl": {
+      "mtime": 1781782699,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/c70d3c2c-0fa3-42b2-9cd5-2a909cb30b08/subagents/c5d138bd-41fb-44d1-8e6b-a9f075013a1e.jsonl": {
+      "mtime": 1781779849,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/d264bd22-2fd0-4c80-bb72-1279498b5d72/d264bd22-2fd0-4c80-bb72-1279498b5d72.jsonl": {
+      "mtime": 1782298156,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/d264bd22-2fd0-4c80-bb72-1279498b5d72/subagents/7fbf7056-0908-4630-bf0d-1cdb4d90f3b5.jsonl": {
+      "mtime": 1782297555,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/d310841b-c1f2-40f7-b500-111e018de22a/d310841b-c1f2-40f7-b500-111e018de22a.jsonl": {
+      "mtime": 1782269923,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/d3511956-0640-4c29-9c8e-f2bf26389f33/d3511956-0640-4c29-9c8e-f2bf26389f33.jsonl": {
       "mtime": 1779549907,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/da2b2223-6fec-444b-a7c4-43bff80ba223/da2b2223-6fec-444b-a7c4-43bff80ba223.jsonl": {
       "mtime": 1779548046,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/da2b2223-6fec-444b-a7c4-43bff80ba223/subagents/69b70f39-607c-45b2-bc93-9f2b6cf3dfbc.jsonl": {
       "mtime": 1779543228,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/e1b1c5ee-0f5e-4c47-bc9b-feb5ff84bb7f/e1b1c5ee-0f5e-4c47-bc9b-feb5ff84bb7f.jsonl": {
+      "mtime": 1782203689,
+      "processedAt": "2026-06-25T00:12:24.000Z"
+    },
+    "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/eb731688-c359-4fd2-8621-31c52b89db76/eb731688-c359-4fd2-8621-31c52b89db76.jsonl": {
+      "mtime": 1782337737,
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/eedd2162-8ef1-4486-94c9-5eb1bdc2df01/eedd2162-8ef1-4486-94c9-5eb1bdc2df01.jsonl": {
       "mtime": 1781533660,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/f365257a-afbe-4cb3-81b1-787bf6de23a8/f365257a-afbe-4cb3-81b1-787bf6de23a8.jsonl": {
       "mtime": 1781528606,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     },
     "/Users/meti/.cursor/projects/Users-meti-Projects-wp-ansible/agent-transcripts/f365257a-afbe-4cb3-81b1-787bf6de23a8/subagents/9fc3469a-a590-4bc5-940a-f444afb34a6c.jsonl": {
       "mtime": 1781526747,
-      "processedAt": "2026-06-15T18:04:33.000Z"
+      "processedAt": "2026-06-25T00:12:24.000Z"
     }
   }
 }
