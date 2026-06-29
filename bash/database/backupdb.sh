@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Configurations
-DB_USER="itt-admin"          # Change to your MariaDB username
-DB_PASS="GCdGb!fNmk!!3dH"      # Change to your MariaDB password
-DB_HOST="152.69.175.15"
+DB_USER=""          # Change to your MariaDB username
+DB_PASS=""      # Change to your MariaDB password
+DB_HOST=""
 BACKUP_DIR="$HOME/backups"        # Change if needed
 RETENTION_DAYS=3             # Number of days to keep backups
 
