@@ -292,10 +292,21 @@
       args:
         chdir: "{{ docroot }}"
 
-    - name: Install Plus WebP or AVIF plugin
-      command: wp plugin install plus-webp --activate
+    - name: Copy IT&T WebP Compressor plugin zip to host
+      copy:
+        src: "{{ playbook_dir }}/../../plugins/itt-webp-compressor.zip"
+        dest: /tmp/itt-webp-compressor.zip
+        mode: '0644'
+
+    - name: Install IT&T WebP Compressor plugin
+      command: wp plugin install /tmp/itt-webp-compressor.zip --activate
       args:
         chdir: "{{ docroot }}"
+
+    - name: Remove IT&T WebP Compressor plugin zip from host
+      file:
+        path: /tmp/itt-webp-compressor.zip
+        state: absent
 
     - name: Install UpdraftPlus Backup/Restore plugin
       command: wp plugin install updraftplus --activate
