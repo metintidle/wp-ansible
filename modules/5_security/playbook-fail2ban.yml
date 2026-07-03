@@ -140,8 +140,24 @@
               missingok
               notifempty
               create 644 root root
+          }
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create log rotation for fail2ban main log
+      ansible.builtin.copy:
+        dest: /etc/logrotate.d/fail2ban-main
+        content: |
+          /var/log/fail2ban/fail2ban.log {
+              weekly
+              rotate 8
+              compress
+              delaycompress
+              missingok
+              notifempty
               postrotate
-                  /bin/systemctl reload fail2ban > /dev/null 2>&1 || true
+                  /usr/bin/fail2ban-client flushlogs 1>/dev/null 2>&1 || true
               endscript
           }
         owner: root
@@ -248,6 +264,9 @@
         - name: limit_req zone one
           filter: /etc/fail2ban/filter.d/nginx-limit-req-login.conf
           line: '2025/06/25 10:00:00 [error] 1234#5678: *9 limiting requests, excess: 5.123 by zone "one", client: 1.2.3.4, server: example.com, request: "GET / HTTP/1.1", host: "example.com"'
+        - name: FPM socket outage during elementor upload (north-nowra incident)
+          filter: /etc/fail2ban/filter.d/nginx-unknown-script.conf
+          line: '2026/06/30 00:28:00 [error] 1234#5678: *5 connect() to unix:/run/php-fpm/www.sock failed (2: No such file or directory), client: 95.82.0.218, server: example.com, request: "POST /wp-admin/async-upload.php HTTP/1.1", upstream: "fastcgi://unix:/run/php-fpm/www.sock:", host: "example.com", referrer: "https://example.com/wp-admin/post.php?post=410&action=elementor"'
       changed_when: false
 
     - name: Validate fail2ban filter regex (must match attack patterns)
@@ -277,6 +296,9 @@
         - name: limit_req zone security_login
           filter: /etc/fail2ban/filter.d/nginx-limit-req-login.conf
           line: '2025/06/25 10:00:00 [error] 1234#5678: *9 limiting requests, excess: 2.000 by zone "security_login", client: 1.2.3.4, server: example.com, request: "POST /wp-login.php HTTP/1.1", host: "example.com"'
+        - name: primary script unknown probe
+          filter: /etc/fail2ban/filter.d/nginx-unknown-script.conf
+          line: '2025/06/25 10:00:00 [error] 1234#5678: *6 FastCGI sent in stderr: "Primary script unknown" while reading response header from upstream, client: 45.61.130.166, server: example.com, request: "GET /inputs.php HTTP/1.1", upstream: "fastcgi://unix:/run/php-fpm/www.sock:", host: "example.com"'
       changed_when: false
 
     - name: Check fail2ban status

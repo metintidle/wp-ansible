@@ -1,8 +1,8 @@
 [DEFAULT]
 
 # Trusted nets: localhost + verified search-engine crawlers.
-
-ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
+# Ohara site editor (North Nowra Elementor); exempt from all jails.
+ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16 95.82.0.218
 
 
 
@@ -36,7 +36,7 @@ backend            = auto
 
 logtarget = /var/log/fail2ban/fail2ban.log
 
-loglevel  = INFO
+loglevel  = NOTICE
 
 
 

@@ -1,0 +1,149 @@
+---
+# Deploy the WordPress auth logger (must-use plugin) + its Fail2Ban jail.
+#
+# What it does: the mu-plugin logs real (server-side validated) WordPress login
+# failures to journald; the [wordpress-auth] jail (systemd backend) bans the IP
+# after `maxretry` failures. This catches credential brute-force that the nginx
+# filters CANNOT see — a wrong-password POST to /wp-login.php returns HTTP 200,
+# so only PHP knows it failed. Unspoofable (runs after WP validates), so unlike
+# an nginx cookie check it is safe to act on.
+#
+# Prereqs: fail2ban already installed with systemd backend (the sshd jail uses
+# it, so it is present on the AL2023 fleet). Run after modules/5_security
+# playbook-fail2ban.yml. WordPress must be installed on the host.
+#
+# Usage:
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/5_security/playbook-wp-fail2ban-auth.yml
+#   # docroot auto-detected; override with -e wp_root=/home/ec2-user/html
+- name: Deploy WordPress auth logger and Fail2Ban jail
+  hosts: all
+  become: true
+  vars:
+    wp_root: ""
+    wp_root_candidates:
+      - /home/ec2-user/html
+      - /usr/share/nginx/html
+      - /var/www/html
+  tasks:
+    - name: Probe candidate WordPress docroots (when wp_root not supplied)
+      ansible.builtin.stat:
+        path: "{{ item }}/wp-load.php"
+      loop: "{{ wp_root_candidates }}"
+      register: wp_probe
+      when: wp_root | length == 0
+
+    - name: Resolve wp_root from probe
+      ansible.builtin.set_fact:
+        wp_root: "{{ (wp_probe.results | selectattr('stat.exists') | map(attribute='item') | list | first) }}"
+      when:
+        - wp_root | length == 0
+        - (wp_probe.results | selectattr('stat.exists') | list | length) > 0
+
+    - name: Fail clearly if no WordPress docroot was found
+      ansible.builtin.fail:
+        msg: >-
+          No wp-load.php found under {{ wp_root_candidates | join(', ') }}.
+          Re-run with -e wp_root=/path/to/wordpress.
+      when: wp_root | length == 0
+
+    - name: Read docroot ownership (to match mu-plugin ownership)
+      ansible.builtin.stat:
+        path: "{{ wp_root }}"
+      register: wp_root_stat
+
+    - name: Ensure mu-plugins directory exists
+      ansible.builtin.file:
+        path: "{{ wp_root }}/wp-content/mu-plugins"
+        state: directory
+        owner: "{{ wp_root_stat.stat.pw_name | default('root') }}"
+        group: "{{ wp_root_stat.stat.gr_name | default('root') }}"
+        mode: '0755'
+
+    - name: Deploy wp-fail2ban-auth must-use plugin
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../plugins/wp-fail2ban-auth.php"
+        dest: "{{ wp_root }}/wp-content/mu-plugins/wp-fail2ban-auth.php"
+        owner: "{{ wp_root_stat.stat.pw_name | default('root') }}"
+        group: "{{ wp_root_stat.stat.gr_name | default('root') }}"
+        mode: '0644'
+
+    - name: Deploy wordpress-auth Fail2Ban filter
+      ansible.builtin.copy:
+        src: files/fail2ban/filter/wordpress-auth.conf
+        dest: /etc/fail2ban/filter.d/wordpress-auth.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Deploy wordpress-auth jail (additive drop-in, systemd backend)
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.d/wordpress-auth.local
+        content: |
+          # Bans real WordPress credential brute-force seen by the wp-fail2ban-auth
+          # mu-plugin. Inherits [DEFAULT] from jail.local (iptables-allports, logban,
+          # bantime.increment). Reads journald, filtered to this plugin's messages.
+          [wordpress-auth]
+          enabled      = true
+          backend      = systemd
+          filter       = wordpress-auth
+          journalmatch = SYSLOG_IDENTIFIER=wp-fail2ban
+          port         = http,https
+          maxretry     = 5
+          findtime     = 600
+          bantime      = 86400
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Validate wordpress-auth filter (must-match failures, must-ignore success)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        tmp=$(mktemp)
+        printf '%s\n' "$LINE" > "$tmp"
+        out=$(fail2ban-regex "$tmp" /etc/fail2ban/filter.d/wordpress-auth.conf 2>&1)
+        rm -f "$tmp"
+        n=$(echo "$out" | awk '/^Failregex:/{print $2; exit}')
+        if [ "${n:-0}" -"$OP" "$WANT" ]; then
+          exit 0
+        fi
+        echo "VALIDATION FAILED: $NAME (Failregex total=$n, expected $OP $WANT)"
+        echo "$out"
+        exit 1
+      args:
+        executable: /bin/bash
+      environment:
+        LINE: "{{ item.line }}"
+        NAME: "{{ item.name }}"
+        OP: "{{ item.op }}"
+        WANT: "{{ item.want }}"
+      loop:
+        - name: failed login is banned
+          op: ge
+          want: 1
+          line: "Jul  1 00:00:00 host wp-fail2ban[1]: authentication failure for 'admin' from 1.2.3.4"
+        - name: user enumeration is banned
+          op: ge
+          want: 1
+          line: "Jul  1 00:00:00 host wp-fail2ban[1]: blocked user enumeration attempt from 1.2.3.4"
+        - name: successful login is NOT banned
+          op: eq
+          want: 0
+          line: "Jul  1 00:00:00 host wp-fail2ban[1]: accepted authentication for 'editor' from 1.2.3.4"
+      changed_when: false
+
+    - name: Reload Fail2Ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted
+
+    - name: Show wordpress-auth jail status
+      ansible.builtin.command: fail2ban-client status wordpress-auth
+      register: wp_auth_jail
+      changed_when: false
+      failed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          wp-fail2ban-auth deployed to {{ wp_root }}/wp-content/mu-plugins/.
+          Jail status: {{ wp_auth_jail.stdout_lines | default(['(not reporting yet)']) }}

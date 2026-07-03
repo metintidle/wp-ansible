@@ -12,7 +12,8 @@
 [DEFAULT]
 # Trusted nets: localhost + verified search-engine crawlers.
 # Review these CIDRs periodically — broad /16 ranges can be abused.
-ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16
+# Ohara site editor (North Nowra Elementor); exempt from all jails.
+ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16 95.82.0.218
 
 # --- Aggressive detection window/threshold ---
 findtime = 600
@@ -33,7 +34,7 @@ backend            = auto
 
 # --- Logging ---
 logtarget = /var/log/fail2ban/fail2ban.log
-loglevel  = INFO
+loglevel  = NOTICE
 
 # Append custom logban action to every jail (writes to banned-ips.log)
 action = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
