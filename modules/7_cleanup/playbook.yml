@@ -1,0 +1,159 @@
+---
+# Deploy unused media cleanup scripts + optional monthly cron (01:00 Sydney, 1st of month).
+# Does NOT run cleanup by default — dry-run or manual run after deploy.
+#
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/7_cleanup/playbook.yml --limit north
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/7_cleanup/playbook.yml -e wp_clean_enable_cron=true
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/7_cleanup/playbook.yml -e wp_clean_run_dry_run=true --limit north
+#
+- name: Deploy unused media cleanup tools
+  hosts: all
+  become: false
+  vars:
+    wp_clean_install_dir: /home/ec2-user/bin
+    wp_clean_log_dir: /home/ec2-user/logs
+    wp_clean_backup_dir: /home/ec2-user/backups/unused-media
+    wp_clean_env_file: /home/ec2-user/.wp-clean.env
+    wp_cli_path: /usr/local/bin/wp
+    # Cron off by default — enable after dry-run on each site
+    wp_clean_enable_cron: false
+    wp_clean_remove_cron: false
+    wp_clean_cron_tz: Australia/Sydney
+  tags:
+    - cleanup
+
+  tasks:
+    - name: Stat candidate WordPress config paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: wp_clean_wp_config_stats
+      loop:
+        - /home/ec2-user/html/wp-config.php
+        - /usr/share/nginx/html/wp-config.php
+        - /var/www/html/wp-config.php
+
+    - name: Set wp_clean_wp_root from inventory wp_root
+      ansible.builtin.set_fact:
+        wp_clean_wp_root: "{{ wp_root }}"
+      when: wp_root is defined and (wp_root | default('') | length) > 0
+
+    - name: Set wp_clean_wp_root from first existing wp-config.php
+      ansible.builtin.set_fact:
+        wp_clean_wp_root: "{{ (wp_clean_wp_config_stats.results | selectattr('stat.exists') | map(attribute='item') | list | first) | dirname }}"
+      when: wp_clean_wp_root is not defined
+
+    - name: Fail when no WordPress root found
+      ansible.builtin.fail:
+        msg: >-
+          No wp-config.php found. Set wp_root in inventory or install WordPress first.
+      when: wp_clean_wp_root is not defined or (wp_clean_wp_root | length) == 0
+
+    - name: Require WordPress install
+      ansible.builtin.stat:
+        path: "{{ wp_clean_wp_root }}/wp-config.php"
+      register: wp_clean_config
+      failed_when: not wp_clean_config.stat.exists
+
+    - name: Require WP-CLI
+      ansible.builtin.stat:
+        path: "{{ wp_cli_path }}"
+      register: wp_clean_wp_cli
+      failed_when: not wp_clean_wp_cli.stat.exists
+
+    - name: Create cleanup directories (outside webroot)
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0750"
+      loop:
+        - "{{ wp_clean_install_dir }}"
+        - "{{ wp_clean_log_dir }}"
+        - "{{ wp_clean_backup_dir }}"
+
+    - name: Deploy cleanup PHP scripts
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ wp_clean_install_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - unused-media-cleanup.php
+        - nnt-backup-delete-unused.php
+        - north-fix-images.php
+      notify: Verify cleanup backup dir outside webroot
+
+    - name: Deploy cleanup shell scripts
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ wp_clean_install_dir }}/{{ item }}"
+        mode: "0755"
+      loop:
+        - run-unused-media-cleanup.sh
+        - install-unused-media-cron.sh
+
+    - name: Write optional wp-clean env file
+      ansible.builtin.copy:
+        dest: "{{ wp_clean_env_file }}"
+        mode: "0600"
+        content: |
+          WP_CLEAN_BACKUP_DIR={{ wp_clean_backup_dir }}
+          WP_CLEAN_BACKUP_RETENTION={{ wp_clean_backup_retention | default(1) }}
+          WP_CLEAN_MIN_AGE_DAYS={{ wp_clean_min_age_days | default(7) }}
+          WP_CLEAN_MAX_PAGES={{ wp_clean_max_pages | default(10) }}
+          WP_CLEAN_MAX_POSTS={{ wp_clean_max_posts | default(50) }}
+          WP_CLEAN_PHP_SCRIPT={{ wp_clean_install_dir }}/unused-media-cleanup.php
+      when: wp_clean_write_env_file | default(true) | bool
+
+    - name: Remove unused media cleanup cron
+      ansible.builtin.command:
+        cmd: "{{ wp_clean_install_dir }}/install-unused-media-cron.sh --remove"
+      when: wp_clean_remove_cron | bool
+      changed_when: true
+
+    - name: Install unused media cleanup cron (01:00 Sydney, 1st of month)
+      ansible.builtin.command:
+        cmd: >-
+          {{ wp_clean_install_dir }}/install-unused-media-cron.sh
+          --tz {{ wp_clean_cron_tz }}
+          --wrapper {{ wp_clean_install_dir }}/run-unused-media-cleanup.sh
+      when:
+        - wp_clean_enable_cron | bool
+        - not (wp_clean_remove_cron | bool)
+      changed_when: true
+
+    - name: Run cleanup dry-run (audit only)
+      ansible.builtin.command:
+        cmd: "{{ wp_clean_install_dir }}/run-unused-media-cleanup.sh"
+      environment:
+        WP_CLEAN_DRY_RUN: "1"
+        WP_CLEAN_BACKUP_DIR: "{{ wp_clean_backup_dir }}"
+        WP_CLEAN_PHP_SCRIPT: "{{ wp_clean_install_dir }}/unused-media-cleanup.php"
+      register: wp_clean_dry_run
+      changed_when: false
+      when: wp_clean_run_dry_run | default(false) | bool
+
+    - name: Show dry-run output
+      ansible.builtin.debug:
+        msg: "{{ wp_clean_dry_run.stdout_lines }}"
+      when:
+        - wp_clean_run_dry_run | default(false) | bool
+        - wp_clean_dry_run is defined
+
+    - name: Deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Scripts: {{ wp_clean_install_dir }}/"
+          - "Logs: {{ wp_clean_log_dir }}/wp-unused-media-cleanup.log"
+          - "Backups: {{ wp_clean_backup_dir }}/ (outside webroot)"
+          - "WordPress root: {{ wp_clean_wp_root }}"
+          - "Cron enabled: {{ wp_clean_enable_cron | bool }}"
+          - "Dry-run: WP_CLEAN_DRY_RUN=1 {{ wp_clean_install_dir }}/run-unused-media-cleanup.sh"
+
+  handlers:
+    - name: Verify cleanup backup dir outside webroot
+      ansible.builtin.assert:
+        that:
+          - not wp_clean_backup_dir.startswith(wp_clean_wp_root)
+          - "'wp-content' not in wp_clean_backup_dir"
+        fail_msg: >-
+          wp_clean_backup_dir must be outside WordPress webroot
+          ({{ wp_clean_wp_root }}). Current: {{ wp_clean_backup_dir }}
