@@ -1,0 +1,11 @@
+{
+    "schema_version": 2,
+    "commit": "9ced7bdcc9e8ac2be52977d4f264f31064ce3465",
+    "indexed_at": "2026-07-09T10:45:24Z",
+    "project": "Users-meti-Projects-wp-ansible",
+    "nodes": 1433,
+    "edges": 1659,
+    "original_size": 4128768,
+    "compressed_size": 470526,
+    "compression_level": 3
+}

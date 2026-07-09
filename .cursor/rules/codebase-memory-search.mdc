@@ -1,0 +1,36 @@
+---
+description: Prefer codebase-memory-mcp graph search over Grep/Read for code navigation in this repo
+alwaysApply: true
+---
+
+# Code navigation — use the index first
+
+This repo is indexed via **codebase-memory-mcp** (`user-codebase-memory-mcp`). Artifact: `.codebase-memory/graph.db.zst`. Project key: `Users-meti-Projects-wp-ansible`.
+
+## Default search order
+
+1. **Structural / symbol lookup** → `search_graph` (BM25 `query`, or `name_pattern` when you know the name)
+2. **Unknown text / substring** → `search_code` (graph-augmented grep; `mode: compact` or `files`)
+3. **Call chains / who uses X** → `trace_path`
+4. **New task orientation** → `get_architecture` or a focused `search_graph` query
+5. **Snippet after a hit** → `get_code_snippet` (not full-file `Read`)
+
+## When NOT to use the index
+
+- **Editing** — `Read` the exact file/section you will change (read-before-edit invariant).
+- **Non-code output** (logs, `git diff`, fleet SSH) — use context-mode sandbox tools, not graph search.
+- **Index miss** — after one targeted `search_code` pass, fall back to `Grep` scoped to the likely path.
+
+## Avoid
+
+- Broad `Grep` across the repo when the index can answer the question.
+- Full-file `Read` for exploration when `search_graph` / `get_code_snippet` suffice.
+- Re-indexing unless the user asks or files changed materially since `artifact.json` `indexed_at`.
+
+## Re-index (user request only)
+
+```bash
+codebase-memory-mcp cli index_repository --repo-path /Users/meti/Projects/wp-ansible --mode full --persistence true
+```
+
+Or MCP: `index_repository` with `repo_path`, `mode: full`, `persistence: true`.
