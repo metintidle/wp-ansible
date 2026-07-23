@@ -1,0 +1,37 @@
+---
+- name: Setup SSL on Amazon Linux 2023
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Ensure certbot renewal-hooks pre directory exists
+      ansible.builtin.file:
+        path: /etc/letsencrypt/renewal-hooks/pre
+        state: directory
+        mode: "0755"
+
+    - name: Create pre-hook to temporarily allow HTTP-01 challenge on port 80
+      ansible.builtin.copy:
+        dest: /etc/letsencrypt/renewal-hooks/pre/allow-http-challenge.sh
+        content: |
+          #!/bin/bash
+          # HTTPS-only policy (modules/5_security) drops new port-80 connections,
+          # which blocks certbot's HTTP-01 challenge. Open a narrow, temporary hole
+          # for the duration of the renewal only; the post-hook removes it again.
+          iptables -C INPUT -p tcp --dport 80 -m comment --comment "certbot-temp-http01" -j ACCEPT 2>/dev/null || \
+            iptables -I INPUT 1 -p tcp --dport 80 -m comment --comment "certbot-temp-http01" -j ACCEPT
+        mode: "0755"
+        owner: root
+        group: root
+    - name: Create a bash file in /etc/letsencrypt/renewal-hooks/post/
+      ansible.builtin.copy:
+        dest: /etc/letsencrypt/renewal-hooks/post/renewal_script.sh
+        content: |
+          #!/bin/bash
+          iptables -D INPUT -p tcp --dport 80 -m comment --comment "certbot-temp-http01" -j ACCEPT 2>/dev/null || true
+          # nginx -t writes its success text to stderr; certbot mislabels that as
+          # "error output". Silence success chatter so only real errors surface.
+          nginx -t 2>/dev/null && systemctl reload nginx
+        mode: "0755"
+        owner: root
+        group: root
