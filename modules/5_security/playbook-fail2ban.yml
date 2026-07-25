@@ -26,25 +26,57 @@
 
     - name: Allow SSH connections
       ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+        cmd: sudo iptables -C INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+      register: ssh_rule_check
+      failed_when: false
       changed_when: false
+
+    - name: Allow SSH connections
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
+      when: ssh_rule_check.rc != 0
+      changed_when: true
 
     # Allow return traffic for server's outbound HTTP (so curl/wget to port 80 get responses)
     - name: Allow return traffic on port 80 (ESTABLISHED,RELATED)
       ansible.builtin.command:
+        cmd: sudo iptables -C INPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+      register: http_return_rule_check
+      failed_when: false
+      changed_when: false
+
+    - name: Allow return traffic on port 80 (ESTABLISHED,RELATED)
+      ansible.builtin.command:
         cmd: sudo iptables -A INPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+      when: http_return_rule_check.rc != 0
+      changed_when: true
+
+    - name: Allow HTTPS connections
+      ansible.builtin.command:
+        cmd: sudo iptables -C INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
+      register: https_rule_check
+      failed_when: false
       changed_when: false
 
     - name: Allow HTTPS connections
       ansible.builtin.command:
         cmd: sudo iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: false
+      when: https_rule_check.rc != 0
+      changed_when: true
 
     # Force HTTPS-only: block new incoming HTTP so only 443 is used for web traffic
     - name: Block new incoming connections on port 80 (HTTP)
       ansible.builtin.command:
-        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j DROP
+        cmd: sudo iptables -C INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j DROP
+      register: http_block_rule_check
+      failed_when: false
       changed_when: false
+
+    - name: Block new incoming connections on port 80 (HTTP)
+      ansible.builtin.command:
+        cmd: sudo iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j DROP
+      when: http_block_rule_check.rc != 0
+      changed_when: true
 
     - name: Create Nginx unknown script filter configuration
       ansible.builtin.copy:
