@@ -1,0 +1,58 @@
+---
+# Custom branded 403 page for Nginx-level security blocks
+#
+# Purpose: Replace Nginx's bare default 403 page with a branded HTML page
+#          for requests blocked by `deny all; return 403;` rules (security
+#          rules, strict whitelist, bad-bot/user-enum blocks in general.conf).
+#
+# Note: This does NOT apply to Fail2Ban IP bans. Those are enforced at the
+#       firewall (iptables DROP) and never reach Nginx, so no page can be
+#       shown for them — that is intentional (see modules/5_security/files/
+#       fail2ban/jail.local, banaction = iptables-allports).
+#
+# Usage:
+#   ansible-playbook -i hosts modules/5_security/playbook-error-pages.yml
+
+- name: Deploy custom 403 error page for Nginx security blocks
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Create error pages directory
+      ansible.builtin.file:
+        path: /usr/share/nginx/error-pages
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy custom 403 page
+      ansible.builtin.copy:
+        src: files/security/error-pages/403.html
+        dest: /usr/share/nginx/error-pages/403-security-block.html
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload Nginx
+
+    - name: Deploy error_page directive to default.d
+      ansible.builtin.copy:
+        src: files/security/00-custom-error-pages.conf
+        dest: /etc/nginx/default.d/00-custom-error-pages.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reload Nginx
+
+    - name: Test Nginx configuration
+      ansible.builtin.command:
+        cmd: nginx -t
+      register: nginx_test
+      changed_when: false
+      failed_when: nginx_test.rc != 0
+
+  handlers:
+    - name: Reload Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
