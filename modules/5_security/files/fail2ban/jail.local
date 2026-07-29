@@ -8,7 +8,7 @@ ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16 95.82.0.218
 
 findtime = 600
 
-maxretry = 2
+maxretry = 7
 
 bantime  = 86400
 
@@ -54,7 +54,7 @@ mode     = aggressive
 
 backend  = systemd
 
-maxretry = 2
+maxretry = 7
 
 bantime  = 1w
 
@@ -70,7 +70,7 @@ port     = http,https
 
 logpath  = /var/log/nginx/error.log
 
-maxretry = 2
+maxretry = 7
 
 bantime  = 86400
 
@@ -86,7 +86,7 @@ port     = http,https
 
 logpath  = /var/log/nginx/access.log
 
-maxretry = 2
+maxretry = 7
 
 bantime  = 86400
 
@@ -102,7 +102,7 @@ port     = http,https
 
 logpath  = /var/log/nginx/access.log
 
-maxretry = 3
+maxretry = 7
 
 findtime = 300
 
@@ -114,7 +114,7 @@ bantime  = 86400
 
 enabled  = true
 
-maxretry = 3
+maxretry = 7
 
 
 
@@ -122,7 +122,7 @@ maxretry = 3
 
 enabled  = true
 
-maxretry = 2
+maxretry = 7
 
 
 
@@ -134,7 +134,7 @@ filter   = nginx-limit-req-login
 
 logpath  = /var/log/nginx/error.log
 
-maxretry = 5
+maxretry = 7
 
 
 
@@ -142,7 +142,7 @@ maxretry = 5
 
 enabled  = true
 
-maxretry = 3
+maxretry = 7
 
 
 
