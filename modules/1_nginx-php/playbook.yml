@@ -374,21 +374,36 @@
       curl https://getmic.ro | sudo bash
 
   - name: Create a 1G swap file
-    command: sudo fallocate -l 1G /swapfile
+    command: fallocate -l 1G /swapfile
     args:
       creates: /swapfile
+    become: yes
 
   - name: Set permissions on swap file
-    command: sudo chmod 600 /swapfile
+    command: chmod 600 /swapfile
+    become: yes
     when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
 
   - name: Set up swap area
-    command: sudo mkswap /swapfile
+    command: mkswap /swapfile
+    become: yes
     when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
 
   - name: Enable swap file
-    command: sudo swapon /swapfile
+    command: swapon /swapfile
+    become: yes
     when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+    register: swapon_result
+    failed_when: swapon_result.rc != 0 and 'Device or resource busy' not in swapon_result.stderr
+
+  - name: Persist swap file in /etc/fstab
+    mount:
+      path: none
+      src: /swapfile
+      fstype: swap
+      opts: sw
+      state: present
+    become: yes
 
   # --- Web-shell hardening: disable dangerous PHP funcs for FPM, deny PHP in
   #     writable dirs, hide PHP version. See snippets/php-webshell-hardening.yml.
