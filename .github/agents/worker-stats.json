@@ -1,0 +1,13 @@
+{
+  "_doc": "Durable per-(worker, task-type) success tally driving break-even routing. Orchestrator reads at session start to seed p, keeps the running tally in-context during the session, and at the Deliver step dispatches ONE cheap-coder-kimi edit to merge session deltas (only when an outcome materially changed). Schema and usage: .github/agents/pool-reference.md. task-type is a coarse, consistent label, e.g. code:styling, code:concurrency, reason:architecture, review:ui.",
+  "workers": {
+    "cheap-coder-kimi": {},
+    "cheap-generalist-kimi": {},
+    "mid-bulk-deepseek": {},
+    "premium-coder-codex": {},
+    "cheap-reasoner-oss": {},
+    "free-synth-gemini": {},
+    "free-researcher-nvidia": {},
+    "mid-frame-motion-recreator": {}
+  }
+}
