@@ -408,5 +408,5 @@
   # --- Web-shell hardening: disable dangerous PHP funcs for FPM, deny PHP in
   #     writable dirs, hide PHP version. See snippets/php-webshell-hardening.yml.
   - name: Apply PHP / Nginx web-shell hardening
-    import_tasks: ../../snippets/php-webshell-hardening.yml
+    import_tasks: snippets/php-webshell-hardening.yml
     tags: hardening
