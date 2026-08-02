@@ -9,7 +9,7 @@
 #   ./analyze-malicious-requests.sh [nginx_error_log_file]
 #
 #####################################################################
-
+sudo
 # Default to nginx.log in current directory
 NGINX_ERROR_LOG="${1:-nginx.log}"
 
