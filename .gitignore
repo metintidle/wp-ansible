@@ -54,4 +54,5 @@ docs/al2023-fail2ban-blocked-ips-2026-07-09.md
 codedb.snapshot
 codedb-mcp.md
 .codebase-memory/*
-.codebase-memory/artifact.json
+codedb.snapshot
+.codebase-memory/*
