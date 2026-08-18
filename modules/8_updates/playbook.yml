@@ -1,0 +1,139 @@
+---
+# Deploy WordPress auto-update scripts + optional weekly cron (03:00 Sunday, Australia/Sydney).
+#
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml -e wp_auto_update_enable_cron=true
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml -e wp_auto_update_run_dry_run=true --limit station
+#
+- name: Deploy WordPress auto-update tools
+  hosts: all
+  become: false
+  vars:
+    wp_auto_update_install_dir: /home/ec2-user/bin
+    wp_auto_update_log_dir: /home/ec2-user/logs
+    wp_auto_update_env_file: /home/ec2-user/.wp-auto-update.env
+    wp_cli_path: /usr/local/bin/wp
+    wp_auto_update_enable_cron: false
+    wp_auto_update_remove_cron: false
+    wp_auto_update_cron_tz: Australia/Sydney
+    wp_auto_update_cron_schedule: "0 3 * * 0"
+    wp_auto_update_plugins: "1"
+    wp_auto_update_themes: "0"
+    wp_auto_update_core_minor_only: "0"
+    wp_auto_update_plugin_exclude: "elementor-pro,elementor"
+    wp_auto_update_elementor_minor: "1"
+  tags:
+    - updates
+
+  tasks:
+    - name: Stat candidate WordPress config paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: wp_auto_update_wp_config_stats
+      loop:
+        - /home/ec2-user/html/wp-config.php
+        - /usr/share/nginx/html/wp-config.php
+        - /var/www/html/wp-config.php
+
+    - name: Set wp_auto_update_wp_root from inventory wp_root
+      ansible.builtin.set_fact:
+        wp_auto_update_wp_root: "{{ wp_root }}"
+      when: wp_root is defined and (wp_root | default('') | length) > 0
+
+    - name: Set wp_auto_update_wp_root from first existing wp-config.php
+      ansible.builtin.set_fact:
+        wp_auto_update_wp_root: "{{ (wp_auto_update_wp_config_stats.results | selectattr('stat.exists') | map(attribute='item') | list | first) | dirname }}"
+      when: wp_auto_update_wp_root is not defined
+
+    - name: Fail when no WordPress root found
+      ansible.builtin.fail:
+        msg: >-
+          No wp-config.php found. Set wp_root in inventory or install WordPress first.
+      when: wp_auto_update_wp_root is not defined or (wp_auto_update_wp_root | length) == 0
+
+    - name: Require WordPress install
+      ansible.builtin.stat:
+        path: "{{ wp_auto_update_wp_root }}/wp-config.php"
+      register: wp_auto_update_config
+      failed_when: not wp_auto_update_config.stat.exists
+
+    - name: Require WP-CLI
+      ansible.builtin.stat:
+        path: "{{ wp_cli_path }}"
+      register: wp_auto_update_wp_cli
+      failed_when: not wp_auto_update_wp_cli.stat.exists
+
+    - name: Create update directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0750"
+      loop:
+        - "{{ wp_auto_update_install_dir }}"
+        - "{{ wp_auto_update_log_dir }}"
+
+    - name: Deploy update shell scripts
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ wp_auto_update_install_dir }}/{{ item }}"
+        mode: "0755"
+      loop:
+        - run-wp-auto-update.sh
+        - install-wp-auto-update-cron.sh
+
+    - name: Write optional wp-auto-update env file
+      ansible.builtin.copy:
+        dest: "{{ wp_auto_update_env_file }}"
+        mode: "0600"
+        content: |
+          WP_AUTO_UPDATE_PLUGINS={{ wp_auto_update_plugins }}
+          WP_AUTO_UPDATE_THEMES={{ wp_auto_update_themes }}
+          WP_AUTO_UPDATE_CORE_MINOR_ONLY={{ wp_auto_update_core_minor_only }}
+          WP_AUTO_UPDATE_PLUGIN_EXCLUDE={{ wp_auto_update_plugin_exclude }}
+          WP_AUTO_UPDATE_ELEMENTOR_MINOR={{ wp_auto_update_elementor_minor }}
+          WP_AUTO_UPDATE_LOG_DIR={{ wp_auto_update_log_dir }}
+      when: wp_auto_update_write_env_file | default(true) | bool
+
+    - name: Remove wp auto-update cron
+      ansible.builtin.command:
+        cmd: "{{ wp_auto_update_install_dir }}/install-wp-auto-update-cron.sh --remove"
+      when: wp_auto_update_remove_cron | bool
+      changed_when: true
+
+    - name: Install wp auto-update cron (03:00 Sunday, Australia/Sydney)
+      ansible.builtin.command:
+        cmd: >-
+          {{ wp_auto_update_install_dir }}/install-wp-auto-update-cron.sh
+          --tz {{ wp_auto_update_cron_tz }}
+          --schedule "{{ wp_auto_update_cron_schedule }}"
+          --wrapper {{ wp_auto_update_install_dir }}/run-wp-auto-update.sh
+      when:
+        - wp_auto_update_enable_cron | bool
+        - not (wp_auto_update_remove_cron | bool)
+      changed_when: true
+
+    - name: Run update dry-run (check only)
+      ansible.builtin.command:
+        cmd: "{{ wp_auto_update_install_dir }}/run-wp-auto-update.sh"
+      environment:
+        WP_AUTO_UPDATE_DRY_RUN: "1"
+      register: wp_auto_update_dry_run
+      changed_when: false
+      when: wp_auto_update_run_dry_run | default(false) | bool
+
+    - name: Show dry-run output
+      ansible.builtin.debug:
+        msg: "{{ wp_auto_update_dry_run.stdout_lines }}"
+      when:
+        - wp_auto_update_run_dry_run | default(false) | bool
+        - wp_auto_update_dry_run is defined
+
+    - name: Deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Scripts: {{ wp_auto_update_install_dir }}/"
+          - "Logs: {{ wp_auto_update_log_dir }}/wp-auto-update.log"
+          - "WordPress root: {{ wp_auto_update_wp_root }}"
+          - "Cron enabled: {{ wp_auto_update_enable_cron | bool }}"
+          - "Schedule: {{ wp_auto_update_cron_schedule }} ({{ wp_auto_update_cron_tz }})"
+          - "Dry-run: WP_AUTO_UPDATE_DRY_RUN=1 {{ wp_auto_update_install_dir }}/run-wp-auto-update.sh"
