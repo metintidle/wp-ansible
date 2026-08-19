@@ -1,9 +1,15 @@
 ---
-# Deploy WordPress auto-update scripts + optional weekly cron (03:00 Sunday, Australia/Sydney).
+# Deploy WordPress auto-update scripts + optional OS upgrade cron (AL2023).
 #
+# WordPress (ec2-user):
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml -e wp_auto_update_enable_cron=true
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml -e wp_auto_update_run_dry_run=true --limit station
+#
+# OS upgrade (root; stop nginx/php-fpm, dnf upgrade, restart):
+#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade
+#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade -e os_upgrade_enable_cron=true --limit cccls
+#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade -e os_upgrade_remove_cron=true
 #
 - name: Deploy WordPress auto-update tools
   hosts: all
@@ -24,6 +30,7 @@
     wp_auto_update_elementor_minor: "1"
   tags:
     - updates
+    - wp_updates
 
   tasks:
     - name: Stat candidate WordPress config paths
@@ -81,6 +88,14 @@
         - run-wp-auto-update.sh
         - install-wp-auto-update-cron.sh
 
+    - name: Strip CRLF from WordPress update scripts
+      ansible.builtin.command:
+        cmd: "sed -i 's/\\r$//' {{ wp_auto_update_install_dir }}/{{ item }}"
+      loop:
+        - run-wp-auto-update.sh
+        - install-wp-auto-update-cron.sh
+      changed_when: false
+
     - name: Write optional wp-auto-update env file
       ansible.builtin.copy:
         dest: "{{ wp_auto_update_env_file }}"
@@ -128,7 +143,7 @@
         - wp_auto_update_run_dry_run | default(false) | bool
         - wp_auto_update_dry_run is defined
 
-    - name: Deployment summary
+    - name: WordPress deployment summary
       ansible.builtin.debug:
         msg:
           - "Scripts: {{ wp_auto_update_install_dir }}/"
@@ -137,3 +152,84 @@
           - "Cron enabled: {{ wp_auto_update_enable_cron | bool }}"
           - "Schedule: {{ wp_auto_update_cron_schedule }} ({{ wp_auto_update_cron_tz }})"
           - "Dry-run: WP_AUTO_UPDATE_DRY_RUN=1 {{ wp_auto_update_install_dir }}/run-wp-auto-update.sh"
+
+- name: Deploy OS auto-upgrade tools (Amazon Linux 2023)
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    os_upgrade_install_dir: /usr/local/bin
+    os_upgrade_log_file: /var/log/os-upgrade.log
+    os_upgrade_enable_cron: false
+    os_upgrade_remove_cron: false
+    os_upgrade_cron_tz: Australia/Sydney
+    os_upgrade_cron_schedule: "0 0 */3 * *"
+    os_upgrade_releasever: "auto"
+  tags:
+    - updates
+    - os_upgrade
+
+  tasks:
+    - name: Skip OS upgrade on non-Amazon Linux 2023 hosts
+      ansible.builtin.meta: end_host
+      when: >
+        ansible_distribution != "Amazon"
+        or ansible_distribution_major_version | string != "2023"
+
+    - name: Require dnf
+      ansible.builtin.command:
+        cmd: which dnf
+      register: os_upgrade_dnf_check
+      changed_when: false
+
+    - name: Deploy OS upgrade shell scripts
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ os_upgrade_install_dir }}/{{ item }}"
+        mode: "0755"
+      loop:
+        - os-upgrade-with-webstack-restart.sh
+        - install-os-upgrade-cron.sh
+
+    - name: Strip CRLF from OS upgrade scripts
+      ansible.builtin.command:
+        cmd: "sed -i 's/\\r$//' {{ os_upgrade_install_dir }}/{{ item }}"
+      loop:
+        - os-upgrade-with-webstack-restart.sh
+        - install-os-upgrade-cron.sh
+      changed_when: false
+
+    - name: Ensure OS upgrade log file
+      ansible.builtin.file:
+        path: "{{ os_upgrade_log_file }}"
+        state: touch
+        mode: "0644"
+
+    - name: Remove OS upgrade cron
+      ansible.builtin.command:
+        cmd: "{{ os_upgrade_install_dir }}/install-os-upgrade-cron.sh --remove"
+      when: os_upgrade_remove_cron | bool
+      changed_when: true
+
+    - name: Install OS upgrade cron (midnight every 3 days, Australia/Sydney)
+      ansible.builtin.command:
+        cmd: >-
+          {{ os_upgrade_install_dir }}/install-os-upgrade-cron.sh
+          --tz {{ os_upgrade_cron_tz }}
+          --schedule "{{ os_upgrade_cron_schedule }}"
+          --releasever {{ os_upgrade_releasever }}
+          --wrapper {{ os_upgrade_install_dir }}/os-upgrade-with-webstack-restart.sh
+      when:
+        - os_upgrade_enable_cron | bool
+        - not (os_upgrade_remove_cron | bool)
+      changed_when: true
+
+    - name: OS upgrade deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Scripts: {{ os_upgrade_install_dir }}/os-upgrade-with-webstack-restart.sh"
+          - "Logs: {{ os_upgrade_log_file }}"
+          - "Releasever: {{ os_upgrade_releasever }} (auto = latest AL2023 release at run time)"
+          - "Cron enabled: {{ os_upgrade_enable_cron | bool }}"
+          - "Schedule: {{ os_upgrade_cron_schedule }} ({{ os_upgrade_cron_tz }})"
+          - "Flow: stop nginx + php-fpm -> dnf upgrade -> restart php-fpm + nginx"
