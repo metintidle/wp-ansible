@@ -6,6 +6,7 @@
 #   LOG_FILE=/var/log/os-upgrade.log
 #   RELEASEVER=auto          # auto-detect latest AL2023 release (default)
 #   RELEASEVER=2023.12.x     # pin a specific releasever
+#   OS_UPGRADE_REBOOT=1      # reboot after a successful upgrade (default)
 
 set -euo pipefail
 
@@ -14,6 +15,7 @@ export PATH="/usr/sbin:/usr/bin:/sbin:/bin"
 LOG_FILE="${LOG_FILE:-/var/log/os-upgrade.log}"
 LOCK_FILE="/var/run/os-upgrade.lock"
 RELEASEVER="${RELEASEVER:-auto}"
+OS_UPGRADE_REBOOT="${OS_UPGRADE_REBOOT:-1}"
 MARKER="os-upgrade-with-webstack-restart.sh"
 
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -109,7 +111,14 @@ dnf upgrade --releasever="${TARGET_RELEASEVER}" -y
 ensure_web_stack_running
 trap - EXIT
 
-echo "Service status:"
+echo "Service status before reboot:"
 systemctl is-active php-fpm nginx || echo "WARN: one or more web services are not active"
+
+if [[ "$OS_UPGRADE_REBOOT" == "1" ]]; then
+  echo "Rebooting to apply upgrades (kernel/packages)..."
+  echo "========== ${MARKER} finished, rebooting: $(date -Is) =========="
+  sleep 3
+  systemctl reboot
+fi
 
 echo "========== ${MARKER} finished: $(date -Is) =========="
