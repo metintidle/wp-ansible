@@ -17,6 +17,9 @@
   vars:
     wp_auto_update_install_dir: /home/ec2-user/bin
     wp_auto_update_log_dir: /home/ec2-user/logs
+    wp_auto_update_backup_dir: /home/ec2-user/backups/wp-auto-update
+    wp_auto_update_backup_retention: 28
+    wp_auto_update_backup: "1"
     wp_auto_update_env_file: /home/ec2-user/.wp-auto-update.env
     wp_cli_path: /usr/local/bin/wp
     wp_auto_update_enable_cron: false
@@ -78,6 +81,16 @@
       loop:
         - "{{ wp_auto_update_install_dir }}"
         - "{{ wp_auto_update_log_dir }}"
+        - "{{ wp_auto_update_backup_dir }}"
+
+    - name: Verify wp auto-update backup dir outside webroot
+      ansible.builtin.assert:
+        that:
+          - not wp_auto_update_backup_dir.startswith(wp_auto_update_wp_root)
+          - "'wp-content' not in wp_auto_update_backup_dir"
+        fail_msg: >-
+          wp_auto_update_backup_dir must be outside WordPress webroot
+          ({{ wp_auto_update_wp_root }}). Current: {{ wp_auto_update_backup_dir }}
 
     - name: Deploy update shell scripts
       ansible.builtin.copy:
@@ -106,6 +119,9 @@
           WP_AUTO_UPDATE_CORE_MINOR_ONLY={{ wp_auto_update_core_minor_only }}
           WP_AUTO_UPDATE_PLUGIN_EXCLUDE={{ wp_auto_update_plugin_exclude }}
           WP_AUTO_UPDATE_ELEMENTOR_MINOR={{ wp_auto_update_elementor_minor }}
+          WP_AUTO_UPDATE_BACKUP={{ wp_auto_update_backup }}
+          WP_AUTO_UPDATE_BACKUP_DIR={{ wp_auto_update_backup_dir }}
+          WP_AUTO_UPDATE_BACKUP_RETENTION={{ wp_auto_update_backup_retention }}
           WP_AUTO_UPDATE_LOG_DIR={{ wp_auto_update_log_dir }}
       when: wp_auto_update_write_env_file | default(true) | bool
 
@@ -148,6 +164,7 @@
         msg:
           - "Scripts: {{ wp_auto_update_install_dir }}/"
           - "Logs: {{ wp_auto_update_log_dir }}/wp-auto-update.log"
+          - "DB backups: {{ wp_auto_update_backup_dir }}/ (outside webroot, keep {{ wp_auto_update_backup_retention }} days)"
           - "WordPress root: {{ wp_auto_update_wp_root }}"
           - "Cron enabled: {{ wp_auto_update_enable_cron | bool }}"
           - "Schedule: {{ wp_auto_update_cron_schedule }} ({{ wp_auto_update_cron_tz }})"
