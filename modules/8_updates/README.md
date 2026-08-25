@@ -123,8 +123,9 @@ Remove: `sudo /usr/local/bin/install-os-upgrade-cron.sh --remove`
 ### Notes
 
 - Expect brief site downtime while nginx/php-fpm are stopped **only when updates are available**. If `dnf check-update` is clean, services stay up.
-- `php-fpm` and `nginx` are **masked** during the upgrade so `fpm.sh` cannot restart PHP-FPM mid-`dnf`.
-- Kernel updates may still require a manual reboot.
+- After a successful upgrade the host **reboots automatically** (`OS_UPGRADE_REBOOT=1` by default) so kernel updates apply. Set `OS_UPGRADE_REBOOT=0` to skip.
+- `php-fpm` and `nginx` are **masked** during the upgrade so `fpm.sh` cannot restart PHP-FPM mid-`dnf`. Services are unmasked before reboot.
+- Kernel updates apply after the automatic post-upgrade reboot.
 - Existing root cron jobs (e.g. `fpm.sh`, `cleanlogs.sh`) are preserved; the OS upgrade block is appended with its own `CRON_TZ`.
 
 Manual one-host deploy (without Ansible) is also available via [`bash/install-os-upgrade-cron.sh`](../../bash/install-os-upgrade-cron.sh).

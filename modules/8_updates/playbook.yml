@@ -10,6 +10,7 @@
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade -e os_upgrade_enable_cron=true --limit cccls
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade -e os_upgrade_remove_cron=true
+#   After upgrade reboot: @reboot cron opens http/https on firewalld (or disables it when fail2ban is active).
 #
 - name: Deploy WordPress auto-update tools
   hosts: all
@@ -157,6 +158,8 @@
   hosts: all
   become: true
   gather_facts: true
+  collections:
+    - ansible.posix
   vars:
     os_upgrade_install_dir: /usr/local/bin
     os_upgrade_log_file: /var/log/os-upgrade.log
@@ -165,6 +168,10 @@
     os_upgrade_cron_tz: Australia/Sydney
     os_upgrade_cron_schedule: "0 0 */3 * *"
     os_upgrade_releasever: "auto"
+    firewalld_boot_fix_enable_cron: true
+    firewalld_boot_fix_remove_cron: false
+    firewalld_boot_fix_delay: 90
+    firewalld_boot_fix_log_file: /var/log/firewalld-boot-fix.log
   tags:
     - updates
     - os_upgrade
@@ -190,6 +197,8 @@
       loop:
         - os-upgrade-with-webstack-restart.sh
         - install-os-upgrade-cron.sh
+        - fix-firewalld-after-boot.sh
+        - install-firewalld-after-boot-cron.sh
 
     - name: Strip CRLF from OS upgrade scripts
       ansible.builtin.command:
@@ -197,6 +206,8 @@
       loop:
         - os-upgrade-with-webstack-restart.sh
         - install-os-upgrade-cron.sh
+        - fix-firewalld-after-boot.sh
+        - install-firewalld-after-boot-cron.sh
       changed_when: false
 
     - name: Ensure OS upgrade log file
@@ -204,6 +215,29 @@
         path: "{{ os_upgrade_log_file }}"
         state: touch
         mode: "0644"
+
+    - name: Ensure firewalld boot-fix log file
+      ansible.builtin.file:
+        path: "{{ firewalld_boot_fix_log_file }}"
+        state: touch
+        mode: "0644"
+
+    - name: Remove firewalld after-boot cron
+      ansible.builtin.command:
+        cmd: "{{ os_upgrade_install_dir }}/install-firewalld-after-boot-cron.sh --remove"
+      when: firewalld_boot_fix_remove_cron | bool
+      changed_when: true
+
+    - name: Install firewalld after-boot cron (@reboot, post-OS-upgrade)
+      ansible.builtin.command:
+        cmd: >-
+          {{ os_upgrade_install_dir }}/install-firewalld-after-boot-cron.sh
+          --delay {{ firewalld_boot_fix_delay }}
+          --wrapper {{ os_upgrade_install_dir }}/fix-firewalld-after-boot.sh
+      when:
+        - firewalld_boot_fix_enable_cron | bool
+        - not (firewalld_boot_fix_remove_cron | bool)
+      changed_when: true
 
     - name: Remove OS upgrade cron
       ansible.builtin.command:
@@ -224,6 +258,9 @@
         - not (os_upgrade_remove_cron | bool)
       changed_when: true
 
+    - name: Fix firewalld after OS upgrades
+      ansible.builtin.import_tasks: ../5_security/snippets/firewalld-http-https.yml
+
     - name: OS upgrade deployment summary
       ansible.builtin.debug:
         msg:
@@ -232,4 +269,6 @@
           - "Releasever: {{ os_upgrade_releasever }} (auto = latest AL2023 release at run time)"
           - "Cron enabled: {{ os_upgrade_enable_cron | bool }}"
           - "Schedule: {{ os_upgrade_cron_schedule }} ({{ os_upgrade_cron_tz }})"
-          - "Flow: stop nginx + php-fpm -> dnf upgrade -> restart php-fpm + nginx"
+          - "Flow: stop nginx + php-fpm -> dnf upgrade -> reboot -> @reboot firewalld fix"
+          - "Firewalld boot cron: {{ firewalld_boot_fix_enable_cron | bool }} (delay {{ firewalld_boot_fix_delay }}s)"
+          - "Firewalld boot log: {{ firewalld_boot_fix_log_file }}"
