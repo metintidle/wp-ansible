@@ -57,3 +57,10 @@ codedb-mcp.md
 codedb.snapshot
 .codebase-memory/*
 ohara
+modules/5_security/snippets/firewalld-http-https.yml
+bash/os-upgrade-with-webstack-restart.sh
+bash/revert-cccsl-nginx-headers.sh
+bash/fix-mst-pacs-and-imsdb.sh
+bash/fix-mst-imsdb-layout.sh
+svt-logs/
+wp.zip
