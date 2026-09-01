@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # WordPress core + selective plugin auto-updates via WP-CLI (ec2-user, no --allow-root).
+# Live runs dump the DB first (wp db export | gzip) to /home/ec2-user/backups/wp-auto-update/;
+# a failed dump aborts the update. Dry-run skips the dump.
 #
 # Plugin policy (when WP_AUTO_UPDATE_PLUGINS=1):
 #   - All plugins except Elementor Pro and Elementor (bulk pass)
@@ -26,6 +28,9 @@ WP_AUTO_UPDATE_THEMES="${WP_AUTO_UPDATE_THEMES:-0}"
 WP_AUTO_UPDATE_CORE_MINOR_ONLY="${WP_AUTO_UPDATE_CORE_MINOR_ONLY:-0}"
 WP_AUTO_UPDATE_PLUGIN_EXCLUDE="${WP_AUTO_UPDATE_PLUGIN_EXCLUDE:-elementor-pro,elementor}"
 WP_AUTO_UPDATE_ELEMENTOR_MINOR="${WP_AUTO_UPDATE_ELEMENTOR_MINOR:-1}"
+WP_AUTO_UPDATE_BACKUP="${WP_AUTO_UPDATE_BACKUP:-1}"
+WP_AUTO_UPDATE_BACKUP_DIR="${WP_AUTO_UPDATE_BACKUP_DIR:-/home/ec2-user/backups/wp-auto-update}"
+WP_AUTO_UPDATE_BACKUP_RETENTION="${WP_AUTO_UPDATE_BACKUP_RETENTION:-28}"
 
 log() {
   local msg="[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
@@ -44,6 +49,24 @@ detect_wp_root() {
   done
   echo "ERROR: WordPress root not found" >&2
   return 1
+}
+
+backup_outside_webroot() {
+  local wp_root="$1"
+  local backup="$2"
+  local wp_real backup_real
+
+  wp_real="$(realpath "$wp_root")"
+  backup_real="$(realpath -m "$backup")"
+
+  if [[ "$backup_real" == "$wp_real" ]] || [[ "$backup_real" == "$wp_real"/* ]]; then
+    log "ERROR: backup dir inside webroot ($backup_real)"
+    exit 3
+  fi
+  if [[ "$backup_real" == *"/wp-content"* ]]; then
+    log "ERROR: backup dir must not be under wp-content ($backup_real)"
+    exit 3
+  fi
 }
 
 run_updates() {
@@ -65,6 +88,59 @@ run_updates() {
 
   local wp_args=(--path="$wp_root")
   local out rc
+
+  backup_database() {
+    local backup_dir="$WP_AUTO_UPDATE_BACKUP_DIR"
+    local retention="$WP_AUTO_UPDATE_BACKUP_RETENTION"
+    local db_name timestamp backup_file dump_rc size
+
+    if [[ "$WP_AUTO_UPDATE_BACKUP" != "1" ]]; then
+      log "Skip: database backup disabled"
+      return 0
+    fi
+
+    backup_outside_webroot "$wp_root" "$backup_dir"
+    mkdir -p "$backup_dir"
+    chmod 750 "$backup_dir" 2>/dev/null || true
+
+    set +e
+    db_name="$("$WP_BIN" db name "${wp_args[@]}" 2>/dev/null | tail -n1 | tr -d '[:space:]')"
+    set -e
+    if [[ -z "$db_name" ]]; then
+      db_name="wordpress"
+    fi
+
+    timestamp="$(date +%Y%m%d_%H%M%S)"
+    backup_file="${backup_dir}/${db_name}_pre-update_${timestamp}.sql.gz"
+
+    if [[ "$WP_AUTO_UPDATE_DRY_RUN" == "1" ]]; then
+      log "DRY-RUN: would backup database ${db_name} to ${backup_file}"
+      return 0
+    fi
+
+    log "Backing up database ${db_name} to ${backup_file}"
+    set +e
+    "$WP_BIN" db export - "${wp_args[@]}" 2>>"$LOG_FILE" | gzip -c > "$backup_file"
+    dump_rc=$?
+    set -e
+
+    if [[ "$dump_rc" -ne 0 ]] || [[ ! -s "$backup_file" ]]; then
+      log "ERROR: database backup failed (rc=${dump_rc}); aborting updates"
+      rm -f "$backup_file"
+      exit 1
+    fi
+    if ! gzip -t "$backup_file" >/dev/null 2>&1; then
+      log "ERROR: backup archive is corrupt; aborting updates"
+      rm -f "$backup_file"
+      exit 1
+    fi
+
+    size="$(du -h "$backup_file" | awk '{print $1}')"
+    log "Database backup OK (${size})"
+
+    find "$backup_dir" -type f -name '*_pre-update_*.sql.gz' -mtime "+${retention}" -delete 2>/dev/null || true
+    log "Pruned backups older than ${retention} days"
+  }
 
   run_wp() {
     if [[ "$WP_AUTO_UPDATE_DRY_RUN" == "1" ]]; then
@@ -116,6 +192,8 @@ run_updates() {
 
     log "Skip: elementor-pro (never auto-updated)"
   }
+
+  backup_database
 
   # Clear stale core updater lock if present.
   run_wp option delete core_updater.lock "${wp_args[@]}" || true

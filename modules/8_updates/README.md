@@ -4,7 +4,7 @@ Deploys scheduled update tooling for WordPress (ec2-user) and Amazon Linux 2023 
 
 ## WordPress auto-updates
 
-Runs as `ec2-user` (no `--allow-root`).
+Runs as `ec2-user` (no `--allow-root`). Each live run dumps the WordPress database with WP-CLI (`wp db export`) **before** core, plugin, or theme updates.
 
 ### Update policy (default)
 
@@ -50,6 +50,18 @@ ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml \
 | `wp_auto_update_elementor_minor` | `1` | Elementor free: `--minor` only |
 | `wp_auto_update_themes` | `0` | Update all themes |
 | `wp_auto_update_core_minor_only` | `0` | Core minor-only instead of latest |
+| `wp_auto_update_backup` | `1` | Dump the database before core/plugin/theme updates |
+| `wp_auto_update_backup_dir` | `/home/ec2-user/backups/wp-auto-update` | SQL dumps (outside webroot) |
+| `wp_auto_update_backup_retention` | `28` | Delete `*_pre-update_*.sql.gz` older than this many days |
+
+A failed dump **aborts** the update run. Dry-run does not write a dump.
+
+Restore example:
+
+```bash
+gunzip -c /home/ec2-user/backups/wp-auto-update/<db>_pre-update_YYYYMMDD_HHMMSS.sql.gz \
+  | wp db import - --path=/home/ec2-user/html
+```
 
 ### WordPress manual run
 
