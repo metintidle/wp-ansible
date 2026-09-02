@@ -41,3 +41,7 @@ bash/fix-mst-imsdb-layout.sh
 svt-logs/
 wp.zip
 aws-credentials.json
+auto-aws/node_modules/
+auto-aws/profiles/
+auto-aws/logs/
+auto-aws/config.json
