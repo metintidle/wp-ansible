@@ -1,7 +1,7 @@
 ---
 - name: Setup Nginx and PHP on Amazon Linux 2 (512MB RAM) For WordPress
   hosts: all
-  become: yes
+  become: true
 
   vars:
     web_user: "{{ ansible_user | default('ec2-user') }}"
@@ -65,10 +65,10 @@
     - name: Check if igbinary is already installed
       command: pecl list | grep igbinary
       register: igbinary_check
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Start and enable php igbinary
-      ansible.builtin.command: sudo pecl install igbinary
+      ansible.builtin.command: pecl install igbinary
       when: igbinary_check.rc != 0
 
     - name: Install Python pip
@@ -122,28 +122,24 @@
         path: /etc/php.ini
         regexp: "^memory_limit =.*"
         line: "memory_limit = 96M"
-      become: yes
 
     - name: Update PHP realpath cache size
       lineinfile:
         path: /etc/php.ini
         line: "realpath_cache_size = 1024k"
         state: present
-      become: yes
 
     - name: Update PHP realpath cache TTL
       lineinfile:
         path: /etc/php.ini
         line: "realpath_cache_ttl = 300"
         state: present
-      become: yes
 
     - name: Set PHP session storage to memory
       lineinfile:
         path: /etc/php.ini
         line: 'session.save_path = "/tmp"'
         state: present
-      become: yes
 
     - name: Restart PHP-FPM and Nginx
       service:
@@ -157,7 +153,7 @@
     - name: Test Nginx configuration
       command: nginx -t
       register: nginx_test_result
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Restart Nginx
       service:
@@ -169,7 +165,7 @@
       user:
         name: "{{ web_user }}"
         groups: nginx
-        append: yes
+        append: true
 
     - name: Copy nginx.config
       ansible.builtin.copy:
@@ -216,7 +212,7 @@
         path: /usr/share/nginx/html/
         owner: "{{ web_user }}"
         group: nginx
-        recurse: yes
+        recurse: true
 
     - name: Update the PECL channel
       command: pecl channel-update pecl.php.net
@@ -234,8 +230,9 @@
     #     create: yes
 
     - name: install php opcache
-      ansible.builtin.command:
-        cmd: sudo dnf install php-opcache -y
+      dnf:
+        name: php-opcache
+        state: present
 
     - name: Configure Opcache settings
       lineinfile:
@@ -282,7 +279,6 @@
             regexp: "opcache.huge_code_pages=.*",
             line: "opcache.huge_code_pages=0",
           } # Value from fix.yml
-      become: yes
 
     - name: Restart PHP-FPM service
       service:
@@ -303,10 +299,10 @@
         mode: 755
         owner: root
         group: root
-        force: yes
+        force: true
 
     - name: fix "ASCII text executable" without "CRLF line terminators"
-      ansible.builtin.command: sudo sed -i 's/\r$//' /usr/local/bin/fpm.sh
+      ansible.builtin.command: sed -i 's/\r$//' /usr/local/bin/fpm.sh
 
     - name: Install bc for fpm.sh script
       dnf:
@@ -337,7 +333,7 @@
         mode: 755
         owner: root
         group: root
-        force: yes
+        force: true
     - name: Add a cron job to run cleanlogs.sh every day
       cron:
         name: "Run cleanlogs.sh daily"
@@ -353,7 +349,6 @@
         path: /etc/fstab
         regexp: '^tmpfs\s+/tmp\s+tmpfs.*'
         state: absent
-      become: yes
 
     - name: Create disk-based tmp directory
       file:
@@ -362,7 +357,6 @@
         mode: "1777"
         owner: root
         group: root
-      become: yes
 
     - name: Add bind mount entry to fstab
       lineinfile:
@@ -370,7 +364,6 @@
         line: "/var/tmp_disk /tmp none bind 0 0"
         state: present
         backup: yes
-      become: yes
 
     - name: Check if /tmp is currently a tmpfs
       shell: mount | grep -q "tmpfs on /tmp"
@@ -381,15 +374,13 @@
     - name: Backup current /tmp contents if it's tmpfs
       shell: cp -a /tmp/* /var/tmp_disk/ 2>/dev/null || true
       when: tmp_is_tmpfs.rc == 0
-      become: yes
 
     - name: Unmount tmpfs /tmp if it exists
       mount:
         path: /tmp
         state: unmounted
       when: tmp_is_tmpfs.rc == 0
-      become: yes
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Mount disk-based /tmp
       mount:
@@ -398,7 +389,6 @@
         fstype: none
         opts: bind
         state: mounted
-      become: yes
 
     - name: Verify /tmp is mounted from disk
       shell: df -h /tmp | grep -v tmpfs
@@ -412,27 +402,23 @@
     - name: Install micro editor
       shell: |
         cd /usr/local/bin
-        curl https://getmic.ro | sudo bash
+        curl https://getmic.ro | bash
 
     - name: Create a 1G swap file
       command: fallocate -l 1G /swapfile
       args:
         creates: /swapfile
-      become: yes
 
     - name: Set permissions on swap file
       command: chmod 600 /swapfile
-      become: yes
       when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
 
     - name: Set up swap area
       command: mkswap /swapfile
-      become: yes
       when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
 
     - name: Enable swap file
       command: swapon /swapfile
-      become: yes
       when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
       register: swapon_result
       failed_when: swapon_result.rc != 0 and 'Device or resource busy' not in swapon_result.stderr
@@ -444,7 +430,6 @@
         fstype: swap
         opts: sw
         state: present
-      become: yes
 
     # --- Web-shell hardening: disable dangerous PHP funcs for FPM, deny PHP in
     #     writable dirs, hide PHP version. See snippets/php-webshell-hardening.yml.
