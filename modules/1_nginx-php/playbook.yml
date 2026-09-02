@@ -18,7 +18,9 @@
 
     - name: Install Nginx
       dnf:
-        name: nginx
+        name:
+          - nginx
+          - nginx-mod-headers-more
         state: present
 
     - name: Start and enable Nginx service
