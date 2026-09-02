@@ -23,12 +23,12 @@
     wp_auto_update_backup: "1"
     wp_auto_update_env_file: /home/ec2-user/.wp-auto-update.env
     wp_cli_path: /usr/local/bin/wp
-    wp_auto_update_enable_cron: false
+    wp_auto_update_enable_cron: true
     wp_auto_update_remove_cron: false
     wp_auto_update_cron_tz: Australia/Sydney
     wp_auto_update_cron_schedule: "0 3 * * 0"
     wp_auto_update_plugins: "1"
-    wp_auto_update_themes: "0"
+    wp_auto_update_themes: "1"
     wp_auto_update_core_minor_only: "0"
     wp_auto_update_plugin_exclude: "elementor-pro,elementor"
     wp_auto_update_elementor_minor: "1"

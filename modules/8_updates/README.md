@@ -14,7 +14,7 @@ Runs as `ec2-user` (no `--allow-root`). Each live run dumps the WordPress databa
 | **Plugins** | All except `elementor-pro` and `elementor` |
 | **Elementor** (free) | Minor only within same major (e.g. 4.2.x → 4.3.x, not 5.x) |
 | **Elementor Pro** | Never auto-updated |
-| **Themes** | Off |
+| **Themes** | All themes |
 
 Scripts live in [`files/`](files/).
 
@@ -48,7 +48,7 @@ ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml \
 | `wp_auto_update_plugins` | `1` | Enable plugin updates |
 | `wp_auto_update_plugin_exclude` | `elementor-pro,elementor` | Excluded from bulk `--all` pass |
 | `wp_auto_update_elementor_minor` | `1` | Elementor free: `--minor` only |
-| `wp_auto_update_themes` | `0` | Update all themes |
+| `wp_auto_update_themes` | `1` | Update all themes |
 | `wp_auto_update_core_minor_only` | `0` | Core minor-only instead of latest |
 | `wp_auto_update_backup` | `1` | Dump the database before core/plugin/theme updates |
 | `wp_auto_update_backup_dir` | `/home/ec2-user/backups/wp-auto-update` | SQL dumps (outside webroot) |

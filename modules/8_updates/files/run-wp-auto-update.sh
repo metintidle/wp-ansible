@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# WordPress core + selective plugin auto-updates via WP-CLI (ec2-user, no --allow-root).
+# WordPress core, plugin, and theme auto-updates via WP-CLI (ec2-user, no --allow-root).
 # Live runs dump the DB first (wp db export | gzip) to /home/ec2-user/backups/wp-auto-update/;
 # a failed dump aborts the update. Dry-run skips the dump.
 #
@@ -24,7 +24,7 @@ ENV_FILE="${WP_AUTO_UPDATE_ENV_FILE:-/home/ec2-user/.wp-auto-update.env}"
 
 WP_AUTO_UPDATE_DRY_RUN="${WP_AUTO_UPDATE_DRY_RUN:-0}"
 WP_AUTO_UPDATE_PLUGINS="${WP_AUTO_UPDATE_PLUGINS:-1}"
-WP_AUTO_UPDATE_THEMES="${WP_AUTO_UPDATE_THEMES:-0}"
+WP_AUTO_UPDATE_THEMES="${WP_AUTO_UPDATE_THEMES:-1}"
 WP_AUTO_UPDATE_CORE_MINOR_ONLY="${WP_AUTO_UPDATE_CORE_MINOR_ONLY:-0}"
 WP_AUTO_UPDATE_PLUGIN_EXCLUDE="${WP_AUTO_UPDATE_PLUGIN_EXCLUDE:-elementor-pro,elementor}"
 WP_AUTO_UPDATE_ELEMENTOR_MINOR="${WP_AUTO_UPDATE_ELEMENTOR_MINOR:-1}"
@@ -222,9 +222,9 @@ run_updates() {
   if [[ "$WP_AUTO_UPDATE_THEMES" == "1" ]]; then
     log "Checking theme updates..."
     run_wp theme list --update=available --fields=name,version,update_version "${wp_args[@]}" || true
-    if [[ "$WP_AUTO_UPDATE_DRY_RUN" != "1" ]]; then
-      run_wp theme update --all "${wp_args[@]}" || log "WARN: theme update had failures"
-    fi
+    log "Bulk theme update"
+    run_wp_or_dry theme update --all "${wp_args[@]}" \
+      || log "WARN: theme update had failures"
   fi
 
   log "Core version after: $($WP_BIN core version "${wp_args[@]}")"
