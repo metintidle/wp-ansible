@@ -24,17 +24,17 @@
   pre_tasks:
     - name: Stop nginx before DB setup (free RAM)
       raw: systemctl stop nginx 2>/dev/null || true
-      become: yes
+      become: true
       when: pause_web_stack_for_ram | default(true) | bool
 
     - name: Stop php-fpm before DB setup (free RAM)
       raw: systemctl stop php-fpm 2>/dev/null || true
-      become: yes
+      become: true
       when: pause_web_stack_for_ram | default(true) | bool
 
     - name: Drop kernel page cache to free RAM
       raw: sync; echo 3 > /proc/sys/vm/drop_caches
-      become: yes
+      become: true
       when: pause_web_stack_for_ram | default(true) | bool
 
     - name: Ensure MySQL client is installed (after freeing RAM)
@@ -55,12 +55,12 @@
           echo "No dnf/yum package manager found" >&2; exit 1
         fi
         echo "MYSQL_CLIENT_STATUS=installed"
-      become: yes
+      become: true
       register: mysql_client_install
 
     - name: Verify MySQL client is available for remote DB access
       raw: command -v mysql >/dev/null && mysql --version
-      become: yes
+      become: true
       changed_when: false
 
   tasks:
@@ -128,20 +128,20 @@
       stat:
         path: /usr/local/bin/wp
       register: wp_cli_installed
-      become: yes
+      become: true
 
     - name: Download WP-CLI (latest version)
       get_url:
         url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
         dest: /usr/local/bin/wp-cli.phar
         mode: "0755"
-      become: yes
+      become: true
       when: not wp_cli_installed.stat.exists
 
     - name: List details of wp-cli.phar
       command: ls -al /usr/local/bin/wp-cli.phar
       register: wp_cli_phar_details
-      become: yes
+      become: true
       when: not wp_cli_installed.stat.exists
 
     - name: Display wp-cli.phar details
@@ -151,14 +151,14 @@
 
     - name: Move WP-CLI to /usr/local/bin/wp
       command: mv /usr/local/bin/wp-cli.phar /usr/local/bin/wp
-      become: yes
+      become: true
       when: not wp_cli_installed.stat.exists
 
     - name: Check if WordPress is already installed
       stat:
         path: "{{ docroot }}/wp-signup.php"
       register: wordpress_downloaded
-      become: yes
+      become: true
 
     - name: Print message if WordPress is already installed
       debug:
@@ -170,7 +170,7 @@
         url: https://wordpress.org/latest.tar.gz
         dest: /home/ec2-user/wordpress-latest.tar.gz
         mode: "0644"
-      become: yes
+      become: true
       when: not wordpress_downloaded.stat.exists
 
     - name: Extract WordPress tarball directly to html directory
@@ -187,7 +187,7 @@
         owner: ec2-user
         group: nginx
         recurse: yes
-      become: yes
+      become: true
       when: not wordpress_downloaded.stat.exists
 
     - name: Verify WP-CLI installation
@@ -322,7 +322,7 @@
         owner: ec2-user
         group: nginx
         mode: '0755'
-      become: yes
+      become: true
 
     - name: Create Heartbeat throttle mu-plugin
       copy:
@@ -356,7 +356,7 @@
         owner: ec2-user
         group: nginx
         mode: '0644'
-      become: yes
+      become: true
 
     - name: Set WordPress constants for low-RAM optimization
       blockinfile:
@@ -376,23 +376,23 @@
         if command -v dnf >/dev/null 2>&1; then dnf remove -y mariadb105
         elif command -v yum >/dev/null 2>&1; then yum remove -y mysql-community-client
         else exit 0; fi
-      become: yes
+      become: true
       when: mysql_client_install.stdout is search('MYSQL_CLIENT_STATUS=installed')
 
     - name: Start php-fpm after DB setup
       raw: systemctl start php-fpm
-      become: yes
+      become: true
       when: pause_web_stack_for_ram | default(true) | bool
 
     - name: Validate Nginx config before bringing web stack up
       raw: nginx -t
-      become: yes
+      become: true
       when: pause_web_stack_for_ram | default(true) | bool
       failed_when: false
       register: nginx_final_test
 
     - name: Start nginx after DB setup
       raw: systemctl start nginx
-      become: yes
+      become: true
       when: pause_web_stack_for_ram | default(true) | bool and (nginx_final_test.rc | default(0)) == 0
 
