@@ -1,14 +1,14 @@
 ---
-# Deploy WordPress auto-update scripts + optional OS upgrade cron (AL2023).
+# Deploy WordPress auto-update scripts + OS upgrade cron (AL2023). Both crons on by default.
 #
 # WordPress (ec2-user):
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml
-#   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml -e wp_auto_update_enable_cron=true
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml -e wp_auto_update_remove_cron=true
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml -e wp_auto_update_run_dry_run=true --limit station
 #
-# OS upgrade (root; stop nginx/php-fpm, dnf upgrade, restart):
+# OS upgrade (root; stop nginx/php-fpm, dnf upgrade, reboot when updates apply):
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade
-#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade -e os_upgrade_enable_cron=true --limit cccls
+#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade --limit cccls
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade -e os_upgrade_remove_cron=true
 #   After upgrade reboot: @reboot cron opens http/https on firewalld (or disables it when fail2ban is active).
 #
@@ -180,7 +180,7 @@
   vars:
     os_upgrade_install_dir: /usr/local/bin
     os_upgrade_log_file: /var/log/os-upgrade.log
-    os_upgrade_enable_cron: false
+    os_upgrade_enable_cron: true
     os_upgrade_remove_cron: false
     os_upgrade_cron_tz: Australia/Sydney
     os_upgrade_cron_schedule: "0 0 */3 * *"
