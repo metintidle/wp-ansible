@@ -45,3 +45,4 @@ auto-aws/node_modules/
 auto-aws/profiles/
 auto-aws/logs/
 auto-aws/config.json
+db.info

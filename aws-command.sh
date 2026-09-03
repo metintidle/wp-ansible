@@ -24,4 +24,17 @@ aws lightsail attach-static-ip \
   --static-ip-name StaticIp-1 \
   --instance-name wp-web-23 \
   --region ap-southeast-2
-
+# Part 1 — Pull your files off the dead disk
+aws lightsail create-disk-snapshot \
+  --region ap-southeast-2 \
+  --instance-name Amazon_Linux_2023-1 \
+  --disk-snapshot-name wmeds-rescue
+  #1. Lightsail → Snapshots → Disk snapshots → ⋮ next to lifeimaging-rescue → Create new disk → same AZ → Create
+  #2. Create a fresh Amazon Linux 2023 instance (this becomes your new server). Attach the rescue disk: Storage → Attach disk
+  #3. Browser-SSH into the fresh instance (clean sshd = works), then mount and copy:
+  
+lsblk                                  # find the disk, e.g. xvdf1
+sudo mkdir /mnt/rescue
+sudo mount /dev/xvdf1 /mnt/rescue
+sudo cp -a /mnt/rescue/usr/share/nginx/html/wp-content/uploads ~/uploads-backup
+This disk-attach approach is AWS's documented method for recovering data from the root volume of a botched instance.
