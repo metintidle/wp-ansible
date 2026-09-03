@@ -138,6 +138,24 @@ maxretry = 7
 
 
 
+[nginx-wp-exploit]
+
+enabled  = true
+
+filter   = nginx-wp-exploit
+
+port     = http,https
+
+logpath  = /var/log/nginx/access.log
+
+maxretry = 3
+
+findtime = 300
+
+bantime  = 604800
+
+
+
 [nginx-bad-request]
 
 enabled  = true

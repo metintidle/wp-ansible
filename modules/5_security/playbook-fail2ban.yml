@@ -1,4 +1,14 @@
 ---
+# Hardened fail2ban + nginx security for AL2023 WordPress hosts.
+#
+# Deploy:
+#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/5_security/playbook-fail2ban.yml
+#   ansible-playbook -i inventory/dmfp-vcawol-wmeds.ini modules/5_security/playbook-fail2ban.yml --limit wmeds
+#
+# wmeds-class hardening (Aug 2026): nginx blocks wp-file-manager connector, hash-named
+# webshell plugins, REST backdoor namespaces; [nginx-wp-exploit] jail; then
+# playbook-wp-fail2ban-auth.yml for real wp-login brute-force (HTTP 200 failures).
+#
 - name: Install and configure Fail2Ban
   hosts: all
   become: yes
@@ -113,6 +123,14 @@
       ansible.builtin.copy:
         src: files/fail2ban/filter/nginx-limit-req-login.conf
         dest: /etc/fail2ban/filter.d/nginx-limit-req-login.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create WordPress exploit probe filter (file manager, webshell plugins)
+      ansible.builtin.copy:
+        src: files/fail2ban/filter/nginx-wp-exploit.conf
+        dest: /etc/fail2ban/filter.d/nginx-wp-exploit.conf
         owner: root
         group: root
         mode: '0644'
@@ -300,6 +318,9 @@
         - name: elementor preview pretty-url 403
           filter: /etc/fail2ban/filter.d/non-wordpress-requests.conf
           line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /sample-page/?elementor-preview=abc123 HTTP/1.1" 403 1234 "-" "Mozilla/5.0"'
+        - name: legit wp-json wp/v2 (wp-exploit)
+          filter: /etc/fail2ban/filter.d/nginx-wp-exploit.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /wp-json/wp/v2/posts HTTP/1.1" 200 1234 "-" "Mozilla/5.0"'
         - name: limit_req zone one
           filter: /etc/fail2ban/filter.d/nginx-limit-req-login.conf
           line: '2025/06/25 10:00:00 [error] 1234#5678: *9 limiting requests, excess: 5.123 by zone "one", client: 1.2.3.4, server: example.com, request: "GET / HTTP/1.1", host: "example.com"'
@@ -338,6 +359,15 @@
         - name: primary script unknown probe
           filter: /etc/fail2ban/filter.d/nginx-unknown-script.conf
           line: '2025/06/25 10:00:00 [error] 1234#5678: *6 FastCGI sent in stderr: "Primary script unknown" while reading response header from upstream, client: 45.61.130.166, server: example.com, request: "GET /inputs.php HTTP/1.1", upstream: "fastcgi://unix:/run/php-fpm/www.sock:", host: "example.com"'
+        - name: wp-file-manager connector probe
+          filter: /etc/fail2ban/filter.d/nginx-wp-exploit.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "POST /wp-content/plugins/wp-file-manager/lib/php/connector.minimal.php HTTP/1.1" 403 1234 "-" "curl/7.88"'
+        - name: hash-named webshell plugin probe
+          filter: /etc/fail2ban/filter.d/nginx-wp-exploit.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "POST /wp-json/forms6850/v1/765b4a015fd8161da5ca7c23 HTTP/1.1" 403 1234 "-" "curl/7.88"'
+        - name: w2s sergei backdoor query
+          filter: /etc/fail2ban/filter.d/nginx-wp-exploit.conf
+          line: '1.2.3.4 - - [25/Jun/2025:10:00:00 +0000] "GET /?sergei=1 HTTP/1.1" 403 1234 "-" "curl/7.88"'
       changed_when: false
 
     - name: Check fail2ban status
@@ -363,3 +393,10 @@
 
           Or directly view the log:
           - tail -f /var/log/fail2ban/banned-ips.log
+
+          New since wmeds hardening:
+          - nginx-wp-exploit jail bans wp-file-manager / hash-plugin / REST webshell probes
+          - security-rules.conf blocks those paths at nginx (403 before PHP)
+          - wordpress-auth jail (next play) bans real wp-login brute-force (HTTP 200 failures)
+
+- import_playbook: playbook-wp-fail2ban-auth.yml
