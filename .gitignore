@@ -46,3 +46,5 @@ auto-aws/profiles/
 auto-aws/logs/
 auto-aws/config.json
 db.info
+ftp-shoalharbour.info
+codedb.snapshot
