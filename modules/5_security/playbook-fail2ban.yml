@@ -3,6 +3,7 @@
 #
 # Deploy:
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/5_security/playbook-fail2ban.yml
+#   ansible-playbook -i inventory/wordpress-fail2ban.ini modules/5_security/playbook-fail2ban.yml --skip-tags install
 #   ansible-playbook -i inventory/dmfp-vcawol-wmeds.ini modules/5_security/playbook-fail2ban.yml --limit wmeds
 #
 # wmeds-class hardening (Aug 2026): nginx blocks wp-file-manager connector, hash-named
@@ -13,7 +14,10 @@
   hosts: all
   become: yes
   tasks:
+    # Tags: install = packages/firewalld/iptables (first-time only).
+    #       config = nginx security, filters, jails, reload, validation (safe redeploy).
     - name: Upload security configuration file
+      tags: [config]
       ansible.builtin.copy:
         src: files/security/security-rules.conf
         dest: /etc/nginx/default.d/security.conf
@@ -22,6 +26,7 @@
         mode: '0644'
 
     - name: Uploal http security file
+      tags: [config]
       ansible.builtin.copy:
         src: files/security/general.conf
         dest: /etc/nginx/conf.d/security.conf
@@ -30,22 +35,26 @@
         mode: '0644'
 
     - name: Install Fail2Ban
+      tags: [install]
       ansible.builtin.dnf:
         name: fail2ban
         state: present
 
     - name: Stop and disable firewalld (conflicts with iptables fail2ban)
+      tags: [install]
       ansible.builtin.service:
         name: firewalld
         state: stopped
         enabled: false
 
     - name: Install iptables-services for persistent rules
+      tags: [install]
       ansible.builtin.dnf:
         name: iptables-services
         state: present
 
     - name: Enable iptables service
+      tags: [install]
       ansible.builtin.service:
         name: iptables
         state: started
@@ -54,44 +63,52 @@
     # Flush and rebuild INPUT — iptables-services ships a default REJECT that
     # must come after 22/443 ACCEPT rules (CCCSL pattern: 443 open, 80 blocked).
     - name: Flush INPUT chain
+      tags: [install]
       ansible.builtin.command: iptables -F INPUT
       changed_when: true
 
     - name: Allow established and related connections
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
       changed_when: true
 
     - name: Allow loopback traffic
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -i lo -j ACCEPT
       changed_when: true
 
     - name: Allow ICMP
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -p icmp -j ACCEPT
       changed_when: true
 
     - name: Allow SSH connections
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
       changed_when: true
 
     - name: Allow HTTPS connections
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
       changed_when: true
 
-    # Allow return traffic for server's outbound HTTP (so curl/wget to port 80 get responses)
     - name: Allow return traffic on port 80 (ESTABLISHED,RELATED)
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
       changed_when: true
 
-    # Force HTTPS-only: block new incoming HTTP so only 443 is used for web traffic
     - name: Block new incoming connections on port 80 (HTTP)
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j DROP
       changed_when: true
 
     - name: Reject all other incoming traffic
+      tags: [install]
       ansible.builtin.command: iptables -A INPUT -j REJECT --reject-with icmp-host-prohibited
       changed_when: true
 
     - name: Persist iptables rules
+      tags: [install]
       ansible.builtin.command: service iptables save
       changed_when: true
 

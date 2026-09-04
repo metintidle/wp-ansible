@@ -39,19 +39,21 @@
         - wp_root | length == 0
         - (wp_probe.results | selectattr('stat.exists') | list | length) > 0
 
-    - name: Fail clearly if no WordPress docroot was found
-      ansible.builtin.fail:
+    - name: Skip host when no WordPress docroot was found
+      ansible.builtin.debug:
         msg: >-
-          No wp-load.php found under {{ wp_root_candidates | join(', ') }}.
-          Re-run with -e wp_root=/path/to/wordpress.
+          No wp-load.php under {{ wp_root_candidates | join(', ') }} — skipping
+          wordpress-auth jail (install WordPress first, then re-run this play).
       when: wp_root | length == 0
 
     - name: Read docroot ownership (to match mu-plugin ownership)
       ansible.builtin.stat:
         path: "{{ wp_root }}"
       register: wp_root_stat
+      when: wp_root | length > 0
 
     - name: Ensure mu-plugins directory exists
+      when: wp_root | length > 0
       ansible.builtin.file:
         path: "{{ wp_root }}/wp-content/mu-plugins"
         state: directory
@@ -60,6 +62,7 @@
         mode: '0755'
 
     - name: Deploy wp-fail2ban-auth must-use plugin
+      when: wp_root | length > 0
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../../plugins/wp-fail2ban-auth.php"
         dest: "{{ wp_root }}/wp-content/mu-plugins/wp-fail2ban-auth.php"
@@ -68,6 +71,7 @@
         mode: '0644'
 
     - name: Deploy wordpress-auth Fail2Ban filter
+      when: wp_root | length > 0
       ansible.builtin.copy:
         src: files/fail2ban/filter/wordpress-auth.conf
         dest: /etc/fail2ban/filter.d/wordpress-auth.conf
@@ -76,6 +80,7 @@
         mode: '0644'
 
     - name: Deploy wordpress-auth jail (additive drop-in, systemd backend)
+      when: wp_root | length > 0
       ansible.builtin.copy:
         dest: /etc/fail2ban/jail.d/wordpress-auth.local
         content: |
@@ -96,6 +101,7 @@
         mode: '0644'
 
     - name: Validate wordpress-auth filter (must-match failures, must-ignore success)
+      when: wp_root | length > 0
       ansible.builtin.shell: |
         set -euo pipefail
         tmp=$(mktemp)
@@ -132,17 +138,20 @@
       changed_when: false
 
     - name: Reload Fail2Ban
+      when: wp_root | length > 0
       ansible.builtin.service:
         name: fail2ban
         state: restarted
 
     - name: Show wordpress-auth jail status
+      when: wp_root | length > 0
       ansible.builtin.command: fail2ban-client status wordpress-auth
       register: wp_auth_jail
       changed_when: false
       failed_when: false
 
     - name: Report
+      when: wp_root | length > 0
       ansible.builtin.debug:
         msg: >-
           wp-fail2ban-auth deployed to {{ wp_root }}/wp-content/mu-plugins/.

@@ -206,6 +206,46 @@
       register: os_upgrade_dnf_check
       changed_when: false
 
+    - name: Check active swap
+      ansible.builtin.command: swapon --show
+      register: os_upgrade_swap_status
+      changed_when: false
+
+    - name: Create 1G swap file when no swap active
+      ansible.builtin.command: fallocate -l 1G /swapfile
+      args:
+        creates: /swapfile
+      when: os_upgrade_swap_status.stdout | length == 0
+
+    - name: Set permissions on swap file
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+        owner: root
+        group: root
+      when: os_upgrade_swap_status.stdout | length == 0
+
+    - name: Set up swap area
+      ansible.builtin.command: mkswap /swapfile
+      when: os_upgrade_swap_status.stdout | length == 0
+
+    - name: Enable swap file
+      ansible.builtin.command: swapon /swapfile
+      when: os_upgrade_swap_status.stdout | length == 0
+      register: os_upgrade_swapon_result
+      failed_when: >-
+        os_upgrade_swapon_result.rc != 0
+        and 'Device or resource busy' not in (os_upgrade_swapon_result.stderr | default(''))
+
+    - name: Persist swap file in /etc/fstab
+      ansible.builtin.mount:
+        path: none
+        src: /swapfile
+        fstype: swap
+        opts: sw
+        state: present
+      when: os_upgrade_swap_status.stdout | length == 0
+
     - name: Deploy OS upgrade shell scripts
       ansible.builtin.copy:
         src: "files/{{ item }}"
@@ -287,5 +327,6 @@
           - "Cron enabled: {{ os_upgrade_enable_cron | bool }}"
           - "Schedule: {{ os_upgrade_cron_schedule }} ({{ os_upgrade_cron_tz }})"
           - "Flow: stop nginx + php-fpm -> dnf upgrade -> reboot -> @reboot firewalld fix"
+          - "Swap: ensured 1G /swapfile when swapon --show is empty (persisted in fstab)"
           - "Firewalld boot cron: {{ firewalld_boot_fix_enable_cron | bool }} (delay {{ firewalld_boot_fix_delay }}s)"
           - "Firewalld boot log: {{ firewalld_boot_fix_log_file }}"
