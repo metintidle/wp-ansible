@@ -340,6 +340,142 @@
         minute: "0"
         hour: "0"
         job: "/usr/local/bin/cleanlogs.sh >> /var/log/cleanlogs.log 2>&1"
+  
+    # --- Optional: recover web content from an attached Lightsail rescue disk
+    #     (see aws-command-migration.sh). Run with: --tags rescue
+    - name: Check if rescue disk partition exists
+      stat:
+        path: /dev/xvdf1
+      register: rescue_disk
+      tags: rescue
+
+    - name: Show block devices when rescue disk is attached
+      command: lsblk
+      register: lsblk_output
+      when: rescue_disk.stat.exists
+      changed_when: false
+      tags: rescue
+
+    - name: Display block devices
+      debug:
+        var: lsblk_output.stdout_lines
+      when: rescue_disk.stat.exists
+      tags: rescue
+
+    - name: Create rescue mount point
+      file:
+        path: /mnt/rescue
+        state: directory
+        mode: "0755"
+      when: rescue_disk.stat.exists
+      tags: rescue
+
+    - name: Check if rescue disk is already mounted
+      command: mountpoint -q /mnt/rescue
+      register: rescue_mounted
+      failed_when: false
+      changed_when: false
+      when: rescue_disk.stat.exists
+      tags: rescue
+
+    - name: Mount rescue disk partition
+      command: mount /dev/xvdf1 /mnt/rescue
+      when:
+        - rescue_disk.stat.exists
+        - rescue_mounted.rc != 0
+      tags: rescue
+
+    - name: Detect rescue disk docroot source
+      shell: |
+        if [ -d /mnt/rescue/usr/share/nginx/html ] && [ "$(ls -A /mnt/rescue/usr/share/nginx/html 2>/dev/null)" ]; then
+          echo nginx
+        elif [ -d /mnt/rescue/home/ec2-user/html ] && [ "$(ls -A /mnt/rescue/home/ec2-user/html 2>/dev/null)" ]; then
+          echo home
+        else
+          echo none
+        fi
+      register: rescue_docroot_source
+      when: rescue_disk.stat.exists
+      changed_when: false
+      tags: rescue
+
+    - name: Copy web content from rescue disk (nginx docroot)
+      shell: cp -a /mnt/rescue/usr/share/nginx/html/* /home/{{ web_user }}/html/
+      when:
+        - rescue_disk.stat.exists
+        - rescue_docroot_source.stdout == 'nginx'
+      tags: rescue
+
+    - name: Copy web content from rescue disk (ec2-user docroot)
+      shell: cp -a /mnt/rescue/home/ec2-user/html/* /home/{{ web_user }}/html/
+      when:
+        - rescue_disk.stat.exists
+        - rescue_docroot_source.stdout == 'home'
+      tags: rescue
+
+    - name: Warn when no web content found on rescue disk
+      debug:
+        msg: "No web content found under /mnt/rescue/usr/share/nginx/html or /mnt/rescue/home/ec2-user/html"
+      when:
+        - rescue_disk.stat.exists
+        - rescue_docroot_source.stdout == 'none'
+      tags: rescue
+
+    - name: Unmount rescue disk
+      command: umount /mnt/rescue
+      when: rescue_disk.stat.exists
+      tags: rescue
+
+    - name: Install WP-CLI
+      import_tasks: ../2_wordpress/files/install-wp-cli.yml
+      tags: rescue
+
+    - name: Install micro editor
+      shell: |
+        cd /usr/local/bin
+        curl https://getmic.ro | bash
+      tags: micro
+
+    # --- Swap file setup ---
+    - name: Create a 1G swap file
+      command: fallocate -l 1G /swapfile
+      args:
+        creates: /swapfile
+      tags: swap
+
+    - name: Set permissions on swap file
+      command: chmod 600 /swapfile
+      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+      tags: swap
+
+    - name: Set up swap area
+      command: mkswap /swapfile
+      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+      tags: swap
+
+    - name: Enable swap file
+      command: swapon /swapfile
+      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+      register: swapon_result
+      failed_when: swapon_result.rc != 0 and 'Device or resource busy' not in swapon_result.stderr
+      tags: swap
+
+    - name: Persist swap file in /etc/fstab
+      mount:
+        path: none
+        src: /swapfile
+        fstype: swap
+        opts: sw
+        state: present
+      tags: swap
+
+    # --- Web-shell hardening: disable dangerous PHP funcs for FPM, deny PHP in
+    #     writable dirs, hide PHP version. See snippets/php-webshell-hardening.yml.
+    - name: Apply PHP / Nginx web-shell hardening
+      import_tasks: snippets/php-webshell-hardening.yml
+      tags: hardening
+    
+   
 
     # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
     # Include these tasks in your existing playbook
@@ -398,41 +534,3 @@
     - name: Display /tmp mount status
       debug:
         msg: "/tmp is now mounted from disk: {{ tmp_mount_check.stdout }}"
-
-    - name: Install micro editor
-      shell: |
-        cd /usr/local/bin
-        curl https://getmic.ro | bash
-
-    - name: Create a 1G swap file
-      command: fallocate -l 1G /swapfile
-      args:
-        creates: /swapfile
-
-    - name: Set permissions on swap file
-      command: chmod 600 /swapfile
-      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
-
-    - name: Set up swap area
-      command: mkswap /swapfile
-      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
-
-    - name: Enable swap file
-      command: swapon /swapfile
-      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
-      register: swapon_result
-      failed_when: swapon_result.rc != 0 and 'Device or resource busy' not in swapon_result.stderr
-
-    - name: Persist swap file in /etc/fstab
-      mount:
-        path: none
-        src: /swapfile
-        fstype: swap
-        opts: sw
-        state: present
-
-    # --- Web-shell hardening: disable dangerous PHP funcs for FPM, deny PHP in
-    #     writable dirs, hide PHP version. See snippets/php-webshell-hardening.yml.
-    - name: Apply PHP / Nginx web-shell hardening
-      import_tasks: snippets/php-webshell-hardening.yml
-      tags: hardening
