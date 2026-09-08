@@ -48,3 +48,5 @@ auto-aws/config.json
 db.info
 ftp-shoalharbour.info
 codedb.snapshot
+tssurgery-remote.info
+tongarr/*
