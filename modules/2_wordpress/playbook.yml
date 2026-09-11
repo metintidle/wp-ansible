@@ -3,7 +3,9 @@
   hosts: all
   gather_facts: false
   vars:
-   site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
+   # Use ansible_host (IP from inventory or -e) — NOT inventory_hostname (SSH alias).
+   # Override: -e site_url=http://15.134.169.234 or -e domain_name=example.com
+   site_url: "http://{{ domain_name | default(ansible_host) | default(inventory_hostname) }}"
    wp: /usr/local/bin/wp
    docroot: "{{ wp_root | default('/home/ec2-user/html') }}"
    db_host: "{{ lookup('env', 'DB_HOST') }}"

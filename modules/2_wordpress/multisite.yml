@@ -2,7 +2,7 @@
 - name: Setup WordPress on Amazon Linux 2 with Nginx and PHP
   hosts: all
   vars:
-   site_url: "http://{{ inventory_hostname }}" # Use the inventory IP for the site URL
+   site_url: "http://{{ domain_name | default(ansible_host) | default(inventory_hostname) }}"
 
   tasks:
     - name: Install MariaDB client

@@ -474,9 +474,14 @@
     - name: Apply PHP / Nginx web-shell hardening
       import_tasks: snippets/php-webshell-hardening.yml
       tags: hardening
-    
-   
 
+- ansible.builtin.import_playbook: ../8_updates/playbook-os.yml
+
+- name: Mount /tmp on disk instead of tmpfs (low-RAM hosts)
+  hosts: all
+  become: true
+
+  tasks:
     # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
     # Include these tasks in your existing playbook
 

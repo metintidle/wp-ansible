@@ -20,28 +20,30 @@ Scripts live in [`files/`](files/).
 
 ### Playbook — WordPress
 
-```bash
-# Deploy scripts only (cron off by default)
-ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml --tags wp_updates
+[`playbook-wp.yml`](playbook-wp.yml)
 
-# Deploy + install weekly cron (03:00 Sunday, Australia/Sydney)
-ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml \
-  --tags wp_updates -e wp_auto_update_enable_cron=true
+```bash
+# Deploy scripts + weekly cron (03:00 Sunday, Australia/Sydney; cron on by default)
+ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook-wp.yml
+
+# Deploy scripts only (no cron)
+ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook-wp.yml \
+  -e wp_auto_update_enable_cron=false
 
 # Check what would update (no changes)
-ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml \
-  --tags wp_updates -e wp_auto_update_run_dry_run=true --limit station
+ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook-wp.yml \
+  -e wp_auto_update_run_dry_run=true --limit station
 
 # Remove cron
-ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook.yml \
-  --tags wp_updates -e wp_auto_update_remove_cron=true
+ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook-wp.yml \
+  -e wp_auto_update_remove_cron=true
 ```
 
 ### WordPress variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `wp_auto_update_enable_cron` | `false` | Install weekly cron |
+| `wp_auto_update_enable_cron` | `true` | Install weekly cron |
 | `wp_auto_update_remove_cron` | `false` | Uninstall cron |
 | `wp_auto_update_cron_schedule` | `0 3 * * 0` | Cron expression (Sunday 03:00) |
 | `wp_auto_update_cron_tz` | `Australia/Sydney` | `CRON_TZ` for cron job |
@@ -95,24 +97,28 @@ Non-AL2023 hosts are skipped automatically.
 
 ### Playbook — OS upgrade
 
-```bash
-# Deploy scripts only (cron off by default)
-ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml --tags os_upgrade --limit cccls
+[`playbook-os.yml`](playbook-os.yml)
 
-# Deploy + install cron (midnight every 3 days, Australia/Sydney)
-ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml \
-  --tags os_upgrade -e os_upgrade_enable_cron=true --limit cccls
+```bash
+# Deploy scripts + cron (midnight every 3 days, Australia/Sydney; cron on by default)
+ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-os.yml --limit cccls
+
+# Deploy scripts only (no cron)
+ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-os.yml \
+  -e os_upgrade_enable_cron=false --limit cccls
 
 # Remove cron
-ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook.yml \
-  --tags os_upgrade -e os_upgrade_remove_cron=true --limit cccls
+ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-os.yml \
+  -e os_upgrade_remove_cron=true --limit cccls
 ```
+
+Combined entry point (both stacks): [`playbook.yml`](playbook.yml) — use `--tags os_upgrade` or `--tags wp_updates` to limit.
 
 ### OS upgrade variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `os_upgrade_enable_cron` | `false` | Install root cron |
+| `os_upgrade_enable_cron` | `true` | Install root cron |
 | `os_upgrade_remove_cron` | `false` | Uninstall root cron |
 | `os_upgrade_cron_schedule` | `0 0 */3 * *` | Midnight every 3 days |
 | `os_upgrade_cron_tz` | `Australia/Sydney` | `CRON_TZ` for OS upgrade job |

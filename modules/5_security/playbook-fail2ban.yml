@@ -152,6 +152,14 @@
         group: root
         mode: '0644'
 
+    - name: Exempt Brizy editor 400s from nginx-bad-request bans
+      ansible.builtin.copy:
+        src: files/fail2ban/filter/nginx-bad-request.local.conf
+        dest: /etc/fail2ban/filter.d/nginx-bad-request.local
+        owner: root
+        group: root
+        mode: '0644'
+
     - name: Remove legacy jail.d snippets superseded by jail.local
       ansible.builtin.file:
         path: /etc/fail2ban/jail.d/nginx-unknown-script.conf
