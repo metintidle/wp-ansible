@@ -18,6 +18,10 @@ set -euo pipefail
 
 WP_BIN="${WP_BIN:-/usr/local/bin/wp}"
 LOCK_FILE="/tmp/wp-auto-update.lock"
+BACKUP_LOCK="/var/backups/wordpress/.lock"
+SITE_BACKUP_STAMP="/run/wp-site-backup-db.stamp"
+SITE_BACKUP_STAMP_MAX_AGE="${WP_AUTO_UPDATE_SITE_BACKUP_STAMP_MAX_AGE:-43200}"
+OTHER_LOCK_WAIT_SECS="${WP_AUTO_UPDATE_OTHER_LOCK_WAIT:-300}"
 LOG_DIR="${WP_AUTO_UPDATE_LOG_DIR:-/home/ec2-user/logs}"
 LOG_FILE="$LOG_DIR/wp-auto-update.log"
 ENV_FILE="${WP_AUTO_UPDATE_ENV_FILE:-/home/ec2-user/.wp-auto-update.env}"
@@ -80,6 +84,25 @@ run_updates() {
 
   log "Start wp auto-update (dry_run=$WP_AUTO_UPDATE_DRY_RUN) wp_root=$wp_root"
 
+  wait_for_other_lock() {
+    local lock="$1"
+    local waited=0
+    [[ -e "$lock" ]] || return 0
+    while (( waited < OTHER_LOCK_WAIT_SECS )); do
+      exec 8>>"$lock"
+      if flock -n 8; then
+        flock -u 8
+        return 0
+      fi
+      sleep 10
+      waited=$((waited + 10))
+    done
+    log "Skip: lock held on $lock after ${OTHER_LOCK_WAIT_SECS}s"
+    exit 0
+  }
+
+  wait_for_other_lock "$BACKUP_LOCK"
+
   exec 9>"$LOCK_FILE"
   if ! flock -n 9; then
     log "Skip: another update run in progress"
@@ -97,6 +120,17 @@ run_updates() {
     if [[ "$WP_AUTO_UPDATE_BACKUP" != "1" ]]; then
       log "Skip: database backup disabled"
       return 0
+    fi
+
+    if [[ -f "$SITE_BACKUP_STAMP" ]]; then
+      local stamp_age now stamp_mtime
+      now="$(date +%s)"
+      stamp_mtime="$(stat -c %Y "$SITE_BACKUP_STAMP" 2>/dev/null || echo 0)"
+      stamp_age=$((now - stamp_mtime))
+      if (( stamp_age < SITE_BACKUP_STAMP_MAX_AGE )); then
+        log "Skip: fresh dump from wp-site-backup (${stamp_age}s old)"
+        return 0
+      fi
     fi
 
     backup_outside_webroot "$wp_root" "$backup_dir"

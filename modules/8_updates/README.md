@@ -4,7 +4,7 @@ Deploys scheduled update tooling for WordPress (ec2-user) and Amazon Linux 2023 
 
 ## WordPress auto-updates
 
-Runs as `ec2-user` (no `--allow-root`). Each live run dumps the WordPress database with WP-CLI (`wp db export`) **before** core, plugin, or theme updates.
+Runs as `ec2-user` (no `--allow-root`). Each live run dumps the WordPress database with WP-CLI (`wp db export`) **before** core, plugin, or theme updates — unless [module 9](../9_backup/README.md) already took a fresh dump (see below).
 
 ### Update policy (default)
 
@@ -57,6 +57,14 @@ ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook-wp.yml
 | `wp_auto_update_backup_retention` | `28` | Delete `*_pre-update_*.sql.gz` older than this many days |
 
 A failed dump **aborts** the update run. Dry-run does not write a dump.
+
+### Coordination with module 9 (site backup)
+
+[Module 9](../9_backup/README.md) runs a **root** cron at ~01:00 Sunday (Australia/Sydney, staggered). After a successful dump it writes `/run/wp-site-backup-db.stamp`. When that stamp is newer than **12 hours**, `run-wp-auto-update.sh` logs `Skip: fresh dump from wp-site-backup` and continues to updates without a second `wp db export`.
+
+If the stamp is missing or stale (backup cron not deployed, or dump failed), auto-update keeps the existing behaviour: dump to `/home/ec2-user/backups/wp-auto-update/` and abort on failure.
+
+Recovery copies live in `/var/backups/wordpress/` (root-only). Update rollback copies stay in `~/backups/wp-auto-update/` when the fallback dump runs.
 
 Restore example:
 

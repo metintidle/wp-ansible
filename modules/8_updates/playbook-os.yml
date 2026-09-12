@@ -10,8 +10,6 @@
   hosts: all
   become: true
   gather_facts: true
-  collections:
-    - ansible.posix
   vars:
     os_upgrade_install_dir: /usr/local/bin
     os_upgrade_log_file: /var/log/os-upgrade.log
@@ -73,12 +71,10 @@
         and 'Device or resource busy' not in (os_upgrade_swapon_result.stderr | default(''))
 
     - name: Persist swap file in /etc/fstab
-      ansible.builtin.mount:
-        path: none
-        src: /swapfile
-        fstype: swap
-        opts: sw
-        state: present
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^/swapfile(\s|$)'
+        line: '/swapfile none swap sw 0 0'
       when: os_upgrade_swap_status.stdout | length == 0
 
     - name: Deploy OS upgrade shell scripts
