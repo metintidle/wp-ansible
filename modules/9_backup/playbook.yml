@@ -1,0 +1,206 @@
+---
+# Deploy root WordPress site backup (database + wp-config.php / wp-content).
+#
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml --limit station
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml \
+#     -e wp_site_backup_remove_legacy_plugins=true
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml \
+#     -e wp_site_backup_remove_cron=true
+#
+- name: Deploy WordPress site backup tools
+  hosts: all
+  become: true
+  vars:
+    wp_site_backup_install_dir: /usr/local/bin
+    wp_site_backup_dir: /var/backups/wordpress
+    wp_site_backup_log_file: /var/log/wp-site-backup.log
+    wp_site_backup_env_file: /etc/wp-site-backup.env
+    wp_cli_path: /usr/local/bin/wp
+    wp_site_backup_enable_cron: true
+    wp_site_backup_remove_cron: false
+    wp_site_backup_cron_tz: Australia/Sydney
+    wp_site_backup_cron_schedule: ""
+    wp_site_backup_remove_legacy_plugins: false
+    wp_site_backup_skip_hosts:
+      - capitalformwork
+      - lwhydraulics
+      - figtreesports
+  tags:
+    - backup
+    - wp_backup
+
+  tasks:
+    - name: Skip known non-WordPress hosts
+      ansible.builtin.meta: end_host
+      when: inventory_hostname in wp_site_backup_skip_hosts
+
+    - name: Stat candidate WordPress config paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: wp_site_backup_wp_config_stats
+      loop:
+        - /home/ec2-user/html/wp-config.php
+        - /usr/share/nginx/html/wp-config.php
+        - /var/www/html/wp-config.php
+
+    - name: Set wp_site_backup_wp_root from inventory wp_root
+      ansible.builtin.set_fact:
+        wp_site_backup_wp_root: "{{ wp_root }}"
+      when: wp_root is defined and (wp_root | default('') | length) > 0
+
+    - name: Set wp_site_backup_wp_root from first existing wp-config.php
+      ansible.builtin.set_fact:
+        wp_site_backup_wp_root: "{{ (wp_site_backup_wp_config_stats.results | selectattr('stat.exists') | map(attribute='item') | list | first) | dirname }}"
+      when: wp_site_backup_wp_root is not defined
+
+    - name: Fail when no WordPress root found
+      ansible.builtin.fail:
+        msg: >-
+          No wp-config.php found. Set wp_root in inventory or install WordPress first.
+      when: wp_site_backup_wp_root is not defined or (wp_site_backup_wp_root | length) == 0
+
+    - name: Require WordPress install
+      ansible.builtin.stat:
+        path: "{{ wp_site_backup_wp_root }}/wp-config.php"
+      register: wp_site_backup_config
+      failed_when: not wp_site_backup_config.stat.exists
+
+    - name: Require WP-CLI
+      ansible.builtin.stat:
+        path: "{{ wp_cli_path }}"
+      register: wp_site_backup_wp_cli
+      failed_when: not wp_site_backup_wp_cli.stat.exists
+
+    - name: Create backup directory (root only)
+      ansible.builtin.file:
+        path: "{{ wp_site_backup_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Verify backup dir outside webroot
+      ansible.builtin.assert:
+        that:
+          - not wp_site_backup_dir.startswith(wp_site_backup_wp_root)
+          - "'wp-content' not in wp_site_backup_dir"
+        fail_msg: >-
+          wp_site_backup_dir must be outside WordPress webroot
+          ({{ wp_site_backup_wp_root }}). Current: {{ wp_site_backup_dir }}
+
+    - name: Deploy backup shell scripts
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ wp_site_backup_install_dir }}/{{ item }}"
+        mode: "{{ '0750' if item == 'wp-site-backup.sh' else '0755' }}"
+        owner: root
+        group: root
+      loop:
+        - wp-site-backup.sh
+        - install-wp-site-backup-cron.sh
+
+    - name: Strip CRLF from backup scripts
+      ansible.builtin.command:
+        cmd: "sed -i 's/\\r$//' {{ wp_site_backup_install_dir }}/{{ item }}"
+      loop:
+        - wp-site-backup.sh
+        - install-wp-site-backup-cron.sh
+      changed_when: false
+
+    - name: Ensure backup log file
+      ansible.builtin.file:
+        path: "{{ wp_site_backup_log_file }}"
+        state: touch
+        mode: "0644"
+        owner: root
+        group: root
+
+    - name: Write wp-site-backup env file
+      ansible.builtin.copy:
+        dest: "{{ wp_site_backup_env_file }}"
+        mode: "0644"
+        owner: root
+        group: root
+        content: |
+          WP_ROOT={{ wp_site_backup_wp_root }}
+          WP_SITE_BACKUP_DIR={{ wp_site_backup_dir }}
+          WP_SITE_BACKUP_SKIP_HOSTS={{ wp_site_backup_skip_hosts | join(' ') }}
+
+    - name: Remove legacy backup plugin directories
+      ansible.builtin.file:
+        path: "{{ wp_site_backup_wp_root }}/wp-content/{{ item }}"
+        state: absent
+      loop:
+        - updraft
+        - wpvividbackups
+      when: wp_site_backup_remove_legacy_plugins | bool
+
+    - name: Deactivate legacy backup plugins
+      ansible.builtin.command:
+        cmd: "{{ wp_cli_path }} plugin deactivate {{ item }} --path={{ wp_site_backup_wp_root }}"
+      become: false
+      become_user: ec2-user
+      register: wp_site_backup_deactivate
+      failed_when: false
+      changed_when: wp_site_backup_deactivate.rc == 0
+      loop:
+        - updraftplus
+        - wpvivid-backuprestore
+      when: wp_site_backup_remove_legacy_plugins | bool
+
+    - name: Uninstall legacy backup plugins
+      ansible.builtin.command:
+        cmd: "{{ wp_cli_path }} plugin uninstall {{ item }} --deactivate --path={{ wp_site_backup_wp_root }}"
+      become: false
+      become_user: ec2-user
+      register: wp_site_backup_uninstall
+      failed_when: false
+      changed_when: wp_site_backup_uninstall.rc == 0
+      loop:
+        - updraftplus
+        - wpvivid-backuprestore
+      when: wp_site_backup_remove_legacy_plugins | bool
+
+    - name: Remove wp-site-backup cron
+      ansible.builtin.command:
+        cmd: "{{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh --remove"
+      when: wp_site_backup_remove_cron | bool
+      changed_when: true
+
+    - name: Install wp-site-backup cron with custom schedule
+      ansible.builtin.command:
+        cmd: >-
+          {{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh
+          --tz {{ wp_site_backup_cron_tz }}
+          --schedule "{{ wp_site_backup_cron_schedule }}"
+          --wrapper {{ wp_site_backup_install_dir }}/wp-site-backup.sh
+      when:
+        - wp_site_backup_enable_cron | bool
+        - not (wp_site_backup_remove_cron | bool)
+        - wp_site_backup_cron_schedule | length > 0
+      changed_when: true
+
+    - name: Install wp-site-backup cron (01:00 Sydney + hostname stagger)
+      ansible.builtin.command:
+        cmd: >-
+          {{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh
+          --tz {{ wp_site_backup_cron_tz }}
+          --wrapper {{ wp_site_backup_install_dir }}/wp-site-backup.sh
+      when:
+        - wp_site_backup_enable_cron | bool
+        - not (wp_site_backup_remove_cron | bool)
+        - wp_site_backup_cron_schedule | length == 0
+      changed_when: true
+
+    - name: WordPress site backup deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Script: {{ wp_site_backup_install_dir }}/wp-site-backup.sh"
+          - "Backups: {{ wp_site_backup_dir }}/ (root:root 0700)"
+          - "Logs: {{ wp_site_backup_log_file }}"
+          - "WordPress root: {{ wp_site_backup_wp_root }}"
+          - "Cron enabled: {{ wp_site_backup_enable_cron | bool }}"
+          - "Schedule: {{ wp_site_backup_cron_schedule if (wp_site_backup_cron_schedule | length > 0) else '01:00 + hostname stagger (cksum % 45 min)' }} ({{ wp_site_backup_cron_tz }})"
+          - "Legacy plugins removed: {{ wp_site_backup_remove_legacy_plugins | bool }}"
+          - "Manual run: sudo {{ wp_site_backup_install_dir }}/wp-site-backup.sh"
