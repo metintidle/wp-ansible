@@ -448,9 +448,24 @@
       when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
       tags: swap
 
+    - name: Check if /swapfile is already active swap
+      command: swapon --show=NAME --noheadings
+      register: swapon_devices
+      changed_when: false
+      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+      tags: swap
+
     - name: Set up swap area
       command: mkswap /swapfile
-      when: ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+      when:
+        - ansible_facts['os_family'] == 'RedHat' or ansible_facts['os_family'] == 'Debian'
+        - "'/swapfile' not in (swapon_devices.stdout | default(''))"
+      register: mkswap_result
+      failed_when: >
+        mkswap_result.rc != 0 and
+        'is mounted' not in mkswap_result.stderr and
+        'busy' not in mkswap_result.stderr
+      changed_when: mkswap_result.rc == 0
       tags: swap
 
     - name: Enable swap file
@@ -461,12 +476,10 @@
       tags: swap
 
     - name: Persist swap file in /etc/fstab
-      mount:
-        path: none
-        src: /swapfile
-        fstype: swap
-        opts: sw
-        state: present
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^/swapfile(\s|$)'
+        line: '/swapfile none swap sw 0 0'
       tags: swap
 
     # --- Web-shell hardening: disable dangerous PHP funcs for FPM, deny PHP in
@@ -482,60 +495,28 @@
   become: true
 
   tasks:
-    # Ansible tasks to mount /tmp filesystem to hard disk instead of RAM
-    # Include these tasks in your existing playbook
-
-    - name: Remove existing tmpfs entry from fstab if it exists
-      lineinfile:
-        path: /etc/fstab
-        regexp: '^tmpfs\s+/tmp\s+tmpfs.*'
-        state: absent
-
-    - name: Create disk-based tmp directory
-      file:
-        path: /var/tmp_disk
-        state: directory
-        mode: "1777"
-        owner: root
-        group: root
-
-    - name: Add bind mount entry to fstab
-      lineinfile:
-        path: /etc/fstab
-        line: "/var/tmp_disk /tmp none bind 0 0"
-        state: present
-        backup: yes
-
-    - name: Check if /tmp is currently a tmpfs
-      shell: mount | grep -q "tmpfs on /tmp"
-      register: tmp_is_tmpfs
-      failed_when: false
-      changed_when: false
-
-    - name: Backup current /tmp contents if it's tmpfs
-      shell: cp -a /tmp/* /var/tmp_disk/ 2>/dev/null || true
-      when: tmp_is_tmpfs.rc == 0
-
-    - name: Unmount tmpfs /tmp if it exists
-      mount:
-        path: /tmp
-        state: unmounted
-      when: tmp_is_tmpfs.rc == 0
-      ignore_errors: true
-
-    - name: Mount disk-based /tmp
-      mount:
-        path: /tmp
-        src: /var/tmp_disk
-        fstype: none
-        opts: bind
-        state: mounted
-
-    - name: Verify /tmp is mounted from disk
-      shell: df -h /tmp | grep -v tmpfs
-      register: tmp_mount_check
-      failed_when: tmp_mount_check.rc != 0
+    # Single raw script avoids Ansible module payloads under /tmp during umount/rebind.
+    - name: Bind-mount /tmp from disk instead of tmpfs
+      ansible.builtin.raw: |
+        set -e
+        if findmnt -n -o SOURCE /tmp 2>/dev/null | grep -q '/var/tmp_disk'; then
+          echo "/tmp already bind-mounted from /var/tmp_disk"
+          exit 0
+        fi
+        sed -i '\|^tmpfs[[:space:]]\+/tmp[[:space:]]\+tmpfs|d' /etc/fstab
+        mkdir -p /var/tmp_disk
+        chmod 1777 /var/tmp_disk
+        grep -q '^/var/tmp_disk /tmp none bind' /etc/fstab || \
+          echo '/var/tmp_disk /tmp none bind 0 0' >> /etc/fstab
+        if mount | grep -q 'tmpfs on /tmp'; then
+          cp -a /tmp/* /var/tmp_disk/ 2>/dev/null || true
+          umount /tmp || true
+        fi
+        mount --bind /var/tmp_disk /tmp
+        df -h /tmp | grep -v tmpfs
+      register: tmp_disk_mount
+      changed_when: "'already bind-mounted' not in tmp_disk_mount.stdout"
 
     - name: Display /tmp mount status
-      debug:
-        msg: "/tmp is now mounted from disk: {{ tmp_mount_check.stdout }}"
+      ansible.builtin.debug:
+        msg: "{{ tmp_disk_mount.stdout_lines }}"

@@ -27,7 +27,7 @@
     php_harden_expose_off: "{{ php_harden_expose_off | default(true) }}"
     php_harden_open_basedir: "{{ php_harden_open_basedir | default(false) }}"
     # Group 1 — shell execution: functions web shells need; WP core never calls these.
-    #   Backup plugins (UpdraftPlus/WPvivid) fall back to native PHP zip/dump if exec is gone.
+    #   Site backups run via root cron (module 9), not PHP-FPM; disabling exec here is safe.
     # Group 2 — recon/disclosure: source disclosure + system-info + POSIX privilege escalation.
     #   All safe to disable under FPM; WP-CLI/cron (CLI) keep full access.
     #   Deliberately excluded: mail, putenv, symlink (used by WP plugin ecosystem).

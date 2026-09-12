@@ -352,20 +352,13 @@
     become: yes
 
   - name: Unmount tmpfs /tmp if it exists
-    mount:
-      path: /tmp
-      state: unmounted
+    command: umount /tmp
     when: tmp_is_tmpfs.rc == 0
     become: yes
     ignore_errors: yes
 
   - name: Mount disk-based /tmp
-    mount:
-      path: /tmp
-      src: /var/tmp_disk
-      fstype: none
-      opts: bind
-      state: mounted
+    command: mount --bind /var/tmp_disk /tmp
     become: yes
 
   - name: Verify /tmp is mounted from disk
