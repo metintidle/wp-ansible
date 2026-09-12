@@ -50,6 +50,11 @@ ftp-shoalharbour.info
 codedb.snapshot
 tssurgery-remote.info
 tongarr/*
-aws-cli/dns-records/ucdrs.com.au.json
+aws-cli/state/*
+!aws-cli/state/.gitkeep
+aws-cli/dns/records/*.json
+aws-cli/**/__pycache__/
 plugins/*
 plugins/itt-webp-compressor.zip
+bash/healthsupply-wp-rest-batch-fix.sh
+healthsupply-rest-api-fix.md
