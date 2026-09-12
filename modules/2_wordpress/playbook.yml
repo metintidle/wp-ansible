@@ -246,26 +246,13 @@
       args:
         chdir: "{{ docroot }}"
 
-    - name: Install WPvivid Backup Plugin
-      command: wp plugin install wpvivid-backuprestore --activate
-      args:
-        chdir: "{{ docroot }}"
-
-    - name: Install BBQ Firewall – Fast & Powerful Firewall Security
-      command: wp plugin install block-bad-queries --activate
-      args:
-        chdir: "{{ docroot }}"
+    - name: Ensure BBQ Firewall, SQLite Object Cache, auto-updates, and BBQ lock
+      import_tasks: snippets/ensure-core-plugins.yml
 
     # - name: Install All 404 Redirect to Homepage Plugin
     #   command: wp plugin install all-404-redirect-to-homepage --activate
     #   args:
     #     chdir: "{{ docroot }}"
-
-
-    - name: install SQLite Object Cache plugin
-      command: wp plugin install sqlite-object-cache
-      args:
-        chdir: "{{ docroot }}"
 
     - name: Copy IT&T WebP Compressor plugin zip to host
       copy:
@@ -282,13 +269,6 @@
       file:
         path: /tmp/itt-webp-compressor.zip
         state: absent
-
-    - name: Install UpdraftPlus Backup/Restore plugin
-      command: wp plugin install updraftplus --activate
-      args:
-        chdir: "{{ docroot }}"
-
-
 
     - name: Ensure mu-plugins directory exists
       file:

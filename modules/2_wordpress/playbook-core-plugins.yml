@@ -1,0 +1,58 @@
+---
+# Install BBQ Firewall + SQLite Object Cache, enable auto-updates, lock BBQ.
+# Safe on existing sites (idempotent). Does not run wp core install.
+#
+#   ansible-playbook -i 'host,' modules/2_wordpress/playbook-core-plugins.yml \
+#     -e ansible_ssh_private_key_file=/path/to.pem
+#   ./aws-cli/migrate/migrate-al2-al2023.sh <profile> <ssh-host> plugins
+
+- name: Ensure BBQ Firewall and SQLite Object Cache
+  hosts: all
+  become: false
+  gather_facts: false
+  vars:
+    wp: /usr/local/bin/wp
+    docroot: "{{ wp_root | default('') }}"
+
+  tasks:
+    - name: Stat candidate WordPress config paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: core_plugins_wp_config_stats
+      loop:
+        - /home/ec2-user/html/wp-config.php
+        - /usr/share/nginx/html/wp-config.php
+        - /var/www/html/wp-config.php
+      when: docroot | length == 0
+
+    - name: Set docroot from inventory wp_root
+      ansible.builtin.set_fact:
+        docroot: "{{ wp_root }}"
+      when:
+        - docroot | length == 0
+        - wp_root is defined
+        - (wp_root | default('') | length) > 0
+
+    - name: Set docroot from first existing wp-config.php
+      ansible.builtin.set_fact:
+        docroot: "{{ (core_plugins_wp_config_stats.results | selectattr('stat.exists') | map(attribute='item') | list | first) | dirname }}"
+      when:
+        - docroot | length == 0
+        - core_plugins_wp_config_stats is defined
+        - core_plugins_wp_config_stats.results is defined
+        - (core_plugins_wp_config_stats.results | selectattr('stat.exists') | list | length) > 0
+
+    - name: Fail when no WordPress root found
+      ansible.builtin.fail:
+        msg: >-
+          No wp-config.php found. Set wp_root in inventory or install WordPress first.
+      when: docroot | length == 0
+
+    - name: Require WP-CLI
+      ansible.builtin.stat:
+        path: "{{ wp }}"
+      register: core_plugins_wp_cli
+      failed_when: not core_plugins_wp_cli.stat.exists
+
+    - name: Ensure BBQ Firewall, SQLite Object Cache, auto-updates, and BBQ lock
+      ansible.builtin.import_tasks: snippets/ensure-core-plugins.yml

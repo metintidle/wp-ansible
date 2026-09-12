@@ -1,0 +1,70 @@
+# Ensure BBQ Firewall + SQLite Object Cache are installed, auto-update, and BBQ cannot be removed.
+# Expects: wp (WP-CLI path), docroot. Run as ec2-user (no --allow-root).
+#
+# Used by playbook.yml (new provisions) and playbook-core-plugins.yml (AL2→AL2023 migration).
+
+- name: Check whether BBQ Firewall is installed
+  command: "{{ wp }} plugin is-installed block-bad-queries"
+  args:
+    chdir: "{{ docroot }}"
+  register: plugin_bbq_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install BBQ Firewall
+  command: "{{ wp }} plugin install block-bad-queries"
+  args:
+    chdir: "{{ docroot }}"
+  when: plugin_bbq_installed.rc != 0
+
+- name: Activate BBQ Firewall
+  command: "{{ wp }} plugin activate block-bad-queries"
+  args:
+    chdir: "{{ docroot }}"
+  register: plugin_bbq_activate
+  changed_when: "'Plugin already activated' not in (plugin_bbq_activate.stdout | default(''))"
+  failed_when: >-
+    plugin_bbq_activate.rc != 0
+    and 'already activated' not in
+    ((plugin_bbq_activate.stdout | default('')) ~ (plugin_bbq_activate.stderr | default(''))) | lower
+
+- name: Check whether SQLite Object Cache is installed
+  command: "{{ wp }} plugin is-installed sqlite-object-cache"
+  args:
+    chdir: "{{ docroot }}"
+  register: plugin_sqlite_cache_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install SQLite Object Cache plugin
+  command: "{{ wp }} plugin install sqlite-object-cache"
+  args:
+    chdir: "{{ docroot }}"
+  when: plugin_sqlite_cache_installed.rc != 0
+
+- name: Enable auto-updates for BBQ Firewall and SQLite Object Cache
+  command: "{{ wp }} plugin auto-updates enable block-bad-queries sqlite-object-cache"
+  args:
+    chdir: "{{ docroot }}"
+  register: plugin_auto_updates
+  changed_when: >-
+    'already enabled' not in
+    ((plugin_auto_updates.stdout | default('')) ~ (plugin_auto_updates.stderr | default(''))) | lower
+
+- name: Ensure mu-plugins directory exists
+  file:
+    path: "{{ docroot }}/wp-content/mu-plugins"
+    state: directory
+    owner: ec2-user
+    group: nginx
+    mode: "0755"
+  become: true
+
+- name: Deploy BBQ Firewall lock mu-plugin
+  copy:
+    src: "{{ playbook_dir }}/files/mu-plugins/protect-bbq-firewall.php"
+    dest: "{{ docroot }}/wp-content/mu-plugins/protect-bbq-firewall.php"
+    owner: ec2-user
+    group: nginx
+    mode: "0644"
+  become: true
