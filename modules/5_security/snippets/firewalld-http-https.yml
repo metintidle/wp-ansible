@@ -21,6 +21,18 @@
     state: present
   when: firewall_fail2ban_active.stdout != "active"
 
+- name: Open SSH on firewalld before first start
+  ansible.builtin.command: firewall-offline-cmd --add-service=ssh
+  register: firewalld_offline_ssh
+  changed_when: firewalld_offline_ssh.rc == 0
+  failed_when: >
+    firewalld_offline_ssh.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_offline_ssh.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_offline_ssh.stdout | default(''))
+  when:
+    - firewall_fail2ban_active.stdout != "active"
+    - firewall_open_ssh | default(true) | bool
+
 - name: Enable and start firewalld
   ansible.builtin.service:
     name: firewalld
@@ -28,31 +40,35 @@
     enabled: true
   when: firewall_fail2ban_active.stdout != "active"
 
-- name: Open SSH on firewalld
-  ansible.posix.firewalld:
-    service: ssh
-    permanent: true
-    state: enabled
-    immediate: true
-  when:
-    - firewall_fail2ban_active.stdout != "active"
-    - firewall_open_ssh | default(true) | bool
-
-- name: Open HTTP on firewalld
-  ansible.posix.firewalld:
-    service: http
-    permanent: true
-    state: enabled
-    immediate: true
+- name: Open services on firewalld (permanent)
+  ansible.builtin.command:
+    cmd: "firewall-cmd --permanent --add-service={{ item }}"
+  loop: "{{ (['ssh'] if firewall_open_ssh | default(true) | bool else []) + ['http', 'https'] }}"
   when: firewall_fail2ban_active.stdout != "active"
+  register: firewalld_perm
+  changed_when: >
+    firewalld_perm.rc == 0 and
+    'ALREADY_ENABLED' not in (firewalld_perm.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_perm.stdout | default(''))
+  failed_when: >
+    firewalld_perm.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_perm.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_perm.stdout | default(''))
 
-- name: Open HTTPS on firewalld
-  ansible.posix.firewalld:
-    service: https
-    permanent: true
-    state: enabled
-    immediate: true
+- name: Open services on firewalld (runtime)
+  ansible.builtin.command:
+    cmd: "firewall-cmd --add-service={{ item }}"
+  loop: "{{ (['ssh'] if firewall_open_ssh | default(true) | bool else []) + ['http', 'https'] }}"
   when: firewall_fail2ban_active.stdout != "active"
+  register: firewalld_runtime
+  changed_when: >
+    firewalld_runtime.rc == 0 and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stdout | default(''))
+  failed_when: >
+    firewalld_runtime.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stdout | default(''))
 
 - name: Firewalld post-upgrade summary
   ansible.builtin.debug:
