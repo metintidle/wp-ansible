@@ -138,8 +138,17 @@ create_zone() {
   echo "Created hosted zone: ${ZONE_ID}"
 }
 
+ipv6_usable() {
+  [[ -n "${IPV6:-}" && "$IPV6" != "None" && "$IPV6" == *:* ]]
+}
+
 upsert_records() {
   ZONE_ID=$(resolve_zone_id)
+
+  if [[ -z "${IPV4:-}" || "$IPV4" == "None" ]]; then
+    echo "ERROR: IPV4 is required to upsert A records" >&2
+    exit 1
+  fi
 
   local batch_file
   batch_file=$(mktemp)
@@ -164,7 +173,12 @@ upsert_records() {
         "TTL": ${TTL},
         "ResourceRecords": [{ "Value": "${IPV4}" }]
       }
-    },
+    }
+EOF
+
+  if ipv6_usable; then
+    cat >>"$batch_file" <<EOF
+    ,
     {
       "Action": "UPSERT",
       "ResourceRecordSet": {
@@ -183,6 +197,12 @@ upsert_records() {
         "ResourceRecords": [{ "Value": "${IPV6}" }]
       }
     }
+EOF
+  else
+    echo "Skipping AAAA (IPV6 unset or invalid)"
+  fi
+
+  cat >>"$batch_file" <<EOF
   ]
 }
 EOF

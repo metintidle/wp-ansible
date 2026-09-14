@@ -120,21 +120,35 @@ aws lightsail put-instance-public-ports \
     "fromPort=80,toPort=80,protocol=tcp,cidrs=0.0.0.0/0" \
     "fromPort=443,toPort=443,protocol=tcp,cidrs=0.0.0.0/0"
 
-aws lightsail create-disk-snapshot \
+_snapshot_state=$(aws lightsail get-disk-snapshot \
   --region "$REGION" \
-  --instance-name "$INSTANCE_NAME_AL2" \
-  --disk-snapshot-name "$DISK_SNAPSHOT_NAME"
+  --disk-snapshot-name "$DISK_SNAPSHOT_NAME" \
+  --query 'diskSnapshot.state' \
+  --output text 2>/dev/null || echo "missing")
 
-echo "Waiting for snapshot ${DISK_SNAPSHOT_NAME}…"
-for _ in $(seq 1 120); do
-  STATE=$(aws lightsail get-disk-snapshot \
+if [ "$_snapshot_state" = "completed" ]; then
+  echo "Snapshot ${DISK_SNAPSHOT_NAME} already completed"
+else
+  if [ "$_snapshot_state" != "missing" ]; then
+    aws lightsail delete-disk-snapshot \
+      --region "$REGION" \
+      --disk-snapshot-name "$DISK_SNAPSHOT_NAME" 2>/dev/null || true
+  fi
+  aws lightsail create-disk-snapshot \
     --region "$REGION" \
-    --disk-snapshot-name "$DISK_SNAPSHOT_NAME" \
-    --query 'diskSnapshot.state' \
-    --output text 2>/dev/null || echo missing)
-  [[ "$STATE" == "completed" ]] && break
-  sleep 15
-done
+    --instance-name "$INSTANCE_NAME_AL2" \
+    --disk-snapshot-name "$DISK_SNAPSHOT_NAME"
+  echo "Waiting for snapshot ${DISK_SNAPSHOT_NAME}…"
+  for _ in $(seq 1 120); do
+    STATE=$(aws lightsail get-disk-snapshot \
+      --region "$REGION" \
+      --disk-snapshot-name "$DISK_SNAPSHOT_NAME" \
+      --query 'diskSnapshot.state' \
+      --output text 2>/dev/null || echo missing)
+    [[ "$STATE" == "completed" ]] && break
+    sleep 15
+  done
+fi
 
 DISK_SNAPSHOT_SIZE=$(aws lightsail get-disk-snapshot \
   --region "$REGION" \
@@ -143,31 +157,55 @@ DISK_SNAPSHOT_SIZE=$(aws lightsail get-disk-snapshot \
   --output text)
 echo "DISK_SNAPSHOT_SIZE=${DISK_SNAPSHOT_SIZE} GB"
 
-aws lightsail create-disk-from-snapshot \
+_disk_state=$(aws lightsail get-disk \
   --region "$REGION" \
   --disk-name "$RESCUE_DISK_NAME" \
-  --disk-snapshot-name "$DISK_SNAPSHOT_NAME" \
-  --availability-zone "$AVAILABILITY_ZONE" \
-  --size-in-gb "$DISK_SNAPSHOT_SIZE"
+  --query 'disk.state' \
+  --output text 2>/dev/null || echo "missing")
 
-echo "Waiting for rescue disk ${RESCUE_DISK_NAME}…"
-for _ in $(seq 1 60); do
-  STATE=$(aws lightsail get-disk \
+if [ "$_disk_state" = "available" ] || [ "$_disk_state" = "in-use" ]; then
+  echo "Rescue disk ${RESCUE_DISK_NAME} already exists (state=${_disk_state})"
+else
+  if [ "$_disk_state" != "missing" ]; then
+    aws lightsail delete-disk \
+      --region "$REGION" \
+      --disk-name "$RESCUE_DISK_NAME" 2>/dev/null || true
+  fi
+  aws lightsail create-disk-from-snapshot \
     --region "$REGION" \
     --disk-name "$RESCUE_DISK_NAME" \
-    --query 'disk.state' \
-    --output text 2>/dev/null || echo missing)
-  [[ "$STATE" == "available" ]] && break
-  sleep 10
-done
+    --disk-snapshot-name "$DISK_SNAPSHOT_NAME" \
+    --availability-zone "$AVAILABILITY_ZONE" \
+    --size-in-gb "$DISK_SNAPSHOT_SIZE"
+  echo "Waiting for rescue disk ${RESCUE_DISK_NAME}…"
+  for _ in $(seq 1 60); do
+    STATE=$(aws lightsail get-disk \
+      --region "$REGION" \
+      --disk-name "$RESCUE_DISK_NAME" \
+      --query 'disk.state' \
+      --output text 2>/dev/null || echo missing)
+    [[ "$STATE" == "available" ]] && break
+    sleep 10
+  done
+fi
 
 wait_instance_state "$NEW_INSTANCE_NAME" "running"
 
-aws lightsail attach-disk \
+_attached_to=$(aws lightsail get-disk \
   --region "$REGION" \
   --disk-name "$RESCUE_DISK_NAME" \
-  --instance-name "$NEW_INSTANCE_NAME" \
-  --disk-path /dev/xvdf
+  --query 'disk.attachedTo' \
+  --output text 2>/dev/null || echo "None")
+
+if [ "$_attached_to" = "$NEW_INSTANCE_NAME" ]; then
+  echo "Rescue disk already attached to ${NEW_INSTANCE_NAME}"
+else
+  aws lightsail attach-disk \
+    --region "$REGION" \
+    --disk-name "$RESCUE_DISK_NAME" \
+    --instance-name "$NEW_INSTANCE_NAME" \
+    --disk-path /dev/xvdf
+fi
 
 NEW_PUBLIC_IP=$(aws lightsail get-instance \
   --region "$REGION" \

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Move an ssh-config Host block from AL2 into the WordPress AL2023 section.
+"""Move or add an ssh-config Host block in the WordPress AL2023 section.
 
-Called by ./aws-cli/migrate/migrate-al2-al2023.sh (ssh-config phase).
+Called by ./aws-cli/migrate/migrate-al2-al2023.sh (ssh-config phase) and
+./aws-cli/create/al2023-lightsail-wordpress.sh (new site).
 
 Usage:
     python3 aws-cli/ssh/move-ssh-host-al2023.py <ssh-config> <host-alias> [hostname]
+    python3 aws-cli/ssh/move-ssh-host-al2023.py --add <ssh-config> <host-alias> <hostname> [identity] [domain] [profile]
 """
 
 from __future__ import annotations
@@ -160,6 +162,63 @@ def prepare_block(block: list[str], hostname: str | None) -> list[str]:
     return add_os_cron_tag(block)
 
 
+def tilde_identity(path: str) -> str:
+    """Store IdentityFile as ~/.ssh/... when the key lives under $HOME."""
+    home = str(Path.home())
+    expanded = str(Path(path).expanduser())
+    if expanded.startswith(home + "/"):
+        return "~/" + expanded[len(home) + 1 :]
+    return path
+
+
+def host_exists(lines: list[str], alias: str) -> bool:
+    for line in lines:
+        if line.startswith("Host "):
+            names = line.replace("Host ", "", 1).strip().split()
+            if alias in names:
+                return True
+    return False
+
+
+def add_host(
+    config_path: Path,
+    alias: str,
+    hostname: str,
+    identity: str,
+    domain: str | None = None,
+    profile: str | None = None,
+) -> None:
+    """Insert a new Host block into the AL2023 WordPress section, or update IP if present."""
+    content = config_path.read_text(encoding="utf-8")
+    lines = content.splitlines()
+
+    if host_exists(lines, alias):
+        move_host(config_path, alias, hostname)
+        return
+
+    ident = tilde_identity(identity)
+    block = ["# Amazon Linux 2023"]
+    if domain:
+        block.append(f"# https://{domain}/")
+    if profile:
+        block.append(f"# AWS profile: {profile}")
+    block.extend(
+        [
+            f"Host {alias}",
+            f"    HostName {hostname}",
+            "    User ec2-user",
+            f"    IdentityFile {ident}",
+            "",
+        ]
+    )
+
+    insert_at = find_wordpress_insert_line(lines)
+    new_lines = lines[:insert_at] + block + lines[insert_at:]
+    new_lines = bump_wordpress_host_count(new_lines)
+    config_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    print(f"ssh-config Host {alias} added to AL2023 WordPress section ({config_path})")
+
+
 def move_host(config_path: Path, alias: str, hostname: str | None) -> None:
     content = config_path.read_text(encoding="utf-8")
     lines = content.splitlines()
@@ -186,8 +245,27 @@ def move_host(config_path: Path, alias: str, hostname: str | None) -> None:
 
 
 def main() -> None:
+    if len(sys.argv) >= 2 and sys.argv[1] in ("--add", "add"):
+        if len(sys.argv) < 5:
+            raise SystemExit(
+                f"Usage: {sys.argv[0]} --add <ssh-config> <host-alias> <hostname> "
+                "[identity] [domain] [profile]"
+            )
+        config_path = Path(sys.argv[2]).expanduser()
+        alias = sys.argv[3]
+        hostname = sys.argv[4]
+        identity = sys.argv[5] if len(sys.argv) > 5 else f"~/.ssh/{alias}.pem"
+        domain = sys.argv[6] if len(sys.argv) > 6 and sys.argv[6] else None
+        profile = sys.argv[7] if len(sys.argv) > 7 and sys.argv[7] else None
+        add_host(config_path, alias, hostname, identity, domain, profile)
+        return
+
     if len(sys.argv) < 3:
-        raise SystemExit(f"Usage: {sys.argv[0]} <ssh-config> <host-alias> [hostname]")
+        raise SystemExit(
+            f"Usage: {sys.argv[0]} <ssh-config> <host-alias> [hostname]\n"
+            f"       {sys.argv[0]} --add <ssh-config> <host-alias> <hostname> "
+            "[identity] [domain] [profile]"
+        )
 
     config_path = Path(sys.argv[1]).expanduser()
     alias = sys.argv[2]

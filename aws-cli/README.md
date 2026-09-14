@@ -1,4 +1,4 @@
-# AWS CLI — Lightsail AL2 → AL2023 migration
+# AWS CLI — Lightsail WordPress (create, migrate, maintain)
 
 Shell scripts to migrate WordPress sites on **Amazon Lightsail** from **Amazon Linux 2** to **Amazon Linux 2023**, using **AWS CLI only** (no `auto-aws` / Playwright for migration itself).
 
@@ -14,6 +14,11 @@ aws-cli/
 │   ├── setup-profile.sh
 │   ├── aws-login.sh
 │   └── aws-profile.sh
+├── create/                   new AL2023 WordPress Lightsail host
+│   └── al2023-lightsail-wordpress.sh
+├── maintain/                 existing AL2023 fleet (SSH firewall, backup, OS, snapshot)
+│   ├── al2023-lightsail-maintain.sh
+│   └── al2023-lightsail-core-plugins.sh
 ├── migrate/                  AL2 → AL2023
 │   ├── migrate-al2-al2023.sh  orchestrator (start here)
 │   ├── check-static-ip.sh
@@ -33,10 +38,45 @@ aws-cli/
 ├── docs/
 │   ├── aws-credential.md
 │   └── aws-credential-issues.md
-└── state/                    runtime .migrate-<host>.* (gitignored)
+└── state/                    runtime .migrate-<host>.* / .create-<host>.* (gitignored)
 ```
 
 Every script sources [`lib/paths.sh`](./lib/paths.sh) so paths stay correct no matter which folder you run from. Run commands from the **repo root**.
+
+## Create a new WordPress site
+
+[`create/al2023-lightsail-wordpress.sh`](./create/al2023-lightsail-wordpress.sh) provisions a **new** AL2023 Lightsail host (not a migration). Same AWS CLI login as migrate.
+
+```bash
+./aws-cli/create/al2023-lightsail-wordpress.sh <profile> <ssh-host> [domain] [phase]
+```
+
+| Phase | Action |
+|-------|--------|
+| `create` | Lightsail `amazon_linux_2023` / `nano_3_2` instance (`wp-web-23`) |
+| `ports` | TCP/22 limited to `SSH_ALLOW_CIDRS`; 80/443 open; allocate + attach `StaticIp-1` |
+| `ssh-config` | Add `Host` to the AL2023 WordPress section; wait until SSH answers |
+| `dns` | Create a Route53 hosted zone per apex domain (reuse if it exists) and upsert apex + `www` **A** (and **AAAA** when the instance is dual-stack) via [`dns/dns-manage.sh`](./dns/dns-manage.sh) `setup` |
+| `nginx` | [`modules/1_nginx-php/playbook.yml`](../modules/1_nginx-php/playbook.yml) (`--skip-tags rescue`) |
+| `wordpress` | [`modules/2_wordpress/playbook.yml`](../modules/2_wordpress/playbook.yml) — prompts for **database name** (`db_name`) and **table prefix** (`db_prefix` / `table_prefix`) |
+| `all` | `create` → `ports` → `ssh-config` → `dns` → `nginx` → `wordpress` (default) |
+
+```bash
+# Interactive: prompts for extra domains, then db_name and table_prefix
+./aws-cli/create/al2023-lightsail-wordpress.sh MyProfile newsite example.com.au
+
+# Extra hosted zones (each apex domain gets its own zone + A/www records)
+EXTRA_DOMAINS=other.com.au ./aws-cli/create/al2023-lightsail-wordpress.sh MyProfile newsite example.com.au
+
+# Non-interactive WordPress vars
+DB_NAME=newsite DB_PREFIX=ns_ ./aws-cli/create/al2023-lightsail-wordpress.sh MyProfile newsite example.com.au
+
+# Controller needs remote MySQL admin (same as new provisions)
+# export DB_HOST / DB_ADMIN_USER / DB_ADMIN_PASS
+# or source modules/2_wordpress/.db-admin.env
+```
+
+`DATA_NAME` is accepted as an alias for `DB_NAME`. If the 3rd argument is omitted, `dns` prompts for the primary domain. After DNS, set the registrar nameservers to the Route53 NS values printed by `dns-manage.sh`, then run [`modules/3_ssl/playbook.yml`](../modules/3_ssl/playbook.yml).
 
 ## Prerequisites
 
@@ -92,12 +132,15 @@ SOURCE_PUBLIC_IP=3.104.213.239 ./aws-cli/migrate/check-static-ip.sh
 | `nginx` | [`modules/1_nginx-php/playbook.yml`](../modules/1_nginx-php/playbook.yml) — copy site from rescue disk |
 | `plugins` | BBQ Firewall + SQLite Object Cache, auto-updates, lock BBQ — [`modules/2_wordpress/playbook-core-plugins.yml`](../modules/2_wordpress/playbook-core-plugins.yml) |
 | `detach` | Detach rescue disk, move static IP AL2→AL2023, delete AL2 |
-| `dns` | Route53 A/AAAA for **all** discovered domains |
+| `dns` | Re-discover all apex domains (Route53 A/AAAA + ssh-config + WP/nginx), upsert Route53, then **verify** |
+| `verify-domains` | Check public A/AAAA for every apex + `www` in `state/.migrate-<host>.domains` |
 | `ssl` | Let's Encrypt for up to 4 apex domains — [`modules/3_ssl/playbook.yml`](../modules/3_ssl/playbook.yml) |
 | `fail2ban` | [`modules/5_security/playbook-fail2ban.yml`](../modules/5_security/playbook-fail2ban.yml) |
 | `ssh-config` | Move host block to AL2023 WordPress section |
-| `cleanup` | Delete `al2-rescue` disk snapshot + AL2 instance snapshots |
-| `all` | Full flow with pause after `nginx` for wp-config verification, then `plugins` |
+| `cleanup` | Delete `al2-rescue` disk snapshot + AL2 instance snapshots (keeps the AL2023 snapshot) |
+| `backup` | Root cron site backup — [`modules/9_backup/playbook.yml`](../modules/9_backup/playbook.yml) |
+| `snapshot` | One Lightsail instance snapshot of `wp-web-23` named `<ssh-host>-al2023` (after HTTPS 2xx; skipped if a non-automatic snapshot already exists) |
+| `all` | Full flow with pause after `nginx` for wp-config, pause after `backup` to confirm the site loads, then `snapshot` |
 
 ### Phase-by-phase example
 
@@ -115,6 +158,9 @@ export AWS_PROFILE=GerringongGP
 ./aws-cli/migrate/migrate-al2-al2023.sh GerringongGP gerringong fail2ban
 ./aws-cli/migrate/migrate-al2-al2023.sh GerringongGP gerringong ssh-config
 ./aws-cli/migrate/migrate-al2-al2023.sh GerringongGP gerringong cleanup
+./aws-cli/migrate/migrate-al2-al2023.sh GerringongGP gerringong backup
+# Confirm https://<domain>/ loads, then:
+./aws-cli/migrate/migrate-al2-al2023.sh GerringongGP gerringong snapshot
 ```
 
 **Do not re-run `detach`** after a successful cutover — it deletes the AL2 instance. If detach fails mid-way (e.g. AL2 delete only), fix manually; do not re-run full detach unless you understand current Lightsail state.
@@ -125,9 +171,11 @@ Sites with **multiple domains** (e.g. `gerringonggp.com.au` + `gfmp.net.au`) are
 
 [`migrate/discover-domains.sh`](./migrate/discover-domains.sh) merges:
 
-1. **Route53** — apex domains whose A record matches the AL2 IP (in the AWS account)
+1. **Route53** — apex domains whose **A or AAAA** record matches the host IP (in the AWS account; requires `aws-login`)
 2. **ssh-config** — `# https://example.com/` comment above the `Host` block
-3. **SSH** (`USE_SSH=1`) — nginx `server_name` + WordPress `siteurl` / `home`
+3. **SSH** (auto when host reachable, or `USE_SSH=1`) — nginx `server_name` + WordPress `siteurl` / `home`
+
+Before `dns`, the orchestrator **re-runs discovery** so every Route53 zone pointing at the static IP is included (e.g. `umpw.com.au` + `wollongongcampusmc.com.au`). After `dns`, [`verify-domains.sh`](./migrate/verify-domains.sh) checks apex + `www` A/AAAA records.
 
 ```bash
 ./aws-cli/migrate/discover-domains.sh GerringongGP gerringong --write
@@ -171,7 +219,7 @@ python3 aws-cli/ssh/move-ssh-host-al2023.py ssh-config gerringong 3.104.213.239
 
 ## Local state files
 
-Created under [`state/`](./state/) during migration (gitignored):
+Created under [`state/`](./state/) during migration or create (gitignored):
 
 | File | Contents |
 |------|----------|
@@ -179,6 +227,9 @@ Created under [`state/`](./state/) during migration (gitignored):
 | `.migrate-<host>.al2-instance` | AL2 Lightsail instance name |
 | `.migrate-<host>.final-ip` | Static IP after detach |
 | `.migrate-<host>.domains` | Apex domains (one per line) |
+| `.create-<host>.instance` | New Lightsail instance name |
+| `.create-<host>.ip` | Public / static IP after create |
+| `.create-<host>.domains` | Apex domains for new-site Route53 zones (one per line) |
 
 Override the directory with `AWS_CLI_STATE=/path` if needed.
 
@@ -190,6 +241,9 @@ Override the directory with `AWS_CLI_STATE=/path` if needed.
 | [auth/setup-profile.sh](./auth/setup-profile.sh) | Add `login_session` profile to `~/.aws/config` |
 | [auth/aws-login.sh](./auth/aws-login.sh) | `aws login --profile` wrapper |
 | [auth/aws-profile.sh](./auth/aws-profile.sh) | Run any `aws` command with auto-login |
+| [create/al2023-lightsail-wordpress.sh](./create/al2023-lightsail-wordpress.sh) | New AL2023 Lightsail WordPress host (create, ports, nginx, WordPress) |
+| [maintain/al2023-lightsail-maintain.sh](./maintain/al2023-lightsail-maintain.sh) | AL2023 fleet SSH firewall, backup, OS upgrade, snapshot |
+| [maintain/al2023-lightsail-core-plugins.sh](./maintain/al2023-lightsail-core-plugins.sh) | BBQ Firewall + SQLite Object Cache on existing hosts |
 | [migrate/migrate-al2-al2023.sh](./migrate/migrate-al2-al2023.sh) | Main migration orchestrator |
 | [migrate/check-static-ip.sh](./migrate/check-static-ip.sh) | Preflight static IP check |
 | [migrate/discover-domains.sh](./migrate/discover-domains.sh) | Domain discovery for DNS/SSL |
@@ -245,6 +299,7 @@ Optional: [`auto-aws/`](../auto-aws/) for vault sync and Playwright login (`npm 
 | `ansible.builtin.synchronize` error on SSL | Wrong FQCN in agent playbook | Use `install_wp_agent=false` (default in migrate script) |
 | Host still in AL2 section after `ssh-config` | Wrong section marker matched | Re-run `ssh-config`; script targets AL2023 WordPress header only |
 | `REMOTE HOST IDENTIFICATION HAS CHANGED` | New instance at same IP | `ssh-keygen -R <ip>` |
+| `website is not loading correctly` on `snapshot` | HTTPS not 2xx (DNS/SSL/site) | Fix the site, then re-run `snapshot`; no snapshot is created until HTTP 2xx |
 | **Never re-run `detach`** after AL2 deleted | Script may mis-identify AL2 | Use saved `state/.migrate-<host>.al2-instance`; delete AL2 manually if needed |
 
 ## Related
@@ -252,7 +307,8 @@ Optional: [`auto-aws/`](../auto-aws/) for vault sync and Playwright login (`npm 
 - [docs/aws-credential.md](./docs/aws-credential.md) — IAM login profiles
 - [docs/aws-credential-issues.md](./docs/aws-credential-issues.md) — `aws login` troubleshooting
 - [auto-aws/README.md](../auto-aws/README.md) — Playwright login alternative
-- [modules/1_nginx-php/playbook.yml](../modules/1_nginx-php/playbook.yml) — copy site from rescue disk
+- [modules/1_nginx-php/playbook.yml](../modules/1_nginx-php/playbook.yml) — nginx + PHP-FPM (create) / copy site from rescue disk (migrate)
+- [modules/2_wordpress/playbook.yml](../modules/2_wordpress/playbook.yml) — new WordPress install (`db_name`, `db_prefix`)
 - [modules/2_wordpress/playbook-core-plugins.yml](../modules/2_wordpress/playbook-core-plugins.yml) — BBQ + SQLite Object Cache, auto-updates, BBQ lock
 - [modules/3_ssl/playbook.yml](../modules/3_ssl/playbook.yml) — SSL + optional wp-agent
 - [modules/5_security/playbook-fail2ban.yml](../modules/5_security/playbook-fail2ban.yml) — fail2ban

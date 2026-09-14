@@ -2,9 +2,9 @@
 # Discover apex domains pointing at a migration host (AL2 static IP).
 #
 # Sources (merged, deduped):
-#   1. Route53 A records in AWS_PROFILE account → IP
+#   1. Route53 A/AAAA records in AWS_PROFILE account → IPV4 / IPV6
 #   2. ssh-config comment above Host (# https://example.com/)
-#   3. Optional SSH (USE_SSH=1): nginx server_name + WP siteurl/home
+#   3. SSH when reachable (USE_SSH=1 or auto): nginx server_name + WP siteurl/home
 #
 # Usage:
 #   ./aws-cli/migrate/discover-domains.sh <profile> <ssh-host>
@@ -59,20 +59,24 @@ read_ssh_comment_domains() {
   local cfg
   cfg="$(resolve_ssh_config)"
   awk -v host="$HOST" '
-    /^#/ {
-      pending = $0
-      next
+    function flush_urls() {
+      for (i = 1; i <= n; i++) print urls[i]
+      n = 0
     }
     /^Host / {
       if ($2 == host) {
-        if (pending ~ /^# https?:\/\//) {
-          gsub(/^# https?:\/\//, "", pending)
-          gsub(/\/.*$/, "", pending)
-          if (pending != "") print pending
-        }
+        flush_urls()
         exit
       }
-      pending = ""
+      n = 0
+      next
+    }
+    /^# https?:\/\// {
+      line = $0
+      sub(/^# https?:\/\//, "", line)
+      sub(/\/.*$/, "", line)
+      if (line != "") urls[++n] = line
+      next
     }
   ' "$cfg"
 }
@@ -94,8 +98,21 @@ fi
 export AWS_PROFILE="$PROFILE"
 REGION="${REGION:-ap-southeast-2}"
 
-discover_route53() {
-  local ip="$1"
+"$AWS_CLI_AUTH/aws-login.sh" "$PROFILE"
+
+IPV6="${IPV6:-}"
+if [[ -z "$IPV6" ]]; then
+  IPV6="$(aws lightsail get-instance \
+    --region "$REGION" \
+    --instance-name "${NEW_INSTANCE_NAME:-wp-web-23}" \
+    --query 'instance.ipv6Addresses[0]' \
+    --output text 2>/dev/null || true)"
+  [[ "$IPV6" == "None" ]] && IPV6=""
+fi
+
+discover_route53_by_type() {
+  local rtype="$1" value="$2"
+  [[ -z "$value" ]] && return 0
   aws route53 list-hosted-zones \
     --query 'HostedZones[*].Id' \
     --output text 2>/dev/null | tr '\t' '\n' | while read -r zone_id; do
@@ -103,13 +120,19 @@ discover_route53() {
       zone_id="${zone_id##*/}"
       aws route53 list-resource-record-sets \
         --hosted-zone-id "$zone_id" \
-        --query "ResourceRecordSets[?Type=='A' && ResourceRecords[0].Value=='${ip}'].Name" \
+        --query "ResourceRecordSets[?Type=='${rtype}' && ResourceRecords[0].Value=='${value}'].Name" \
         --output text 2>/dev/null | tr '\t' '\n' | while IFS= read -r name; do
           [[ -z "$name" || "$name" == "None" ]] && continue
           normalize_domain "$name"
-          echo
+          printf '\n'
         done
     done
+}
+
+discover_route53() {
+  local ip="$1" ip6="${2:-}"
+  discover_route53_by_type A "$ip" || true
+  discover_route53_by_type AAAA "$ip6" || true
 }
 
 discover_ssh() {
@@ -145,25 +168,37 @@ printf '%s\n' "${domains[@]}" | sort -u
 EOF
 }
 
+ssh_reachable() {
+  ssh -o ConnectTimeout=5 -o BatchMode=yes "$HOST" true 2>/dev/null
+}
+
 merge_domains() {
-  local tmp primary line
+  local tmp primary line use_ssh
   tmp="$(mktemp)"
+  use_ssh="${USE_SSH:-}"
+  if [[ -z "$use_ssh" ]]; then
+    if ssh_reachable; then
+      use_ssh=1
+    else
+      use_ssh=0
+    fi
+  fi
   {
     read_ssh_comment_domains || true
-    discover_route53 "$IPV4" || true
-    if [[ "${USE_SSH:-0}" == "1" ]]; then
+    discover_route53 "$IPV4" "${IPV6:-}" || true
+    if [[ "$use_ssh" == "1" ]]; then
       discover_ssh || true
     fi
   } | while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     normalize_domain "$line"
-    echo
-  done | sort -u >"$tmp"
+    printf '\n'
+  done | awk 'NF' | sort -u >"$tmp"
 
-  primary="$(read_ssh_comment_domains | head -1 | while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    normalize_domain "$line"
-  done)"
+  primary="$(read_ssh_comment_domains | head -1)"
+  if [[ -n "$primary" ]]; then
+    primary="$(normalize_domain "$primary")"
+  fi
   if [[ -n "$primary" ]] && grep -qx "$primary" "$tmp" 2>/dev/null; then
     echo "$primary"
     grep -vx "$primary" "$tmp" 2>/dev/null || true

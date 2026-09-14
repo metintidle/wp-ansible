@@ -8,7 +8,8 @@
 # Saves aws-cli/state/.migrate-<host>.domains — used for dns + ssl (up to 4 apex domains).
 #
 # Phases:
-#   discover-domains — list/save apex domains for AL2 IP (Route53, ssh-config, nginx/WP)
+#   discover-domains — list/save apex domains for AL2 IP (Route53 A/AAAA, ssh-config, nginx/WP)
+#   verify-domains — check A/AAAA for every domain in state/.migrate-<host>.domains
 #   attach  — create AL2023 + snapshot AL2 + attach rescue disk (checks static IP on AL2)
 #   nginx   — modules/1_nginx-php/playbook.yml
 #   plugins — BBQ Firewall + SQLite Object Cache, auto-updates, lock BBQ (mu-plugin)
@@ -18,7 +19,9 @@
 #   fail2ban  — modules/5_security/playbook-fail2ban.yml
 #   ssh-config — move Host block to AL2023 WordPress section + OS update cron tag
 #   cleanup   — delete migration disk/instance snapshots (al2-rescue, AL2 instance snapshots)
-#   all       — attach → nginx → (pause) → plugins → detach → dns → ssl → fail2ban → ssh-config → cleanup
+#   backup    — modules/9_backup/playbook.yml (root cron site backup)
+#   snapshot  — one Lightsail instance snapshot of AL2023 (after site HTTP 2xx)
+#   all       — attach → nginx → (pause) → plugins → detach → dns → ssl → fail2ban → ssh-config → cleanup → backup → (pause) → snapshot
 #
 # Camden example:
 #   ./aws-cli/migrate/migrate-al2-al2023.sh CamdenSurgery camden camdensurgery.com.au
@@ -30,7 +33,7 @@ HOST="${2:?ssh Host alias required}"
 ARG3="${3:-}"
 ARG4="${4:-}"
 
-KNOWN_PHASES='^(attach|nginx|plugins|detach|dns|ssl|fail2ban|ssh-config|cleanup|discover-domains|all)$'
+KNOWN_PHASES='^(attach|nginx|plugins|detach|dns|verify-domains|ssl|fail2ban|ssh-config|cleanup|backup|snapshot|discover-domains|all)$'
 if [[ "$ARG3" =~ $KNOWN_PHASES ]]; then
   DOMAIN=""
   PHASE="$ARG3"
@@ -50,6 +53,8 @@ MIGRATE_AL2_INSTANCE="$AWS_CLI_STATE/.migrate-${HOST}.al2-instance"
 MIGRATE_DOMAINS="$AWS_CLI_STATE/.migrate-${HOST}.domains"
 MIGRATE_FINAL_IP="$AWS_CLI_STATE/.migrate-${HOST}.final-ip"
 DISK_SNAPSHOT_NAME="${DISK_SNAPSHOT_NAME:-al2-rescue}"
+NEW_INSTANCE_NAME="${NEW_INSTANCE_NAME:-wp-web-23}"
+INSTANCE_SNAPSHOT_NAME="${INSTANCE_SNAPSHOT_NAME:-${HOST}-al2023}"
 
 resolve_ssh_config() {
   python3 -c "import os; print(os.path.realpath('${SSH_CONFIG}'))"
@@ -122,11 +127,50 @@ ensure_domains() {
 
 do_discover_domains() {
   export IPV4="${SOURCE_PUBLIC_IP:-$(read_ssh HostName)}"
-  "$AWS_CLI_MIGRATE/discover-domains.sh" "$PROFILE" "$HOST" --write
+  "$AWS_CLI_AUTH/aws-login.sh" "$PROFILE"
+  USE_SSH="${USE_SSH:-1}" "$AWS_CLI_MIGRATE/discover-domains.sh" "$PROFILE" "$HOST" --write
   DOMAIN="$(head -1 "$MIGRATE_DOMAINS")"
   echo "Primary domain: ${DOMAIN}"
   echo "All domains:"
   cat "$MIGRATE_DOMAINS"
+}
+
+refresh_domains() {
+  local ip old merged
+  old="$(mktemp)"
+  merged="$(mktemp)"
+  if [[ -f "$MIGRATE_DOMAINS" ]]; then
+    cat "$MIGRATE_DOMAINS" >"$old"
+  fi
+  if [[ -f "$MIGRATE_FINAL_IP" ]]; then
+    ip="$(cat "$MIGRATE_FINAL_IP")"
+  else
+    ip="$(read_ssh HostName)"
+  fi
+  export IPV4="$ip"
+  "$AWS_CLI_AUTH/aws-login.sh" "$PROFILE"
+  USE_SSH=1 "$AWS_CLI_MIGRATE/discover-domains.sh" "$PROFILE" "$HOST" --write
+  cat "$MIGRATE_DOMAINS" >"$merged"
+  if [[ -s "$old" ]]; then
+    while IFS= read -r d; do
+      [[ -z "$d" ]] && continue
+      grep -qx "$d" "$merged" 2>/dev/null || echo "$d" >>"$merged"
+    done <"$old"
+    sort -u "$merged" -o "$MIGRATE_DOMAINS"
+  fi
+  rm -f "$old" "$merged"
+  DOMAIN="$(head -1 "$MIGRATE_DOMAINS")"
+  echo "Refreshed domains ($(wc -l <"$MIGRATE_DOMAINS" | tr -d ' ') apex — see ${MIGRATE_DOMAINS}):"
+  cat "$MIGRATE_DOMAINS"
+}
+
+do_verify_domains() {
+  local ip="${1:-}"
+  if [[ -z "$ip" && -f "$MIGRATE_FINAL_IP" ]]; then
+    ip="$(cat "$MIGRATE_FINAL_IP")"
+  fi
+  ip="${ip:-$(read_ssh HostName)}"
+  IPV4="$ip" "$AWS_CLI_MIGRATE/verify-domains.sh" "$PROFILE" "$HOST"
 }
 
 ansible_run() {
@@ -152,7 +196,7 @@ do_attach() {
   fi
   NEW_IP=$(aws lightsail get-instance \
     --region "$REGION" \
-    --instance-name "${NEW_INSTANCE_NAME:-wp-web-23}" \
+    --instance-name "$NEW_INSTANCE_NAME" \
     --query 'instance.publicIpAddress' \
     --output text)
   set_ssh_ip "$NEW_IP"
@@ -194,7 +238,7 @@ do_detach() {
 }
 
 do_dns() {
-  ensure_domains
+  refresh_domains
   local ip="${1:-}"
   if [[ -z "$ip" && -f "$MIGRATE_FINAL_IP" ]]; then
     ip="$(cat "$MIGRATE_FINAL_IP")"
@@ -204,7 +248,7 @@ do_dns() {
   fi
   IPV6=$(aws lightsail get-instance \
     --region "$REGION" \
-    --instance-name "${NEW_INSTANCE_NAME:-wp-web-23}" \
+    --instance-name "$NEW_INSTANCE_NAME" \
     --query 'instance.ipv6Addresses[0]' \
     --output text 2>/dev/null || true)
   export AWS_PROFILE="$PROFILE"
@@ -217,10 +261,11 @@ do_dns() {
     "$AWS_CLI_DNS/dns-manage.sh" upsert-records
     echo "DNS updated: ${d} → ${ip}"
   done < <(load_domains)
+  do_verify_domains "$ip"
 }
 
 do_ssl() {
-  ensure_domains
+  refresh_domains
   local -a domains=()
   local -a extra=()
   local i d
@@ -256,6 +301,10 @@ do_ssh_config_section() {
     ip="$(read_ssh HostName)"
   fi
   python3 "$AWS_CLI_SSH/move-ssh-host-al2023.py" "$(resolve_ssh_config)" "$HOST" "$ip"
+}
+
+do_backup() {
+  ansible_run "$REPO_ROOT/modules/9_backup/playbook.yml"
 }
 
 do_cleanup() {
@@ -303,6 +352,95 @@ do_cleanup() {
   echo "Snapshot cleanup done."
 }
 
+wait_instance_snapshot_state() {
+  local name="$1"
+  local want="$2"
+  local attempt=0
+  local state="missing"
+  echo "Waiting for instance snapshot ${name} to reach state ${want}…"
+  while [ "$attempt" -lt 120 ]; do
+    state=$(aws lightsail get-instance-snapshot \
+      --region "$REGION" \
+      --instance-snapshot-name "$name" \
+      --query 'instanceSnapshot.state' \
+      --output text 2>/dev/null || echo "missing")
+    if [ "$state" = "$want" ]; then
+      echo "Instance snapshot ${name} is ${want}"
+      return 0
+    fi
+    if [ "$state" = "error" ]; then
+      echo "ERROR: instance snapshot ${name} entered error state" >&2
+      exit 1
+    fi
+    sleep 15
+    attempt=$((attempt + 1))
+  done
+  echo "TIMEOUT: instance snapshot ${name} did not reach state ${want} (last: ${state})" >&2
+  exit 1
+}
+
+check_website_loading() {
+  ensure_domains
+  local d host code fail=0
+  echo "Checking website HTTP response…"
+  while IFS= read -r d; do
+    [[ -z "$d" ]] && continue
+    for host in "$d" "www.${d}"; do
+      code=$(curl -sS -o /dev/null -w '%{http_code}' -L --max-time 30 "https://${host}/" || true)
+      [[ -z "$code" ]] && code="000"
+      echo "  https://${host}/ → HTTP ${code}"
+      case "$code" in
+        2*) ;;
+        *) fail=1 ;;
+      esac
+    done
+  done < <(load_domains)
+  if [[ "$fail" -ne 0 ]]; then
+    echo "ERROR: website is not loading correctly (expected HTTP 2xx). Fix the site, then re-run snapshot." >&2
+    exit 1
+  fi
+}
+
+do_snapshot() {
+  local snap="$INSTANCE_SNAPSHOT_NAME"
+  local existing=""
+  local instance_state=""
+
+  check_website_loading
+  "$AWS_CLI_AUTH/aws-login.sh" "$PROFILE"
+
+  instance_state=$(aws lightsail get-instance \
+    --region "$REGION" \
+    --instance-name "$NEW_INSTANCE_NAME" \
+    --query 'instance.state.name' \
+    --output text 2>/dev/null || echo "missing")
+  if [[ "$instance_state" != "running" ]]; then
+    echo "ERROR: ${NEW_INSTANCE_NAME} is ${instance_state}, expected running" >&2
+    exit 1
+  fi
+
+  existing=$(aws lightsail get-instance-snapshots \
+    --region "$REGION" \
+    --query "instanceSnapshots[?fromInstanceName=='${NEW_INSTANCE_NAME}' && !starts_with(name, 'AutomaticSnapshot-')].name" \
+    --output text 2>/dev/null || true)
+
+  if [[ -n "$existing" && "$existing" != "None" ]]; then
+    echo "New instance ${NEW_INSTANCE_NAME} already has a snapshot (${existing}) — keeping this one only"
+    for snap_name in $existing; do
+      wait_instance_snapshot_state "$snap_name" "available"
+    done
+    return 0
+  fi
+
+  echo "Creating one instance snapshot ${snap} from ${NEW_INSTANCE_NAME}…"
+  aws lightsail create-instance-snapshot \
+    --region "$REGION" \
+    --instance-name "$NEW_INSTANCE_NAME" \
+    --instance-snapshot-name "$snap"
+  wait_instance_snapshot_state "$snap" "available"
+  echo "Snapshot done: ${snap} (from ${NEW_INSTANCE_NAME})"
+}
+
 case "$PHASE" in
   discover-domains) do_discover_domains ;;
   attach) do_attach ;;
@@ -310,10 +448,13 @@ case "$PHASE" in
   plugins) do_plugins ;;
   detach) do_detach ;;
   dns)    do_dns ;;
+  verify-domains) do_verify_domains ;;
   ssl)      do_ssl ;;
   fail2ban) do_fail2ban ;;
   ssh-config) do_ssh_config_section ;;
   cleanup)  do_cleanup ;;
+  backup)   do_backup ;;
+  snapshot) do_snapshot ;;
   all)
     do_discover_domains
     do_attach
@@ -326,9 +467,17 @@ case "$PHASE" in
     do_fail2ban
     do_ssh_config_section
     do_cleanup
+    do_backup
+    echo "All migration tasks finished. Confirm the site loads in a browser:"
+    while IFS= read -r d; do
+      [[ -z "$d" ]] && continue
+      echo "  https://${d}/"
+    done < <(load_domains)
+    read -r -p "When the website is loading correctly, press Enter to create one Lightsail snapshot of ${NEW_INSTANCE_NAME}…"
+    do_snapshot
     ;;
   *)
-    echo "Unknown phase: $PHASE (use discover-domains|attach|nginx|plugins|detach|dns|ssl|fail2ban|ssh-config|cleanup|all)" >&2
+    echo "Unknown phase: $PHASE (use discover-domains|attach|nginx|plugins|detach|dns|verify-domains|ssl|fail2ban|ssh-config|cleanup|backup|snapshot|all)" >&2
     exit 1
     ;;
 esac
