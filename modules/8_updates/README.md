@@ -101,6 +101,8 @@ Root cron job that:
 
 Scripts deploy to `/usr/local/bin/`. Logs: `/var/log/os-upgrade.log`.
 
+Also deploys [`files/journald.conf`](files/journald.conf) to `/etc/systemd/journald.conf` (`SystemMaxUse=200M`, `MaxRetentionSec=7day`) and runs [`files/vacuum-journal.sh`](files/vacuum-journal.sh) to remove old journal entries — prevents `/var/log/journal` from growing unbounded on small disks (common on Lightsail after months of AWS `ec2net` route refresh logging).
+
 Non-AL2023 hosts are skipped automatically.
 
 ### Playbook — OS upgrade
@@ -133,6 +135,38 @@ Combined entry point (both stacks): [`playbook.yml`](playbook.yml) — use `--ta
 | `os_upgrade_releasever` | `auto` | Passed to `dnf upgrade --releasever` (`auto` = latest AL2023 release offered by dnf) |
 | `os_upgrade_install_dir` | `/usr/local/bin` | Script install path |
 | `os_upgrade_log_file` | `/var/log/os-upgrade.log` | Upgrade log file |
+| `journald_limit_enable` | `true` | Deploy `/etc/systemd/journald.conf` size limits |
+| `journald_vacuum_on_deploy` | `true` | Run `journalctl --vacuum-size` after journald restart |
+| `journald_system_max_use` | `200M` | Documented cap (matches `SystemMaxUse` in `files/journald.conf`) |
+| `journald_vacuum_size` | `""` | Optional `--size` for `vacuum-journal.sh` (empty = read `journald.conf`) |
+| `journald_vacuum_time` | `""` | Optional `--time` for `vacuum-journal.sh` (e.g. `7d`; overrides size) |
+| `os_upgrade_clean_dnf_cache` | `true` | Run `dnf clean all` during playbook deploy (frees `/var/cache/dnf`) |
+
+`os-upgrade-with-webstack-restart.sh` also runs `dnf clean all` on **every cron execution** (every 3 days by default), including when no package updates are available. Disable on the host with `OS_UPGRADE_CLEAN_DNF_CACHE=0` in the cron environment.
+
+### Remove old journal logs
+
+On the server (after deploy):
+
+```bash
+sudo /usr/local/bin/vacuum-journal.sh
+sudo /usr/local/bin/vacuum-journal.sh --size 200M
+sudo /usr/local/bin/vacuum-journal.sh --time 7d
+```
+
+Fleet wrapper:
+
+```bash
+INVENTORY=inventory/al2023-fail2ban.ini SSH_CONFIG=ssh-config ./bash/vacuum-journal.sh lifeimaging
+./bash/vacuum-journal.sh --time 7d camden cccls
+```
+
+Ansible tag only:
+
+```bash
+ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-os.yml \
+  --limit lifeimaging --tags journald_vacuum
+```
 
 ### OS upgrade cron schedule
 
@@ -150,8 +184,11 @@ Remove: `sudo /usr/local/bin/install-os-upgrade-cron.sh --remove`
 
 - Expect brief site downtime while nginx/php-fpm are stopped **only when updates are available**. If `dnf check-update` is clean, services stay up.
 - After a successful upgrade the host **reboots automatically** (`OS_UPGRADE_REBOOT=1` by default) so kernel updates apply. Set `OS_UPGRADE_REBOOT=0` to skip.
+- **DNF cache** is cleared each cron run (`dnf clean all`, `OS_UPGRADE_CLEAN_DNF_CACHE=1` by default) to keep `/var/cache/dnf` from growing on small disks.
 - `php-fpm` and `nginx` are **masked** during the upgrade so `fpm.sh` cannot restart PHP-FPM mid-`dnf`. Services are unmasked before reboot.
 - Kernel updates apply after the automatic post-upgrade reboot.
 - Existing root cron jobs (e.g. `fpm.sh`, `cleanlogs.sh`) are preserved; the OS upgrade block is appended with its own `CRON_TZ`.
+- On ~512MB AL2023 hosts, **zram swap alone is not enough** for `dnf check-update` (OOM exit 137). [`playbook-os.yml`](playbook-os.yml) ensures a 1G `/swapfile` when the file is missing (even if zram is active).
+- On fail2ban hosts, do **not** `systemctl stop firewalld` after reboot — fail2ban is `PartOf=firewalld` on AL2023 and will stop too. [`fix-firewalld-after-boot.sh`](files/fix-firewalld-after-boot.sh) masks/disables firewalld and ensures fail2ban is running.
 
 Manual one-host deploy (without Ansible) is also available via [`bash/install-os-upgrade-cron.sh`](../../bash/install-os-upgrade-cron.sh).

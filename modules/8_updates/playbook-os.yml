@@ -22,6 +22,12 @@
     firewalld_boot_fix_remove_cron: false
     firewalld_boot_fix_delay: 90
     firewalld_boot_fix_log_file: /var/log/firewalld-boot-fix.log
+    journald_limit_enable: true
+    journald_vacuum_on_deploy: true
+    journald_system_max_use: 200M
+    journald_vacuum_size: ""
+    journald_vacuum_time: ""
+    os_upgrade_clean_dnf_cache: true
   tags:
     - updates
     - os_upgrade
@@ -39,16 +45,31 @@
       register: os_upgrade_dnf_check
       changed_when: false
 
-    - name: Check active swap
-      ansible.builtin.command: swapon --show
-      register: os_upgrade_swap_status
-      changed_when: false
+    - name: Deploy systemd journal size limits
+      ansible.builtin.copy:
+        src: files/journald.conf
+        dest: /etc/systemd/journald.conf
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+      when: journald_limit_enable | bool
+      register: journald_conf_deploy
+      notify: Restart systemd-journald
+      tags:
+        - os_upgrade
+        - journald
 
-    - name: Create 1G swap file when no swap active
+    - name: Check for /swapfile (zram alone is too small for dnf on ~512MB hosts)
+      ansible.builtin.stat:
+        path: /swapfile
+      register: os_upgrade_swapfile
+
+    - name: Create 1G swap file when /swapfile is missing
       ansible.builtin.command: fallocate -l 1G /swapfile
       args:
         creates: /swapfile
-      when: os_upgrade_swap_status.stdout | length == 0
+      when: not os_upgrade_swapfile.stat.exists
 
     - name: Set permissions on swap file
       ansible.builtin.file:
@@ -56,26 +77,40 @@
         mode: "0600"
         owner: root
         group: root
-      when: os_upgrade_swap_status.stdout | length == 0
+      when: not os_upgrade_swapfile.stat.exists
 
     - name: Set up swap area
       ansible.builtin.command: mkswap /swapfile
-      when: os_upgrade_swap_status.stdout | length == 0
+      when: not os_upgrade_swapfile.stat.exists
 
     - name: Enable swap file
       ansible.builtin.command: swapon /swapfile
-      when: os_upgrade_swap_status.stdout | length == 0
+      when: not os_upgrade_swapfile.stat.exists
       register: os_upgrade_swapon_result
       failed_when: >-
         os_upgrade_swapon_result.rc != 0
         and 'Device or resource busy' not in (os_upgrade_swapon_result.stderr | default(''))
+
+    - name: Re-check swap file (may have been created above)
+      ansible.builtin.stat:
+        path: /swapfile
+      register: os_upgrade_swapfile_final
 
     - name: Persist swap file in /etc/fstab
       ansible.builtin.lineinfile:
         path: /etc/fstab
         regexp: '^/swapfile(\s|$)'
         line: '/swapfile none swap sw 0 0'
-      when: os_upgrade_swap_status.stdout | length == 0
+      when: os_upgrade_swapfile_final.stat.exists
+
+    - name: Ensure swap file is active
+      ansible.builtin.command: swapon /swapfile
+      register: os_upgrade_swapon_ensure
+      changed_when: os_upgrade_swapon_ensure.rc == 0
+      failed_when: >-
+        os_upgrade_swapon_ensure.rc != 0
+        and 'Device or resource busy' not in (os_upgrade_swapon_ensure.stderr | default(''))
+      when: os_upgrade_swapfile_final.stat.exists
 
     - name: Deploy OS upgrade shell scripts
       ansible.builtin.copy:
@@ -87,6 +122,10 @@
         - install-os-upgrade-cron.sh
         - fix-firewalld-after-boot.sh
         - install-firewalld-after-boot-cron.sh
+        - vacuum-journal.sh
+      tags:
+        - os_upgrade
+        - journald_vacuum
 
     - name: Strip CRLF from OS upgrade scripts
       ansible.builtin.command:
@@ -96,7 +135,11 @@
         - install-os-upgrade-cron.sh
         - fix-firewalld-after-boot.sh
         - install-firewalld-after-boot-cron.sh
+        - vacuum-journal.sh
       changed_when: false
+      tags:
+        - os_upgrade
+        - journald_vacuum
 
     - name: Ensure OS upgrade log file
       ansible.builtin.file:
@@ -149,6 +192,32 @@
     - name: Fix firewalld after OS upgrades
       ansible.builtin.import_tasks: ../5_security/snippets/firewalld-http-https.yml
 
+    - name: Clear DNF package cache
+      ansible.builtin.command:
+        cmd: dnf clean all
+      when: os_upgrade_clean_dnf_cache | bool
+      changed_when: true
+      tags:
+        - os_upgrade
+
+    - name: Remove old systemd journal entries
+      ansible.builtin.command:
+        argv: "{{ journald_vacuum_cmd }}"
+      vars:
+        journald_vacuum_cmd: >-
+          {{
+            [os_upgrade_install_dir ~ '/vacuum-journal.sh']
+            + ([ '--time', journald_vacuum_time ] if (journald_vacuum_time | default('') | length > 0) else [])
+            + ([ '--size', journald_vacuum_size ] if (journald_vacuum_time | default('') | length == 0 and journald_vacuum_size | default('') | length > 0) else [])
+          }}
+      when:
+        - journald_vacuum_on_deploy | bool
+        - not (journald_conf_deploy is defined and journald_conf_deploy is changed)
+      changed_when: true
+      tags:
+        - os_upgrade
+        - journald_vacuum
+
     - name: OS upgrade deployment summary
       ansible.builtin.debug:
         msg:
@@ -157,7 +226,31 @@
           - "Releasever: {{ os_upgrade_releasever }} (auto = latest AL2023 release at run time)"
           - "Cron enabled: {{ os_upgrade_enable_cron | bool }}"
           - "Schedule: {{ os_upgrade_cron_schedule }} ({{ os_upgrade_cron_tz }})"
-          - "Flow: stop nginx + php-fpm -> dnf upgrade -> reboot -> @reboot firewalld fix"
-          - "Swap: ensured 1G /swapfile when swapon --show is empty (persisted in fstab)"
+          - "Flow: stop nginx + php-fpm -> dnf upgrade -> dnf clean all -> reboot -> @reboot firewalld fix"
+          - "DNF cache: dnf clean all on playbook deploy + each cron run (every 3 days)"
+          - "Swap: ensured 1G /swapfile when missing (zram-only hosts need this for dnf; persisted in fstab)"
           - "Firewalld boot cron: {{ firewalld_boot_fix_enable_cron | bool }} (delay {{ firewalld_boot_fix_delay }}s)"
           - "Firewalld boot log: {{ firewalld_boot_fix_log_file }}"
+          - "Journal limits: {{ journald_limit_enable | bool }} (SystemMaxUse={{ journald_system_max_use }}, vacuum on deploy={{ journald_vacuum_on_deploy | bool }})"
+          - "DNF cache clean on deploy: {{ os_upgrade_clean_dnf_cache | bool }}"
+
+  handlers:
+    - name: Restart systemd-journald
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
+        daemon_reload: true
+
+    - name: Vacuum systemd journal
+      ansible.builtin.command:
+        argv: "{{ journald_vacuum_cmd }}"
+      vars:
+        journald_vacuum_cmd: >-
+          {{
+            [os_upgrade_install_dir ~ '/vacuum-journal.sh']
+            + ([ '--time', journald_vacuum_time ] if (journald_vacuum_time | default('') | length > 0) else [])
+            + ([ '--size', journald_vacuum_size ] if (journald_vacuum_time | default('') | length == 0 and journald_vacuum_size | default('') | length > 0) else [])
+          }}
+      when: journald_vacuum_on_deploy | bool
+      listen: Restart systemd-journald
+      changed_when: true

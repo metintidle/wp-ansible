@@ -7,6 +7,7 @@
 #   RELEASEVER=auto          # auto-detect latest AL2023 release (default)
 #   RELEASEVER=2023.12.x     # pin a specific releasever
 #   OS_UPGRADE_REBOOT=1      # reboot after a successful upgrade (default)
+#   OS_UPGRADE_CLEAN_DNF_CACHE=1  # dnf clean all each cron run (default)
 
 set -euo pipefail
 
@@ -16,6 +17,7 @@ LOG_FILE="${LOG_FILE:-/var/log/os-upgrade.log}"
 LOCK_FILE="/var/run/os-upgrade.lock"
 RELEASEVER="${RELEASEVER:-auto}"
 OS_UPGRADE_REBOOT="${OS_UPGRADE_REBOOT:-1}"
+OS_UPGRADE_CLEAN_DNF_CACHE="${OS_UPGRADE_CLEAN_DNF_CACHE:-1}"
 MARKER="os-upgrade-with-webstack-restart.sh"
 
 mkdir -p "$(dirname "$LOG_FILE")"
@@ -82,10 +84,38 @@ resolve_releasever() {
   return 1
 }
 
+drop_vm_caches() {
+  sync
+  echo 3 > /proc/sys/vm/drop_caches
+}
+
+clean_dnf_cache() {
+  if [[ "$OS_UPGRADE_CLEAN_DNF_CACHE" != "1" ]]; then
+    echo "DNF cache clean disabled (OS_UPGRADE_CLEAN_DNF_CACHE=${OS_UPGRADE_CLEAN_DNF_CACHE})"
+    return 0
+  fi
+  echo "Clearing DNF package cache (dnf clean all)..."
+  dnf clean all || echo "WARN: dnf clean all failed"
+}
+
+pause_web_for_low_ram() {
+  local mem_kb
+  mem_kb="$(awk '/MemTotal:/ {print $2}' /proc/meminfo)"
+  if [[ "${mem_kb:-0}" -lt 900000 ]]; then
+    echo "Low RAM (${mem_kb}KB); pausing web stack before dnf check-update..."
+    mask_and_stop_web_stack
+    drop_vm_caches
+    return 0
+  fi
+  drop_vm_caches
+  return 1
+}
+
 trap ensure_web_stack_running EXIT
 
 TARGET_RELEASEVER="$(resolve_releasever)"
 echo "Checking for package updates (releasever=${TARGET_RELEASEVER})..."
+pause_web_for_low_ram || true
 set +e
 dnf check-update --releasever="${TARGET_RELEASEVER}" --refresh
 check_rc=$?
@@ -93,6 +123,7 @@ set -e
 # dnf: 0 = no updates, 100 = updates available, other = error
 if [[ "$check_rc" -eq 0 ]]; then
   echo "No package updates; leaving nginx/php-fpm running."
+  clean_dnf_cache
   trap - EXIT
   echo "========== ${MARKER} finished (no-op): $(date -Is) =========="
   exit 0
@@ -107,6 +138,7 @@ mask_and_stop_web_stack
 
 echo "Running: dnf upgrade --releasever=${TARGET_RELEASEVER} -y"
 dnf upgrade --releasever="${TARGET_RELEASEVER}" -y
+clean_dnf_cache
 
 ensure_web_stack_running
 trap - EXIT

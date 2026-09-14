@@ -25,10 +25,21 @@ if [[ "$BOOT_DELAY" =~ ^[0-9]+$ ]] && [[ "$BOOT_DELAY" -gt 0 ]]; then
   sleep "$BOOT_DELAY"
 fi
 
-if systemctl is-active --quiet fail2ban; then
-  echo "fail2ban active; stopping and disabling firewalld..."
-  systemctl stop firewalld >/dev/null 2>&1 || true
+if systemctl is-enabled --quiet fail2ban 2>/dev/null; then
+  echo "fail2ban host; disabling firewalld (iptables bans)..."
+  # fail2ban is PartOf=firewalld on AL2023 — stopping firewalld also stops fail2ban.
   systemctl disable firewalld >/dev/null 2>&1 || true
+  systemctl mask firewalld >/dev/null 2>&1 || true
+  if systemctl is-active --quiet firewalld 2>/dev/null; then
+    echo "Stopping active firewalld (will stop fail2ban via PartOf)..."
+    systemctl stop firewalld >/dev/null 2>&1 || true
+  fi
+  if ! systemctl is-active --quiet fail2ban; then
+    echo "Starting fail2ban after firewalld disable..."
+    systemctl unmask fail2ban >/dev/null 2>&1 || true
+    systemctl enable fail2ban >/dev/null 2>&1 || true
+    systemctl start fail2ban || echo "WARN: fail2ban failed to start"
+  fi
   echo "========== ${MARKER} finished (fail2ban/iptables): $(date -Is) =========="
   exit 0
 fi
