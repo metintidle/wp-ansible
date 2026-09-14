@@ -1,7 +1,10 @@
 ---
-# Install BBQ Firewall + SQLite Object Cache, enable auto-updates, lock BBQ.
+# Install BBQ Firewall + SQLite Object Cache, enable auto-updates, lock BBQ
+# (hidden in wp-admin except for user itt-admin).
 # Safe on existing sites (idempotent). Does not run wp core install.
 #
+# Imported by modules/2_wordpress/playbook.yml (new provisions).
+# Standalone:
 #   ansible-playbook -i 'host,' modules/2_wordpress/playbook-core-plugins.yml \
 #     -e ansible_ssh_private_key_file=/path/to.pem
 #   ./aws-cli/migrate/migrate-al2-al2023.sh <profile> <ssh-host> plugins

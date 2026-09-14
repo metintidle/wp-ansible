@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Protect BBQ Firewall
- * Description: Locks BBQ Firewall (block-bad-queries): no deactivate/delete in wp-admin or WP-CLI, reinstalls if missing, forces auto-updates for BBQ and SQLite Object Cache.
+ * Description: Locks BBQ Firewall (block-bad-queries): hide from Plugins for everyone except itt-admin, no deactivate/delete, reinstalls if missing, forces auto-updates for BBQ and SQLite Object Cache.
  */
 
 if (!defined('ABSPATH')) {
@@ -11,10 +11,25 @@ if (!defined('ABSPATH')) {
 const ITT_BBQ_SLUG = 'block-bad-queries';
 const ITT_BBQ_MAIN = 'block-bad-queries/block-bad-queries.php';
 const ITT_SQLITE_CACHE_SLUG = 'sqlite-object-cache';
+const ITT_BBQ_VISIBLE_USER = 'itt-admin';
 
 function itt_bbq_is_protected_plugin($plugin_file)
 {
     return is_string($plugin_file) && strpos($plugin_file, ITT_BBQ_SLUG . '/') === 0;
+}
+
+function itt_bbq_viewer_is_itt_admin()
+{
+    if (defined('WP_CLI') && WP_CLI) {
+        return true;
+    }
+    if (!function_exists('wp_get_current_user')) {
+        return false;
+    }
+    $user = wp_get_current_user();
+    return $user instanceof WP_User
+        && $user->exists()
+        && strcasecmp($user->user_login, ITT_BBQ_VISIBLE_USER) === 0;
 }
 
 function itt_bbq_load_plugin_admin()
@@ -22,6 +37,43 @@ function itt_bbq_load_plugin_admin()
     if (!function_exists('activate_plugin')) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
     }
+}
+
+add_filter('all_plugins', 'itt_bbq_hide_from_plugins_screen');
+function itt_bbq_hide_from_plugins_screen($plugins)
+{
+    if (itt_bbq_viewer_is_itt_admin()) {
+        return $plugins;
+    }
+    unset($plugins[ITT_BBQ_MAIN]);
+    return $plugins;
+}
+
+add_action('load-plugins.php', 'itt_bbq_hide_updates_on_plugin_screens');
+add_action('load-update-core.php', 'itt_bbq_hide_updates_on_plugin_screens');
+function itt_bbq_hide_updates_on_plugin_screens()
+{
+    add_filter('site_transient_update_plugins', 'itt_bbq_hide_from_update_screen');
+}
+
+function itt_bbq_hide_from_update_screen($value)
+{
+    if (itt_bbq_viewer_is_itt_admin() || !is_object($value)) {
+        return $value;
+    }
+    unset($value->response[ITT_BBQ_MAIN], $value->no_update[ITT_BBQ_MAIN]);
+    return $value;
+}
+
+add_action('admin_menu', 'itt_bbq_hide_admin_menus', PHP_INT_MAX);
+function itt_bbq_hide_admin_menus()
+{
+    if (itt_bbq_viewer_is_itt_admin()) {
+        return;
+    }
+    remove_menu_page('bbq');
+    remove_submenu_page('options-general.php', 'bbq');
+    remove_submenu_page('options-general.php', 'block-bad-queries');
 }
 
 add_filter('plugin_action_links', 'itt_bbq_hide_plugin_actions', 10, 2);

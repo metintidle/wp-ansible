@@ -1,7 +1,8 @@
 # Ensure BBQ Firewall + SQLite Object Cache are installed, auto-update, and BBQ cannot be removed.
+# BBQ is hidden from wp-admin Plugins for every user except itt-admin.
 # Expects: wp (WP-CLI path), docroot. Run as ec2-user (no --allow-root).
 #
-# Used by playbook.yml (new provisions) and playbook-core-plugins.yml (AL2→AL2023 migration).
+# Used by playbook-core-plugins.yml (new provisions via playbook.yml, AL2→AL2023 migration).
 
 - name: Check whether BBQ Firewall is installed
   command: "{{ wp }} plugin is-installed block-bad-queries"
@@ -49,6 +50,10 @@
   register: plugin_auto_updates
   changed_when: >-
     'already enabled' not in
+    ((plugin_auto_updates.stdout | default('')) ~ (plugin_auto_updates.stderr | default(''))) | lower
+  failed_when: >-
+    plugin_auto_updates.rc != 0
+    and 'already enabled' not in
     ((plugin_auto_updates.stdout | default('')) ~ (plugin_auto_updates.stderr | default(''))) | lower
 
 - name: Ensure mu-plugins directory exists
