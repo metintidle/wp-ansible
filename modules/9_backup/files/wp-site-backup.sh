@@ -23,11 +23,14 @@ DB_MAX_AGE_DAYS="${WP_SITE_BACKUP_DB_MAX_AGE_DAYS:-7}"
 FILES_MAX_AGE_DAYS="${WP_SITE_BACKUP_FILES_MAX_AGE_DAYS:-14}"
 
 OTHER_LOCK_WAIT_SECS="${WP_SITE_BACKUP_OTHER_LOCK_WAIT:-300}"
+web_stack_paused=0
 
 [[ -f "${WP_SITE_BACKUP_ENV_FILE:-/etc/wp-site-backup.env}" ]] \
   && set -a && source "${WP_SITE_BACKUP_ENV_FILE:-/etc/wp-site-backup.env}" && set +a
 
 SKIP_HOSTS="${WP_SITE_BACKUP_SKIP_HOSTS:-capitalformwork lwhydraulics figtreesports}"
+# Low-RAM hosts (~20MB free): stop nginx/php-fpm and drop page cache before dump/tar.
+PAUSE_WEB="${WP_SITE_BACKUP_PAUSE_WEB:-1}"
 
 log() {
   local msg="[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
@@ -84,6 +87,34 @@ host_skipped() {
 
 sydney_weekday() {
   TZ=Australia/Sydney date +%w
+}
+
+mem_available_kb() {
+  awk '/MemAvailable:/ {print $2}' /proc/meminfo
+}
+
+pause_web_stack() {
+  [[ "$PAUSE_WEB" == "1" ]] || return 0
+  log "Pausing nginx/php-fpm (MemAvailable=$(mem_available_kb)kB); dropping page cache"
+  # Mask so fpm.sh cannot start php-fpm mid-backup.
+  if ! systemctl mask --now nginx php-fpm >/dev/null 2>&1; then
+    systemctl stop nginx 2>/dev/null || true
+    systemctl stop php-fpm 2>/dev/null || true
+  fi
+  web_stack_paused=1
+  sync
+  echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+  log "Web stack paused (MemAvailable=$(mem_available_kb)kB)"
+}
+
+resume_web_stack() {
+  [[ "$web_stack_paused" -eq 1 ]] || return 0
+  log "Starting php-fpm and nginx"
+  systemctl unmask php-fpm nginx >/dev/null 2>&1 || true
+  systemctl start php-fpm || log "WARN: php-fpm failed to start"
+  systemctl start nginx || log "WARN: nginx failed to start"
+  web_stack_paused=0
+  log "Web stack resumed (MemAvailable=$(mem_available_kb)kB)"
 }
 
 wait_for_other_lock() {
@@ -281,6 +312,9 @@ run_backup() {
     exit 0
   fi
 
+  trap resume_web_stack EXIT
+  pause_web_stack
+
   local RUN=(nice -n 19)
   command -v ionice >/dev/null && RUN+=(ionice -c2 -n7)
 
@@ -366,6 +400,8 @@ run_backup() {
     prune_retention '*_files_*.tar.gz' "$FILES_RETENTION"
   fi
 
+  resume_web_stack
+  trap - EXIT
   log "Done"
 }
 

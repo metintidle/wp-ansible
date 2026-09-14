@@ -4,7 +4,7 @@
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml --limit station
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml \
-#     -e wp_site_backup_remove_legacy_plugins=true
+#     -e wp_site_backup_remove_legacy_plugins=false
 #   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml \
 #     -e wp_site_backup_remove_cron=true
 #
@@ -21,7 +21,8 @@
     wp_site_backup_remove_cron: false
     wp_site_backup_cron_tz: Australia/Sydney
     wp_site_backup_cron_schedule: ""
-    wp_site_backup_remove_legacy_plugins: false
+    wp_site_backup_remove_legacy_plugins: true
+    wp_site_backup_pause_web: "1"
     wp_site_backup_skip_hosts:
       - capitalformwork
       - lwhydraulics
@@ -125,48 +126,58 @@
         content: |
           WP_ROOT={{ wp_site_backup_wp_root }}
           WP_SITE_BACKUP_DIR={{ wp_site_backup_dir }}
-          WP_SITE_BACKUP_SKIP_HOSTS={{ wp_site_backup_skip_hosts | join(' ') }}
+          WP_SITE_BACKUP_SKIP_HOSTS="{{ wp_site_backup_skip_hosts | join(' ') }}"
+          WP_SITE_BACKUP_PAUSE_WEB={{ wp_site_backup_pause_web | default('1') }}
 
-    - name: Remove legacy backup plugin directories
-      ansible.builtin.file:
-        path: "{{ wp_site_backup_wp_root }}/wp-content/{{ item }}"
-        state: absent
-      loop:
-        - updraft
-        - wpvividbackups
-      when: wp_site_backup_remove_legacy_plugins | bool
-
-    - name: Deactivate legacy backup plugins
+    - name: Ensure MySQL client for wp db export
       ansible.builtin.command:
-        cmd: "{{ wp_cli_path }} plugin deactivate {{ item }} --path={{ wp_site_backup_wp_root }}"
-      become: false
-      become_user: ec2-user
-      register: wp_site_backup_deactivate
-      failed_when: false
-      changed_when: wp_site_backup_deactivate.rc == 0
-      loop:
-        - updraftplus
-        - wpvivid-backuprestore
-      when: wp_site_backup_remove_legacy_plugins | bool
+        cmd: dnf install -y mariadb105
+      register: wp_site_backup_mysql_client
+      changed_when: >-
+        'Installed' in (wp_site_backup_mysql_client.stdout | default(''))
+        or 'Installing' in (wp_site_backup_mysql_client.stdout | default(''))
+      failed_when: wp_site_backup_mysql_client.rc != 0
 
-    - name: Uninstall legacy backup plugins
-      ansible.builtin.command:
-        cmd: "{{ wp_cli_path }} plugin uninstall {{ item }} --deactivate --path={{ wp_site_backup_wp_root }}"
-      become: false
-      become_user: ec2-user
-      register: wp_site_backup_uninstall
-      failed_when: false
-      changed_when: wp_site_backup_uninstall.rc == 0
-      loop:
-        - updraftplus
-        - wpvivid-backuprestore
-      when: wp_site_backup_remove_legacy_plugins | bool
+    # - name: Remove legacy backup plugin directories
+    #   ansible.builtin.file:
+    #     path: "{{ wp_site_backup_wp_root }}/wp-content/{{ item }}"
+    #     state: absent
+    #   loop:
+    #     - updraft
+    #     - wpvividbackups
+    #   when: wp_site_backup_remove_legacy_plugins | bool
 
-    - name: Remove wp-site-backup cron
-      ansible.builtin.command:
-        cmd: "{{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh --remove"
-      when: wp_site_backup_remove_cron | bool
-      changed_when: true
+    # - name: Deactivate legacy backup plugins
+    #   ansible.builtin.command:
+    #     cmd: "{{ wp_cli_path }} plugin deactivate {{ item }} --path={{ wp_site_backup_wp_root }}"
+    #   become: false
+    #   become_user: ec2-user
+    #   register: wp_site_backup_deactivate
+    #   failed_when: false
+    #   changed_when: wp_site_backup_deactivate.rc == 0
+    #   loop:
+    #     - updraftplus
+    #     - wpvivid-backuprestore
+    #   when: wp_site_backup_remove_legacy_plugins | bool
+
+    # - name: Uninstall legacy backup plugins
+    #   ansible.builtin.command:
+    #     cmd: "{{ wp_cli_path }} plugin uninstall {{ item }} --deactivate --path={{ wp_site_backup_wp_root }}"
+    #   become: false
+    #   become_user: ec2-user
+    #   register: wp_site_backup_uninstall
+    #   failed_when: false
+    #   changed_when: wp_site_backup_uninstall.rc == 0
+    #   loop:
+    #     - updraftplus
+    #     - wpvivid-backuprestore
+    #   when: wp_site_backup_remove_legacy_plugins | bool
+
+    # - name: Remove wp-site-backup cron
+    #   ansible.builtin.command:
+    #     cmd: "{{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh --remove"
+    #   when: wp_site_backup_remove_cron | bool
+    #   changed_when: true
 
     - name: Install wp-site-backup cron with custom schedule
       ansible.builtin.command:

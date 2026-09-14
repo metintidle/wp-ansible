@@ -25,6 +25,8 @@ Root cron, `CRON_TZ=Australia/Sydney`, base **01:00** daily plus per-host stagge
 
 Quiet nights log `nothing due` and exit 0.
 
+When work is due, the script **masks and stops nginx and php-fpm**, drops the kernel page cache (`drop_caches`), then restores both services (even if the dump fails). That keeps ~512MB hosts from OOMing during gzip/tar. `fpm.sh` cannot restart PHP-FPM while the units are masked. Skip the pause with `WP_SITE_BACKUP_PAUSE_WEB=0`. The site is briefly down during the backup.
+
 ## Coordination with module 8
 
 [Module 8](../8_updates/README.md) runs WordPress auto-updates as `ec2-user` at 03:00 Sunday.
@@ -36,18 +38,19 @@ Quiet nights log `nothing due` and exit 0.
 
 ## Deploy
 
-[`playbook.yml`](playbook.yml)
+[`playbook.yml`](playbook.yml) — also imported automatically at the end of [`modules/2_wordpress/playbook.yml`](../2_wordpress/playbook.yml) on new provisions (replaces UpdraftPlus). Disable with `-e install_wp_site_backup=false`.
 
 ```bash
-# Deploy script + cron (staggered 01:00 Sydney)
+# Deploy script + cron (staggered 01:00 Sydney). Also uninstalls UpdraftPlus/WPvivid
+# and deletes wp-content/updraft + wpvividbackups.
 ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml
 
 # One host
 ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml --limit station
 
-# Remove legacy backup plugins and delete wp-content/updraft + wpvividbackups
+# Keep UpdraftPlus/WPvivid (skip plugin and archive removal)
 ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml \
-  -e wp_site_backup_remove_legacy_plugins=true --limit station
+  -e wp_site_backup_remove_legacy_plugins=false --limit station
 
 # Scripts only (no cron)
 ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml \
@@ -64,7 +67,7 @@ Fleet wrapper: [`bash/install-wp-site-backup.sh`](../../bash/install-wp-site-bac
 INVENTORY=inventory/ohara-hotels.ini SSH_CONFIG=~/.ssh/ohara/config \
   ./bash/install-wp-site-backup.sh station
 
-INVENTORY=inventory/ohara-hotels.ini ./bash/install-wp-site-backup.sh --remove-plugins station
+INVENTORY=inventory/ohara-hotels.ini ./bash/install-wp-site-backup.sh --keep-plugins station
 ```
 
 ## Variables
@@ -75,9 +78,10 @@ INVENTORY=inventory/ohara-hotels.ini ./bash/install-wp-site-backup.sh --remove-p
 | `wp_site_backup_remove_cron` | `false` | Uninstall cron |
 | `wp_site_backup_cron_schedule` | `""` | Custom cron; empty = 01:00 + hostname stagger |
 | `wp_site_backup_cron_tz` | `Australia/Sydney` | `CRON_TZ` |
-| `wp_site_backup_remove_legacy_plugins` | `false` | `rm -rf` updraft/wpvividbackups dirs, uninstall plugins |
+| `wp_site_backup_remove_legacy_plugins` | `true` | Uninstall UpdraftPlus/WPvivid and `rm -rf` their archive dirs |
 | `wp_site_backup_dir` | `/var/backups/wordpress` | Backup destination |
 | `wp_site_backup_skip_hosts` | `capitalformwork`, `lwhydraulics`, `figtreesports` | Ansible `end_host` |
+| `wp_site_backup_pause_web` | `1` | Stop nginx/php-fpm and drop page cache before dump/tar |
 
 ## Manual run
 
@@ -109,10 +113,9 @@ Before extracting, remove immutability: `sudo chattr -i /var/backups/wordpress/<
 
 Pick one Ohara WordPress host (not `capitalformwork`, `lwhydraulics`, or `figtreesports`).
 
-1. Deploy backup cron and optionally remove legacy plugins:
+1. Deploy backup cron (removes UpdraftPlus/WPvivid and their archive dirs by default):
    ```bash
-   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml \
-     -e wp_site_backup_remove_legacy_plugins=true --limit station
+   ansible-playbook -i inventory/ohara-hotels.ini modules/9_backup/playbook.yml --limit station
    ```
 2. Confirm plugins gone:
    ```bash
