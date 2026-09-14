@@ -13,7 +13,7 @@ timestamp() {
 
 # Legitimate heavy jobs. Restarting PHP-FPM while one of these is running drops
 # in-flight requests without freeing the memory the job is actually holding.
-MAINTENANCE_PATTERN='wp-cli|/usr/local/bin/wp |certbot|mysqldump|ansible|backupdb\.sh|(dnf|yum) (install|update|upgrade)'
+MAINTENANCE_PATTERN='wp-cli|/usr/local/bin/wp |certbot|mysqldump|ansible|backupdb\.sh|wp-site-backup\.sh|(dnf|yum) (install|update|upgrade)'
 
 maintenance_running() {
   pgrep -f "$MAINTENANCE_PATTERN" >/dev/null 2>&1
