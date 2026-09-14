@@ -2,7 +2,7 @@
 
 # Trusted nets: localhost + verified search-engine crawlers.
 # Ohara site editor (North Nowra Elementor); exempt from all jails.
-ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16 95.82.0.218
+ignoreip = 127.0.0.1/8 ::1 66.249.0.0/16 157.55.0.0/16 207.46.0.0/16 95.82.0.218 111.220.137.221
 
 
 
