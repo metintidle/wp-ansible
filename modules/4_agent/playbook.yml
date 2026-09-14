@@ -94,12 +94,22 @@
       when: wp_agent_build_on_host | bool
 
     - name: Sync wp-agent source from controller (on-host build only)
-      ansible.builtin.synchronize:
-        src: "{{ wp_agent_src_path }}/"
-        dest: /tmp/wp-agent-src/
-        delete: true
-        rsync_opts:
-          - "--exclude=target"
+      ansible.builtin.shell: |
+        set -euo pipefail
+        ssh_cmd="ssh -o StrictHostKeyChecking=no"
+        if [ -n "${ANSIBLE_SSH_ARGS:-}" ]; then
+          ssh_cmd="$ssh_cmd ${ANSIBLE_SSH_ARGS}"
+        fi
+        if [ -n "${KEY:-}" ]; then
+          ssh_cmd="$ssh_cmd -i ${KEY}"
+        fi
+        rsync -a --delete --exclude=target -e "$ssh_cmd" \
+          "{{ wp_agent_src_path }}/" \
+          "{{ ansible_user | default('ec2-user') }}@{{ ansible_host }}:/tmp/wp-agent-src/"
+      environment:
+        KEY: "{{ ansible_ssh_private_key_file | default('') }}"
+      delegate_to: localhost
+      become: false
       when: wp_agent_build_on_host | bool
 
     - name: Build wp-agent release on host (on-host build only)
