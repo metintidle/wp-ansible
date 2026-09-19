@@ -31,7 +31,10 @@ aws-cli/
 │   └── notes/                CloudShell command logs (not the live path)
 ├── dns/
 │   ├── dns-manage.sh
+│   ├── dreamscape-fetch.sh   DreamScape Reseller API — domains + DNS export
 │   └── records/              Route53 change-batch JSON (gitignored)
+├── dreamscape.env.example    API key template (copy → dreamscape.env, gitignored)
+├── dreamscap.md              DreamScape API notes + migration usage
 ├── ssh/
 │   ├── move-ssh-host-al2023.py
 │   └── encode-ssh-pubkey-b64.sh
@@ -56,6 +59,7 @@ Every script sources [`lib/paths.sh`](./lib/paths.sh) so paths stay correct no m
 | `create` | Lightsail `amazon_linux_2023` / `nano_3_2` instance (`wp-web-23`) |
 | `ports` | TCP/22 limited to `SSH_ALLOW_CIDRS`; 80/443 open; allocate + attach `StaticIp-1` |
 | `ssh-config` | Add `Host` to the AL2023 WordPress section; wait until SSH answers |
+| `dreamscape` | Optional: fetch customer domains + DNS from [DreamScape Reseller API](./dreamscap.md) into `state/.create-<host>.dreamscape.json` and seed the domain list |
 | `dns` | Create a Route53 hosted zone per apex domain (reuse if it exists) and upsert apex + `www` **A** (and **AAAA** when the instance is dual-stack) via [`dns/dns-manage.sh`](./dns/dns-manage.sh) `setup` |
 | `nginx` | [`modules/1_nginx-php/playbook.yml`](../modules/1_nginx-php/playbook.yml) (`--skip-tags rescue`) |
 | `wordpress` | [`modules/2_wordpress/playbook.yml`](../modules/2_wordpress/playbook.yml) — prompts for **database name** (`db_name`) and **table prefix** (`db_prefix` / `table_prefix`) |

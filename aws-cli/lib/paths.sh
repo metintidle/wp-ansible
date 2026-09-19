@@ -19,6 +19,7 @@ _AWS_CLI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AWS_CLI_ROOT="$(cd "${_AWS_CLI_LIB_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${AWS_CLI_ROOT}/.." && pwd)"
 
+AWS_CLI_LIB="${AWS_CLI_ROOT}/lib"
 AWS_CLI_AUTH="${AWS_CLI_ROOT}/auth"
 AWS_CLI_MIGRATE="${AWS_CLI_ROOT}/migrate"
 AWS_CLI_CREATE="${AWS_CLI_ROOT}/create"

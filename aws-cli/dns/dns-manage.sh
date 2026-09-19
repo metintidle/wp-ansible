@@ -142,6 +142,43 @@ ipv6_usable() {
   [[ -n "${IPV6:-}" && "$IPV6" != "None" && "$IPV6" == *:* ]]
 }
 
+delete_www_cname_if_present() {
+  local zone_id="$1"
+  local existing
+  existing=$(aws_cmd route53 list-resource-record-sets \
+    --hosted-zone-id "$zone_id" \
+    --query "ResourceRecordSets[?Name=='www.${DOMAIN}.' && Type=='CNAME'] | [0]" \
+    --output json 2>/dev/null || echo "null")
+  if [[ -z "$existing" || "$existing" == "null" || "$existing" == "{}" ]]; then
+    return 0
+  fi
+  local ttl value
+  ttl=$(python3 -c "import json,sys; r=json.load(sys.stdin); print(r.get('TTL',300))" <<<"$existing")
+  value=$(python3 -c "import json,sys; r=json.load(sys.stdin); print(r['ResourceRecords'][0]['Value'])" <<<"$existing")
+  local del_file
+  del_file=$(mktemp)
+  cat >"$del_file" <<EOF
+{
+  "Changes": [
+    {
+      "Action": "DELETE",
+      "ResourceRecordSet": {
+        "Name": "www.${DOMAIN}",
+        "Type": "CNAME",
+        "TTL": ${ttl},
+        "ResourceRecords": [{ "Value": "${value}" }]
+      }
+    }
+  ]
+}
+EOF
+  aws_cmd route53 change-resource-record-sets \
+    --hosted-zone-id "$zone_id" \
+    --change-batch "file://${del_file}"
+  rm -f "$del_file"
+  echo "Removed www CNAME (conflicts with www A) before upsert"
+}
+
 upsert_records() {
   ZONE_ID=$(resolve_zone_id)
 
@@ -149,6 +186,8 @@ upsert_records() {
     echo "ERROR: IPV4 is required to upsert A records" >&2
     exit 1
   fi
+
+  delete_www_cname_if_present "$ZONE_ID"
 
   local batch_file
   batch_file=$(mktemp)

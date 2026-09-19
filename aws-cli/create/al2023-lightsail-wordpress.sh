@@ -8,6 +8,7 @@
 #   create    — Lightsail AL2023 instance (amazon_linux_2023 / nano_3_2)
 #   ports     — TCP 22 limited to SSH_ALLOW_CIDRS; 80/443 open; static IP
 #   ssh-config — add Host block + wait until SSH answers
+#   dreamscape — DreamScape Reseller API: customer domains + DNS (see aws-cli/dreamscap.md)
 #   dns       — Route53 hosted zone(s) + apex/www A (and AAAA) records
 #   nginx     — modules/1_nginx-php/playbook.yml (fresh stack, skip rescue disk)
 #   wordpress — modules/2_wordpress/playbook.yml (prompts for db_name + table_prefix)
@@ -21,6 +22,7 @@
 #   REGION, AVAILABILITY_ZONE, NEW_INSTANCE_NAME, BUNDLE_ID, STATIC_IP_NAME
 #   SSH_KEY_PAIR_NAME, SSH_ALLOW_CIDRS, IDENTITY_FILE
 #   EXTRA_DOMAINS           extra apex domains (comma-separated) for extra hosted zones
+#   DREAMSCAPE_*            aws-cli/dreamscape.env — fetch registrar DNS before Route53 (optional)
 #   DB_HOST, DB_ADMIN_USER, DB_ADMIN_PASS  (or modules/2_wordpress/.db-admin.env)
 #
 # Example:
@@ -50,6 +52,7 @@ Phases (default: all):
   create      Create Lightsail instance ${NEW_INSTANCE_NAME}
   ports       SSH allow-list + HTTP/HTTPS + allocate/attach static IP
   ssh-config  Add Host alias to ssh-config and wait for SSH
+  dreamscape  DreamScape: list customer domains + DNS; seed domain list for migration
   dns         Create Route53 hosted zone(s) and upsert apex + www A/AAAA
   nginx       modules/1_nginx-php/playbook.yml
   wordpress   modules/2_wordpress/playbook.yml (prompt db_name + table_prefix)
@@ -82,7 +85,7 @@ HOST="${2:?ssh Host alias required}"
 ARG3="${3:-}"
 ARG4="${4:-}"
 
-KNOWN_PHASES='^(create|ports|ssh-config|dns|nginx|wordpress|all)$'
+KNOWN_PHASES='^(create|ports|ssh-config|dreamscape|dns|nginx|wordpress|all)$'
 if [[ "$ARG3" =~ $KNOWN_PHASES ]]; then
   DOMAIN=""
   PHASE="$ARG3"
@@ -97,6 +100,7 @@ fi
 CREATE_STATE_INSTANCE="$AWS_CLI_STATE/.create-${HOST}.instance"
 CREATE_STATE_IP="$AWS_CLI_STATE/.create-${HOST}.ip"
 CREATE_STATE_DOMAINS="$AWS_CLI_STATE/.create-${HOST}.domains"
+CREATE_STATE_DREAMSCAPE="$AWS_CLI_STATE/.create-${HOST}.dreamscape.json"
 if [[ -f "$CREATE_STATE_INSTANCE" ]]; then
   NEW_INSTANCE_NAME="$(cat "$CREATE_STATE_INSTANCE")"
 fi
@@ -203,11 +207,20 @@ ensure_key_pair() {
       if ! aws lightsail download-default-key-pair \
         --region "$REGION" \
         --query 'privateKeyBase64' \
-        --output text | decode_b64 > "$IDENTITY_PATH"; then
-        rm -f "$IDENTITY_PATH"
+        --output text > "$IDENTITY_PATH.tmp"; then
+        rm -f "$IDENTITY_PATH.tmp"
         echo "ERROR: cannot download LightsailDefaultKeyPair (often only once per region)." >&2
         echo "Copy the existing default PEM to ${IDENTITY_PATH} and re-run." >&2
         exit 1
+      fi
+      if head -1 "$IDENTITY_PATH.tmp" | grep -q 'BEGIN.*PRIVATE KEY'; then
+        mv "$IDENTITY_PATH.tmp" "$IDENTITY_PATH"
+      elif ! decode_b64 < "$IDENTITY_PATH.tmp" > "$IDENTITY_PATH"; then
+        rm -f "$IDENTITY_PATH.tmp" "$IDENTITY_PATH"
+        echo "ERROR: cannot decode LightsailDefaultKeyPair from download-default-key-pair." >&2
+        exit 1
+      else
+        rm -f "$IDENTITY_PATH.tmp"
       fi
       chmod 600 "$IDENTITY_PATH"
       log "Wrote default key to ${IDENTITY_PATH}"
@@ -404,6 +417,67 @@ load_domains() {
   fi
 }
 
+load_dreamscape_env() {
+  local envf="$AWS_CLI_ROOT/dreamscape.env"
+  if [[ -f "$envf" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$envf"
+    set +a
+  fi
+}
+
+dreamscape_configured() {
+  load_dreamscape_env
+  [[ -n "${DREAMSCAPE_API_KEY:-}" ]] && {
+    [[ -n "${DREAMSCAPE_CUSTOMER_ID:-}" || -n "${DREAMSCAPE_CUSTOMER_QUERY:-}" ]]
+  }
+}
+
+do_dreamscape() {
+  load_dreamscape_env
+  if [[ -z "${DREAMSCAPE_API_KEY:-}" ]]; then
+    echo "ERROR: DREAMSCAPE_API_KEY missing (copy aws-cli/dreamscape.env.example → aws-cli/dreamscape.env)" >&2
+    exit 1
+  fi
+
+  export DREAMSCAPE_CUSTOMER_QUERY="${DREAMSCAPE_CUSTOMER_QUERY:-$HOST}"
+  if [[ -z "${DREAMSCAPE_CUSTOMER_ID:-}" && -z "${DREAMSCAPE_CUSTOMER_QUERY:-}" ]]; then
+    echo "ERROR: set DREAMSCAPE_CUSTOMER_ID or DREAMSCAPE_CUSTOMER_QUERY in aws-cli/dreamscape.env" >&2
+    exit 1
+  fi
+
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log "DRY-RUN: DreamScape fetch customer query=${DREAMSCAPE_CUSTOMER_QUERY:-} id=${DREAMSCAPE_CUSTOMER_ID:-}"
+    return 0
+  fi
+
+  local tmp_domains
+  tmp_domains="$(mktemp)"
+  DREAMSCAPE_JSON_OUT="$CREATE_STATE_DREAMSCAPE" \
+    "$AWS_CLI_DNS/dreamscape-fetch.sh" fetch --write-domains "$tmp_domains"
+
+  if [[ ! -s "$tmp_domains" ]]; then
+    rm -f "$tmp_domains"
+    echo "ERROR: DreamScape returned no domains for this customer" >&2
+    exit 1
+  fi
+
+  local -a fetched=()
+  while IFS= read -r d; do
+    [[ -z "$d" ]] && continue
+    fetched+=("$d")
+  done <"$tmp_domains"
+  rm -f "$tmp_domains"
+
+  if [[ -z "${DOMAIN:-}" ]]; then
+    DOMAIN="${fetched[0]}"
+  fi
+
+  write_domains_file "$DOMAIN" "${fetched[@]}"
+  log "DREAMSCAPE_DONE domains=$(tr '\n' ' ' <"$CREATE_STATE_DOMAINS") json=${CREATE_STATE_DREAMSCAPE}"
+}
+
 primary_domain() {
   if [[ -n "${DOMAIN:-}" ]]; then
     printf '%s' "$(normalize_domain "$DOMAIN")"
@@ -518,7 +592,14 @@ ansible_run() {
     echo "ERROR: IdentityFile not found for Host ${HOST} in ${SSH_CONFIG}" >&2
     exit 1
   fi
-  extra+=(-e "ansible_ssh_private_key_file=${IDENTITY_PATH}" -e "ansible_host=${ip}")
+  local ssh_user
+  ssh_user="$(read_ssh User)"
+  ssh_user="${ssh_user:-ec2-user}"
+  extra+=(
+    -e "ansible_ssh_private_key_file=${IDENTITY_PATH}"
+    -e "ansible_host=${ip}"
+    -e "ansible_user=${ssh_user}"
+  )
   site_domain="$(primary_domain)"
   if [[ -n "$site_domain" ]]; then
     extra+=(-e "domain_name=${site_domain}")
@@ -610,13 +691,18 @@ case "$PHASE" in
   create) do_create ;;
   ports) do_ports ;;
   ssh-config) do_ssh_config ;;
+  dreamscape) do_dreamscape ;;
   dns) do_dns ;;
   nginx) do_nginx ;;
   wordpress) do_wordpress ;;
   all)
     do_create
     do_ports
-    ensure_domains
+    if dreamscape_configured; then
+      do_dreamscape
+    else
+      ensure_domains
+    fi
     do_ssh_config
     do_dns
     do_nginx
@@ -630,7 +716,7 @@ case "$PHASE" in
     fi
     ;;
   *)
-    echo "Unknown phase: $PHASE (use create|ports|ssh-config|dns|nginx|wordpress|all)" >&2
+    echo "Unknown phase: $PHASE (use create|ports|ssh-config|dreamscape|dns|nginx|wordpress|all)" >&2
     usage >&2
     exit 1
     ;;

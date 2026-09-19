@@ -3,9 +3,10 @@
 #
 # Per host: ansible-playbook modules/2_wordpress/playbook-core-plugins.yml
 #   - BBQ Firewall (block-bad-queries): install, activate, auto-updates
-#   - SQLite Object Cache: install, auto-updates
+#   - SQLite Object Cache: install, activate, auto-updates
 #   - mu-plugin protect-bbq-firewall.php (prevents BBQ uninstall/deactivate;
-#     hides BBQ on Plugins except for user itt-admin)
+#     hides BBQ and SQLite Object Cache on Plugins except for user itt-admin)
+#   - mu-plugin protect-itt-admin.php (locks WordPress user itt-admin)
 #
 # Same default host list as al2023-lightsail-maintain.sh.
 #
@@ -64,7 +65,7 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") [options] [HOST ...]
 
-Install BBQ Firewall + SQLite Object Cache and deploy the BBQ lock mu-plugin
+Install BBQ Firewall + SQLite Object Cache and deploy the BBQ + itt-admin lock mu-plugins
 on AL2023 Lightsail WordPress hosts (same fleet as al2023-lightsail-maintain.sh).
 
 Runs: modules/2_wordpress/playbook-core-plugins.yml
@@ -99,6 +100,7 @@ read_ssh() {
   local cfg
   cfg="$(resolve_ssh_config)"
   awk -v host="$host" -v k="$key" '
+    { sub(/\r$/, "") }
     $1 == "Host" && $2 == host { in_host = 1; next }
     in_host && $1 == "Host" { exit }
     in_host && $1 == k { print $2; exit }
