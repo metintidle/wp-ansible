@@ -1,5 +1,6 @@
 # Ensure BBQ Firewall + SQLite Object Cache are installed, auto-update, and BBQ cannot be removed.
-# BBQ is hidden from wp-admin Plugins for every user except itt-admin.
+# BBQ and SQLite Object Cache are hidden from wp-admin Plugins for every user except itt-admin.
+# Locks WordPress user itt-admin (cannot be deleted/edited by other WP admins).
 # Expects: wp (WP-CLI path), docroot. Run as ec2-user (no --allow-root).
 #
 # Used by playbook-core-plugins.yml (new provisions via playbook.yml, AL2→AL2023 migration).
@@ -43,6 +44,17 @@
     chdir: "{{ docroot }}"
   when: plugin_sqlite_cache_installed.rc != 0
 
+- name: Activate SQLite Object Cache
+  command: "{{ wp }} plugin activate sqlite-object-cache"
+  args:
+    chdir: "{{ docroot }}"
+  register: plugin_sqlite_cache_activate
+  changed_when: "'Plugin already activated' not in (plugin_sqlite_cache_activate.stdout | default(''))"
+  failed_when: >-
+    plugin_sqlite_cache_activate.rc != 0
+    and 'already activated' not in
+    ((plugin_sqlite_cache_activate.stdout | default('')) ~ (plugin_sqlite_cache_activate.stderr | default(''))) | lower
+
 - name: Enable auto-updates for BBQ Firewall and SQLite Object Cache
   command: "{{ wp }} plugin auto-updates enable block-bad-queries sqlite-object-cache"
   args:
@@ -69,6 +81,15 @@
   copy:
     src: "{{ playbook_dir }}/files/mu-plugins/protect-bbq-firewall.php"
     dest: "{{ docroot }}/wp-content/mu-plugins/protect-bbq-firewall.php"
+    owner: ec2-user
+    group: nginx
+    mode: "0644"
+  become: true
+
+- name: Deploy itt-admin lock mu-plugin
+  copy:
+    src: "{{ playbook_dir }}/files/mu-plugins/protect-itt-admin.php"
+    dest: "{{ docroot }}/wp-content/mu-plugins/protect-itt-admin.php"
     owner: ec2-user
     group: nginx
     mode: "0644"

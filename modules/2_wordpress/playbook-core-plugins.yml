@@ -1,6 +1,7 @@
 ---
 # Install BBQ Firewall + SQLite Object Cache, enable auto-updates, lock BBQ
-# (hidden in wp-admin except for user itt-admin).
+# (BBQ + SQLite Object Cache hidden in wp-admin except for user itt-admin).
+# Also deploys protect-itt-admin.php (itt-admin cannot be deleted/edited by other WP users).
 # Safe on existing sites (idempotent). Does not run wp core install.
 #
 # Imported by modules/2_wordpress/playbook.yml (new provisions).

@@ -258,9 +258,7 @@
         mode: '0644'
 
     - name: Install IT&T WebP Compressor plugin
-      command: wp plugin install /tmp/itt-webp-compressor.zip --activate
-      args:
-        chdir: "{{ docroot }}"
+      command: wp plugin install /tmp/itt-webp-compressor.zip --activate --path={{ docroot }} --force
 
     - name: Remove IT&T WebP Compressor plugin zip from host
       file:
@@ -349,14 +347,12 @@
       when: pause_web_stack_for_ram | default(true) | bool and (nginx_final_test.rc | default(0)) == 0
 
 # BBQ Firewall + SQLite Object Cache (standalone: playbook-core-plugins.yml).
+# Do not pass wp_root: "{{ wp_root | default(...) }}" here — that self-reference recurses in Ansible.
 - ansible.builtin.import_playbook: playbook-core-plugins.yml
-  vars:
-    wp_root: "{{ wp_root | default('/home/ec2-user/html') }}"
 
 # Root site backup (replaces UpdraftPlus / WPvivid). See modules/9_backup/README.md.
 - ansible.builtin.import_playbook: ../9_backup/playbook.yml
   when: install_wp_site_backup | default(true) | bool
   vars:
-    wp_root: "{{ wp_root | default('/home/ec2-user/html') }}"
     wp_site_backup_remove_legacy_plugins: true
 

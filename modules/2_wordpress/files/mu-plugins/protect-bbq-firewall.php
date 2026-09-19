@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Protect BBQ Firewall
- * Description: Locks BBQ Firewall (block-bad-queries): hide from Plugins for everyone except itt-admin, no deactivate/delete, reinstalls if missing, forces auto-updates for BBQ and SQLite Object Cache.
+ * Description: Locks BBQ Firewall (block-bad-queries): hide BBQ and SQLite Object Cache from Plugins for everyone except itt-admin, no BBQ deactivate/delete, reinstalls BBQ if missing, forces auto-updates for both.
  */
 
 if (!defined('ABSPATH')) {
@@ -11,7 +11,13 @@ if (!defined('ABSPATH')) {
 const ITT_BBQ_SLUG = 'block-bad-queries';
 const ITT_BBQ_MAIN = 'block-bad-queries/block-bad-queries.php';
 const ITT_SQLITE_CACHE_SLUG = 'sqlite-object-cache';
+const ITT_SQLITE_CACHE_MAIN = 'sqlite-object-cache/sqlite-object-cache.php';
 const ITT_BBQ_VISIBLE_USER = 'itt-admin';
+
+function itt_bbq_hidden_plugin_mains()
+{
+    return array(ITT_BBQ_MAIN, ITT_SQLITE_CACHE_MAIN);
+}
 
 function itt_bbq_is_protected_plugin($plugin_file)
 {
@@ -45,7 +51,9 @@ function itt_bbq_hide_from_plugins_screen($plugins)
     if (itt_bbq_viewer_is_itt_admin()) {
         return $plugins;
     }
-    unset($plugins[ITT_BBQ_MAIN]);
+    foreach (itt_bbq_hidden_plugin_mains() as $plugin_main) {
+        unset($plugins[$plugin_main]);
+    }
     return $plugins;
 }
 
@@ -61,7 +69,9 @@ function itt_bbq_hide_from_update_screen($value)
     if (itt_bbq_viewer_is_itt_admin() || !is_object($value)) {
         return $value;
     }
-    unset($value->response[ITT_BBQ_MAIN], $value->no_update[ITT_BBQ_MAIN]);
+    foreach (itt_bbq_hidden_plugin_mains() as $plugin_main) {
+        unset($value->response[$plugin_main], $value->no_update[$plugin_main]);
+    }
     return $value;
 }
 
