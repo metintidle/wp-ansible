@@ -111,10 +111,12 @@
 
     - name: Install unused media cleanup cron (01:00 Sydney, 1st of month)
       ansible.builtin.command:
-        cmd: >-
-          {{ wp_clean_install_dir }}/install-unused-media-cron.sh
-          --tz {{ wp_clean_cron_tz }}
-          --wrapper {{ wp_clean_install_dir }}/run-unused-media-cleanup.sh
+        argv:
+          - "{{ wp_clean_install_dir }}/install-unused-media-cron.sh"
+          - "--tz"
+          - "{{ wp_clean_cron_tz }}"
+          - "--wrapper"
+          - "{{ wp_clean_install_dir }}/run-unused-media-cleanup.sh"
       when:
         - wp_clean_enable_cron | bool
         - not (wp_clean_remove_cron | bool)

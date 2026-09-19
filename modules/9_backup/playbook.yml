@@ -181,11 +181,14 @@
 
     - name: Install wp-site-backup cron with custom schedule
       ansible.builtin.command:
-        cmd: >-
-          {{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh
-          --tz {{ wp_site_backup_cron_tz }}
-          --schedule "{{ wp_site_backup_cron_schedule }}"
-          --wrapper {{ wp_site_backup_install_dir }}/wp-site-backup.sh
+        argv:
+          - "{{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh"
+          - "--tz"
+          - "{{ wp_site_backup_cron_tz }}"
+          - "--schedule"
+          - "{{ wp_site_backup_cron_schedule }}"
+          - "--wrapper"
+          - "{{ wp_site_backup_install_dir }}/wp-site-backup.sh"
       when:
         - wp_site_backup_enable_cron | bool
         - not (wp_site_backup_remove_cron | bool)
@@ -194,10 +197,12 @@
 
     - name: Install wp-site-backup cron (01:00 Sydney + hostname stagger)
       ansible.builtin.command:
-        cmd: >-
-          {{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh
-          --tz {{ wp_site_backup_cron_tz }}
-          --wrapper {{ wp_site_backup_install_dir }}/wp-site-backup.sh
+        argv:
+          - "{{ wp_site_backup_install_dir }}/install-wp-site-backup-cron.sh"
+          - "--tz"
+          - "{{ wp_site_backup_cron_tz }}"
+          - "--wrapper"
+          - "{{ wp_site_backup_install_dir }}/wp-site-backup.sh"
       when:
         - wp_site_backup_enable_cron | bool
         - not (wp_site_backup_remove_cron | bool)
