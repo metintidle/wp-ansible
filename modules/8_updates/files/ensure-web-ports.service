@@ -1,0 +1,14 @@
+[Unit]
+Description=Ensure firewalld allows HTTP, HTTPS, and SSH
+Documentation=file:///usr/local/bin/fix-firewalld-after-boot.sh
+After=network-online.target firewalld.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=FIREWALLD_BOOT_DELAY=0
+Environment=LOG_FILE=/var/log/firewalld-boot-fix.log
+ExecStart=/usr/local/bin/fix-firewalld-after-boot.sh --ports-only
+
+[Install]
+WantedBy=multi-user.target

@@ -140,7 +140,10 @@ Combined entry point (both stacks): [`playbook.yml`](playbook.yml) — use `--ta
 | `journald_system_max_use` | `200M` | Documented cap (matches `SystemMaxUse` in `files/journald.conf`) |
 | `journald_vacuum_size` | `""` | Optional `--size` for `vacuum-journal.sh` (empty = read `journald.conf`) |
 | `journald_vacuum_time` | `""` | Optional `--time` for `vacuum-journal.sh` (e.g. `7d`; overrides size) |
-| `os_upgrade_clean_dnf_cache` | `true` | Run `dnf clean all` during playbook deploy (frees `/var/cache/dnf`) |
+| `firewalld_boot_fix_enable_cron` | `true` | Install `@reboot` cron, `ensure-web-ports.timer`, and firewalld `ExecStartPost` drop-in |
+| `firewalld_boot_fix_remove_cron` | `false` | Remove cron + systemd web-port guards |
+| `firewalld_boot_fix_delay` | `90` | Seconds `@reboot` cron waits before the full firewalld script |
+| `firewalld_boot_fix_log_file` | `/var/log/firewalld-boot-fix.log` | Shared log for cron, timer, and ExecStartPost |
 
 `os-upgrade-with-webstack-restart.sh` also runs `dnf clean all` on **every cron execution** (every 3 days by default), including when no package updates are available. Disable on the host with `OS_UPGRADE_CLEAN_DNF_CACHE=0` in the cron environment.
 
@@ -189,6 +192,14 @@ Remove: `sudo /usr/local/bin/install-os-upgrade-cron.sh --remove`
 - Kernel updates apply after the automatic post-upgrade reboot.
 - Existing root cron jobs (e.g. `fpm.sh`, `cleanlogs.sh`) are preserved; the OS upgrade block is appended with its own `CRON_TZ`.
 - On ~512MB AL2023 hosts, **zram swap alone is not enough** for `dnf check-update` (OOM exit 137). [`playbook-os.yml`](playbook-os.yml) ensures a 1G `/swapfile` when the file is missing (even if zram is active).
-- On fail2ban hosts, do **not** `systemctl stop firewalld` after reboot — fail2ban is `PartOf=firewalld` on AL2023 and will stop too. [`fix-firewalld-after-boot.sh`](files/fix-firewalld-after-boot.sh) masks/disables firewalld and ensures fail2ban is running.
+- [`fix-firewalld-after-boot.sh`](files/fix-firewalld-after-boot.sh) **always opens ssh/http/https on firewalld first**, even on fail2ban hosts. A leftover firewalld with only `ssh` is what takes WordPress sites offline after AL2023 upgrades.
+- [`ensure-web-ports.timer`](files/ensure-web-ports.timer) re-checks every 5 minutes; a firewalld `ExecStartPost` drop-in ([`firewalld-open-web-ports.conf`](files/firewalld-open-web-ports.conf)) opens ports as soon as firewalld starts. `@reboot` cron still runs the full script (disable firewalld on fail2ban hosts after ports are open).
+- On fail2ban hosts, do **not** stop firewalld before ports are open — and do not stop it without restarting fail2ban (`PartOf=firewalld` on AL2023). The boot script masks/disables firewalld *after* opening ports, then ensures fail2ban is running.
+- Deploy only the web-port guards (no OS upgrade / journald / DNF): [`playbook-ensure-web-ports.yml`](playbook-ensure-web-ports.yml)
+
+```bash
+ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-ensure-web-ports.yml
+ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-ensure-web-ports.yml --limit bateys
+```
 
 Manual one-host deploy (without Ansible) is also available via [`bash/install-os-upgrade-cron.sh`](../../bash/install-os-upgrade-cron.sh).

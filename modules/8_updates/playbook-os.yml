@@ -4,7 +4,9 @@
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-os.yml
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-os.yml --limit cccls
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-os.yml -e os_upgrade_remove_cron=true
-#   After upgrade reboot: @reboot cron opens http/https on firewalld (or disables it when fail2ban is active).
+#   Web ports only (no OS upgrade/journald/DNF): modules/8_updates/playbook-ensure-web-ports.yml
+#   After upgrade reboot: @reboot cron + ensure-web-ports.timer open http/https
+#   on firewalld (always). Fail2ban hosts then disable firewalld.
 #
 - name: Deploy OS auto-upgrade tools (Amazon Linux 2023)
   hosts: all
@@ -38,6 +40,10 @@
       when: >
         ansible_distribution != "Amazon"
         or ansible_distribution_major_version | string != "2023"
+      tags:
+        - os_upgrade
+        - firewalld_boot
+        - journald_vacuum
 
     - name: Require dnf
       ansible.builtin.command:
@@ -126,6 +132,7 @@
       tags:
         - os_upgrade
         - journald_vacuum
+        - firewalld_boot
 
     - name: Strip CRLF from OS upgrade scripts
       ansible.builtin.command:
@@ -140,6 +147,7 @@
       tags:
         - os_upgrade
         - journald_vacuum
+        - firewalld_boot
 
     - name: Ensure OS upgrade log file
       ansible.builtin.file:
@@ -152,23 +160,102 @@
         path: "{{ firewalld_boot_fix_log_file }}"
         state: touch
         mode: "0644"
+      tags:
+        - os_upgrade
+        - firewalld_boot
 
-    - name: Remove firewalld after-boot cron
+    - name: Deploy ensure-web-ports systemd unit
+      ansible.builtin.copy:
+        src: files/ensure-web-ports.service
+        dest: /etc/systemd/system/ensure-web-ports.service
+        owner: root
+        group: root
+        mode: "0644"
+      tags:
+        - os_upgrade
+        - firewalld_boot
+
+    - name: Deploy ensure-web-ports systemd timer
+      ansible.builtin.copy:
+        src: files/ensure-web-ports.timer
+        dest: /etc/systemd/system/ensure-web-ports.timer
+        owner: root
+        group: root
+        mode: "0644"
+      tags:
+        - os_upgrade
+        - firewalld_boot
+
+    - name: Ensure firewalld systemd drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/firewalld.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      tags:
+        - os_upgrade
+        - firewalld_boot
+
+    - name: Deploy firewalld ExecStartPost drop-in to open web ports
+      ansible.builtin.copy:
+        src: files/firewalld-open-web-ports.conf
+        dest: /etc/systemd/system/firewalld.service.d/open-web-ports.conf
+        owner: root
+        group: root
+        mode: "0644"
+      tags:
+        - os_upgrade
+        - firewalld_boot
+
+    - name: Remove firewalld after-boot cron and systemd guards
       ansible.builtin.command:
         cmd: "{{ os_upgrade_install_dir }}/install-firewalld-after-boot-cron.sh --remove"
       when: firewalld_boot_fix_remove_cron | bool
       changed_when: true
+      tags:
+        - os_upgrade
+        - firewalld_boot
 
     - name: Install firewalld after-boot cron (@reboot, post-OS-upgrade)
       ansible.builtin.command:
-        cmd: >-
-          {{ os_upgrade_install_dir }}/install-firewalld-after-boot-cron.sh
-          --delay {{ firewalld_boot_fix_delay }}
-          --wrapper {{ os_upgrade_install_dir }}/fix-firewalld-after-boot.sh
+        argv:
+          - "{{ os_upgrade_install_dir }}/install-firewalld-after-boot-cron.sh"
+          - "--delay"
+          - "{{ firewalld_boot_fix_delay }}"
+          - "--wrapper"
+          - "{{ os_upgrade_install_dir }}/fix-firewalld-after-boot.sh"
       when:
         - firewalld_boot_fix_enable_cron | bool
         - not (firewalld_boot_fix_remove_cron | bool)
       changed_when: true
+      tags:
+        - os_upgrade
+        - firewalld_boot
+
+    - name: Enable ensure-web-ports timer
+      ansible.builtin.systemd:
+        name: ensure-web-ports.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+      when:
+        - firewalld_boot_fix_enable_cron | bool
+        - not (firewalld_boot_fix_remove_cron | bool)
+      tags:
+        - os_upgrade
+        - firewalld_boot
+
+    - name: Run ensure-web-ports once after deploy
+      ansible.builtin.command:
+        cmd: "{{ os_upgrade_install_dir }}/fix-firewalld-after-boot.sh --ports-only"
+      when:
+        - firewalld_boot_fix_enable_cron | bool
+        - not (firewalld_boot_fix_remove_cron | bool)
+      changed_when: true
+      tags:
+        - os_upgrade
+        - firewalld_boot
 
     - name: Remove OS upgrade cron
       ansible.builtin.command:
@@ -178,12 +265,16 @@
 
     - name: Install OS upgrade cron (midnight every 3 days, Australia/Sydney)
       ansible.builtin.command:
-        cmd: >-
-          {{ os_upgrade_install_dir }}/install-os-upgrade-cron.sh
-          --tz {{ os_upgrade_cron_tz }}
-          --schedule "{{ os_upgrade_cron_schedule }}"
-          --releasever {{ os_upgrade_releasever }}
-          --wrapper {{ os_upgrade_install_dir }}/os-upgrade-with-webstack-restart.sh
+        argv:
+          - "{{ os_upgrade_install_dir }}/install-os-upgrade-cron.sh"
+          - "--tz"
+          - "{{ os_upgrade_cron_tz }}"
+          - "--schedule"
+          - "{{ os_upgrade_cron_schedule }}"
+          - "--releasever"
+          - "{{ os_upgrade_releasever }}"
+          - "--wrapper"
+          - "{{ os_upgrade_install_dir }}/os-upgrade-with-webstack-restart.sh"
       when:
         - os_upgrade_enable_cron | bool
         - not (os_upgrade_remove_cron | bool)
@@ -191,6 +282,9 @@
 
     - name: Fix firewalld after OS upgrades
       ansible.builtin.import_tasks: ../5_security/snippets/firewalld-http-https.yml
+      tags:
+        - os_upgrade
+        - firewalld_boot
 
     - name: Clear DNF package cache
       ansible.builtin.command:
@@ -226,10 +320,10 @@
           - "Releasever: {{ os_upgrade_releasever }} (auto = latest AL2023 release at run time)"
           - "Cron enabled: {{ os_upgrade_enable_cron | bool }}"
           - "Schedule: {{ os_upgrade_cron_schedule }} ({{ os_upgrade_cron_tz }})"
-          - "Flow: stop nginx + php-fpm -> dnf upgrade -> dnf clean all -> reboot -> @reboot firewalld fix"
+          - "Flow: stop nginx + php-fpm -> dnf upgrade -> dnf clean all -> reboot -> @reboot + 5m timer open http/https"
           - "DNF cache: dnf clean all on playbook deploy + each cron run (every 3 days)"
           - "Swap: ensured 1G /swapfile when missing (zram-only hosts need this for dnf; persisted in fstab)"
-          - "Firewalld boot cron: {{ firewalld_boot_fix_enable_cron | bool }} (delay {{ firewalld_boot_fix_delay }}s)"
+          - "Firewalld boot cron: {{ firewalld_boot_fix_enable_cron | bool }} (delay {{ firewalld_boot_fix_delay }}s) + ensure-web-ports.timer"
           - "Firewalld boot log: {{ firewalld_boot_fix_log_file }}"
           - "Journal limits: {{ journald_limit_enable | bool }} (SystemMaxUse={{ journald_system_max_use }}, vacuum on deploy={{ journald_vacuum_on_deploy | bool }})"
           - "DNF cache clean on deploy: {{ os_upgrade_clean_dnf_cache | bool }}"

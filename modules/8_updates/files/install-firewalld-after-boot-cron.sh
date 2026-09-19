@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install root @reboot cron to fix firewalld after OS upgrade reboots.
+# Install root @reboot cron plus systemd timer to keep HTTP/HTTPS open on firewalld.
 #
 # Usage:
 #   ./install-firewalld-after-boot-cron.sh
@@ -13,12 +13,15 @@ LOG_FILE="/var/log/firewalld-boot-fix.log"
 BOOT_DELAY="${BOOT_DELAY:-90}"
 MARKER="fix-firewalld-after-boot.sh"
 COMMENT="# Fix firewalld http/https after boot (post-OS-upgrade)"
+TIMER_UNIT="ensure-web-ports.timer"
+FIREWALLD_DROPIN_DIR="/etc/systemd/system/firewalld.service.d"
+FIREWALLD_DROPIN="${FIREWALLD_DROPIN_DIR}/open-web-ports.conf"
 
 usage() {
   cat <<EOF
 Usage: $0 [--remove] [--delay SECONDS] [--wrapper PATH]
 
-  --remove   Remove firewalld after-boot cron job
+  --remove   Remove firewalld after-boot cron, timer, and firewalld drop-in
   --delay    Seconds to wait after boot before fixing firewalld (default: 90)
   --wrapper  Path to fix-firewalld-after-boot.sh on server
 EOF
@@ -44,8 +47,31 @@ filter_crontab() {
     || true
 }
 
+enable_systemd_guards() {
+  if [[ -f /etc/systemd/system/ensure-web-ports.timer ]]; then
+    systemctl daemon-reload
+    systemctl enable --now "$TIMER_UNIT"
+    echo "Enabled systemd timer: ${TIMER_UNIT}"
+  fi
+  if [[ -f "$FIREWALLD_DROPIN" ]]; then
+    systemctl daemon-reload
+    echo "firewalld ExecStartPost drop-in: ${FIREWALLD_DROPIN}"
+  fi
+}
+
+disable_systemd_guards() {
+  systemctl disable --now "$TIMER_UNIT" >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/ensure-web-ports.timer
+  rm -f /etc/systemd/system/ensure-web-ports.service
+  rm -f "$FIREWALLD_DROPIN"
+  rmdir "$FIREWALLD_DROPIN_DIR" 2>/dev/null || true
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  echo "Removed ensure-web-ports timer/service and firewalld drop-in."
+}
+
 if [[ "$REMOVE" -eq 1 ]]; then
   filter_crontab | crontab - || true
+  disable_systemd_guards
   echo "Removed firewalld after-boot cron job."
   crontab -l 2>/dev/null || echo "(empty crontab)"
   exit 0
@@ -56,6 +82,8 @@ fi
   echo "${COMMENT}"
   echo "$CRON_LINE"
 } | crontab -
+
+enable_systemd_guards
 
 echo "Installed firewalld after-boot cron:"
 echo "  ${CRON_LINE}"

@@ -127,11 +127,14 @@
 
     - name: Install wp auto-update cron (03:00 Sunday, Australia/Sydney)
       ansible.builtin.command:
-        cmd: >-
-          {{ wp_auto_update_install_dir }}/install-wp-auto-update-cron.sh
-          --tz {{ wp_auto_update_cron_tz }}
-          --schedule "{{ wp_auto_update_cron_schedule }}"
-          --wrapper {{ wp_auto_update_install_dir }}/run-wp-auto-update.sh
+        argv:
+          - "{{ wp_auto_update_install_dir }}/install-wp-auto-update-cron.sh"
+          - "--tz"
+          - "{{ wp_auto_update_cron_tz }}"
+          - "--schedule"
+          - "{{ wp_auto_update_cron_schedule }}"
+          - "--wrapper"
+          - "{{ wp_auto_update_install_dir }}/run-wp-auto-update.sh"
       when:
         - wp_auto_update_enable_cron | bool
         - not (wp_auto_update_remove_cron | bool)

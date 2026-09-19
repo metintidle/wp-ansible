@@ -1,0 +1,124 @@
+---
+# Keep HTTP/HTTPS reachable if AL2023 re-enables firewalld with only ssh.
+#
+# Does not run OS upgrades, journald, or DNF cache tasks.
+#
+#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-ensure-web-ports.yml
+#   ansible-playbook -i inventory/al2023-fail2ban.ini modules/8_updates/playbook-ensure-web-ports.yml --limit bateys
+#   ansible-playbook -i inventory/ohara-hotels.ini modules/8_updates/playbook-ensure-web-ports.yml
+#
+- name: Ensure HTTP/HTTPS stay open on firewalld
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    os_upgrade_install_dir: /usr/local/bin
+    firewalld_boot_fix_enable_cron: true
+    firewalld_boot_fix_remove_cron: false
+    firewalld_boot_fix_delay: 90
+    firewalld_boot_fix_log_file: /var/log/firewalld-boot-fix.log
+    firewall_open_ssh: true
+  tags:
+    - firewalld_boot
+
+  tasks:
+    - name: Skip non-Amazon Linux 2023 hosts
+      ansible.builtin.meta: end_host
+      when: >
+        ansible_distribution != "Amazon"
+        or ansible_distribution_major_version | string != "2023"
+
+    - name: Deploy firewalld web-port scripts
+      ansible.builtin.copy:
+        src: "files/{{ item }}"
+        dest: "{{ os_upgrade_install_dir }}/{{ item }}"
+        mode: "0755"
+      loop:
+        - fix-firewalld-after-boot.sh
+        - install-firewalld-after-boot-cron.sh
+
+    - name: Strip CRLF from firewalld web-port scripts
+      ansible.builtin.command:
+        cmd: "sed -i 's/\\r$//' {{ os_upgrade_install_dir }}/{{ item }}"
+      loop:
+        - fix-firewalld-after-boot.sh
+        - install-firewalld-after-boot-cron.sh
+      changed_when: false
+
+    - name: Ensure firewalld boot-fix log file
+      ansible.builtin.file:
+        path: "{{ firewalld_boot_fix_log_file }}"
+        state: touch
+        mode: "0644"
+
+    - name: Deploy ensure-web-ports systemd unit
+      ansible.builtin.copy:
+        src: files/ensure-web-ports.service
+        dest: /etc/systemd/system/ensure-web-ports.service
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Deploy ensure-web-ports systemd timer
+      ansible.builtin.copy:
+        src: files/ensure-web-ports.timer
+        dest: /etc/systemd/system/ensure-web-ports.timer
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Ensure firewalld systemd drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/firewalld.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy firewalld ExecStartPost drop-in to open web ports
+      ansible.builtin.copy:
+        src: files/firewalld-open-web-ports.conf
+        dest: /etc/systemd/system/firewalld.service.d/open-web-ports.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Remove firewalld after-boot cron and systemd guards
+      ansible.builtin.command:
+        cmd: "{{ os_upgrade_install_dir }}/install-firewalld-after-boot-cron.sh --remove"
+      when: firewalld_boot_fix_remove_cron | bool
+      changed_when: true
+
+    - name: Install firewalld after-boot cron (@reboot)
+      ansible.builtin.command:
+        argv:
+          - "{{ os_upgrade_install_dir }}/install-firewalld-after-boot-cron.sh"
+          - "--delay"
+          - "{{ firewalld_boot_fix_delay }}"
+          - "--wrapper"
+          - "{{ os_upgrade_install_dir }}/fix-firewalld-after-boot.sh"
+      when:
+        - firewalld_boot_fix_enable_cron | bool
+        - not (firewalld_boot_fix_remove_cron | bool)
+      changed_when: true
+
+    - name: Enable ensure-web-ports timer
+      ansible.builtin.systemd:
+        name: ensure-web-ports.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+      when:
+        - firewalld_boot_fix_enable_cron | bool
+        - not (firewalld_boot_fix_remove_cron | bool)
+
+    - name: Run ensure-web-ports once after deploy
+      ansible.builtin.command:
+        cmd: "{{ os_upgrade_install_dir }}/fix-firewalld-after-boot.sh --ports-only"
+      when:
+        - firewalld_boot_fix_enable_cron | bool
+        - not (firewalld_boot_fix_remove_cron | bool)
+      changed_when: true
+
+    - name: Open HTTP/HTTPS on firewalld if it is present
+      ansible.builtin.import_tasks: ../5_security/snippets/firewalld-http-https.yml

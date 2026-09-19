@@ -1,0 +1,13 @@
+[Unit]
+Description=Re-check firewalld HTTP/HTTPS every 5 minutes
+Documentation=file:///usr/local/bin/fix-firewalld-after-boot.sh
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=ensure-web-ports.service
+
+[Install]
+WantedBy=timers.target
