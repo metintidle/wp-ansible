@@ -5,6 +5,7 @@
 - Ansible WP-CLI tasks: run as `ec2-user` (`become: false`, `become_user: ec2-user`); do not run as root or use `--allow-root` unless explicitly required.
 - Before bulk destructive cleanup on live WordPress hosts (e.g. unused media), tarball-backup with manifest first; user may remove backup after site verification.
 - Ohara fail2ban false-positive for a trusted IP: add to repo `modules/5_security/files/fail2ban/jail.local` and `jail.local.hardened` `[DEFAULT] ignoreip`, deploy/reload on all Ohara hotel hosts — not only `unbanip` on one host.
+- Maintenance-cron scope policy (stated 2026-09-19): OS-upgrade cron and `wp-site-backup.sh` cron are for ALL AL2023 servers (backup = all WordPress hosts; static/non-WordPress hosts n/a). WP auto-update cron (`run-wp-auto-update.sh`) ONLY on maintenance-plan hosts — never install it on other hosts; remove if found elsewhere. The plan membership CHANGES over time: NEVER hard-code host names; resolve the live list with `./bash/maintenance-plan-hosts.sh` (rule: all `Host` entries in `~/.ssh/ohara/config` + hosts in `~/.ssh/config` whose block carries the marker comment `# Maintenance plan — IT&T monitoring and security` + EXCEPTIONS_IN/EXCEPTIONS_OUT in that script; as of 2026-09-19 it resolves to 22 hosts).
 
 ## Learned Workspace Facts
 
@@ -20,3 +21,83 @@
 - Local dev convenience: project-root `ssh-config` symlink to `~/.ssh/config`, gitignored via `.gitignore` (not committed).
 - Per-site DB credential migration: `modules/2_wordpress/fix-db-credentials.yml` via `./bash/run-fix-db-credentials.sh <inventory> [ansible args]` (inventory is first positional arg, not `-i`); reads `DB_HOST` from each site's `wp-config.php`; controller needs `DB_ADMIN_USER`/`DB_ADMIN_PASS` (wrapper sources `~/.zshrc` or `modules/2_wordpress/.db-admin.env`); batch inventories under `inventory/wp-dbfix-batch*.ini`, `inventory/wp-dbfix-batch-missing.ini`, `inventory/wp-dbfix-hparson.ini`, `inventory/dmfp-vcawol-wmeds.ini`, `inventory/ohara-hotels.ini` (Ohara: `ansible_ssh_common_args=-F ~/.ssh/ohara/config`); hosts not in repo inventories use inline `-i 'host,'` with `ansible_host`/`ansible_ssh_private_key_file`/`wp_root` (if `-F ssh-config` breaks Ansible SSH parsing, set `ansible_host` + `ansible_ssh_private_key_file` explicitly); install WP-CLI on host first if missing; MySQL `raw` tasks must use `| quote` on passwords (`$` in `DB_ADMIN_PASS` breaks shell); WP-CLI fact reads redirect stderr so Imagick/PHP warnings do not break DB parsing; central DB grant host is often `nlb-2025-0705-1013.publicsubnet.wpdb.oraclevcn.com`; on MySQL ERROR 1819 delete `modules/2_wordpress/.db-credentials/<host>.pass` and re-run; after migration delete all docroot `wp-config.php*` except live `wp-config.php` on servers (old shared creds) but keep controller `.db-credentials/`; see `modules/2_wordpress/README-db-credentials.md`.
 - Hardened fail2ban: deploy with `modules/5_security/playbook-fail2ban.yml`; batch inventory `inventory/al2023-fail2ban.ini` — 25 SSH-verified AL2023 hosts from main `ssh-config` (excludes `lwhydraulics`, `figtreesports`); groups `al2023_fail2ban_skip` (`lifeimaging` only — full hardened verified), `al2023_fail2ban_needs_upgrade` (partial/stale filters: `bateys`, `cccls`, `venkatesanfamilyoffice`, `greenfarm`, `vcawol` — bateys had empty `nginx-php-url-hack`/`nginx-unknown-script` ignoreregex Jul 2026), `al2023_fail2ban_needs_install` (remainder) — inventory dated; `needs_upgrade`/`needs_install` hosts may already run 9 jails but still ship legacy 3-line `nginx-unknown-script` (pattern #2 `No such file or directory` included); redeploy syncs repo filter (#1 Primary script unknown + #3 access forbidden only; #2 excluded after North Nowra FPM-socket false positives); `jail.local` enables 9 jails (24h ban, `iptables-allports`, `recidive`), `loglevel = NOTICE` (drops `Found` noise, keeps `Ban`/`Unban` for `recidive`); custom `logtarget` `/var/log/fail2ban/fail2ban.log` is outside package logrotate — playbook deploys `/etc/logrotate.d/fail2ban-main` with `fail2ban-client flushlogs` postrotate (not `truncate`); `banned-ips.log` rotation needs no fail2ban reload (`logban` reopens each write); custom filters `non-wordpress-requests` (attack patterns + path ignoreregex for wp-admin/REST at any status), `nginx-php-url-hack` (.php 404 + shell only), `nginx-limit-req-login` (security_login zone only — not global `one`/`security_api`), `nginx-unknown-script`; editor-safe = path-based ignoreregex only (no cookie bypass — spoofable); keep `modules/1_nginx-php/files/security/general.conf` identical to `modules/5_security/files/security/general.conf` (30r/s + security_login/security_api zones); playbook includes nginx `main_wp` via `/etc/nginx/wp-fail2ban-log.inc` before `access_log`; deploy: filters → logban → jail.local → `nginx -t` reload → fail2ban restart; validate filters with `fail2ban-regex` via temp log files (stdin unreliable on AL2023); per-host audits in `docs/security/` and `docs/ohara/`; Bateys SSH alias is `bateys` (not `batesy`).
+
+## Jira (WordPress / WEPC) — Atlassian MCP defaults
+
+Apply these defaults on **any prompt** in this repo that creates or updates a Jira issue, without being asked first. Use the Atlassian MCP tools (Atlassian Rovo MCP plugin). Do not ask for project, board, or assignee unless the user overrides them.
+
+### Site and board
+
+- `cloudId`: `d44de458-5093-4475-aa45-852744950502` (call `getAccessibleAtlassianResources` only if this fails)
+- Project: **WordPress** (`WEPC`, id `10005`)
+- Board: **WEPC board** (id `6`) — team-managed; issues in `WEPC` appear on this board. Do not create issues in any other project.
+- Default issue type: **Task** (`10024`). Use Epic/Subtask only if the user asks.
+- Dates: `Australia/Sydney` (`YYYY-MM-DD`)
+
+### Create defaults
+
+On `createJiraIssue`:
+
+- `projectKey`: `WEPC`
+- `assignee`: `712020:511898f6-d703-4a94-9c60-86d6ac340b7f` (Mahdi / mahdi@itt.com.au)
+- **Start date** (`customfield_10015`) = the issue **created date** (Sydney calendar day of `created`). On create that is the create timestamp, not a separate planned-start date.
+- Leave **Due date** empty on create unless the user sets one
+- Always include a **Description** (never create with summary only)
+- Default **status**: move the issue to **In Progress** (the board's "Doing" column, status id `10024`) on create — pass `transition: { "id": "21" }` on `createJiraIssue`, or call `transitionJiraIssue` (transition id `21`) immediately after create. Do not leave new issues in To Do unless the user asks.
+
+Pass Start date on create from that created day. If create returns a `created` timestamp, use that date; if Start date is missing or wrong, `editJiraIssue` it to the created date.
+
+### Description (required)
+
+Write for **non-technical management**. Professional, direct, outcome-focused. No code, file paths, framework names, or implementation jargon.
+
+Use this markdown shape every time:
+
+```
+**Business Goal**
+<1–2 sentences: why this work exists and the value it delivers to the project or user.>
+
+**Summary of Work**
+- <plain-English outcome>
+- <plain-English outcome>
+- <optional third outcome>
+```
+
+- **Business Goal**: 1–2 sentences only.
+- **Summary of Work**: 2–3 bullets of what was accomplished or added (functionality and benefit, not how it was built).
+- Summary/title can stay slightly more specific; Description must stay high-level.
+
+Example:
+
+```
+createJiraIssue(
+  cloudId="d44de458-5093-4475-aa45-852744950502",
+  projectKey="WEPC",
+  issueType="Task",
+  summary="...",
+  description="**Business Goal**\n...\n\n**Summary of Work**\n- ...\n- ...",
+  assignee="712020:511898f6-d703-4a94-9c60-86d6ac340b7f",
+  additional_fields={"Start date": "<created date YYYY-MM-DD>"}
+)
+```
+
+### Move to Done
+
+When transitioning to **Done** (status id `10025`):
+
+1. `listJiraIssueTransitions` if the transition name is unknown
+2. `transitionJiraIssue` with `fields: { "duedate": "<today Australia/Sydney>" }`
+3. If due date was not accepted on the transition, `editJiraIssue` with `fields: { "duedate": "<today>" }`
+
+Do not overwrite an existing due date unless the user asks.
+
+### Automatic lifecycle — create and close without being asked
+
+- **Auto-create**: when a prompt in this repo is a concrete work task (host changes, fixes, installs, config changes, cleanup, deploys, incident response, multi-step implementation work), create the WEPC issue **before starting the work** using all Create defaults above — Task, assignee Mahdi, status In Progress (`transition: { "id": "21" }` on create), Start date = created date, Description in the required format. Name the issue key (e.g. `WEPC-123`) when starting the work.
+- **Skip auto-create** for: questions, read-only status checks/lookups, conversation, or trivial no-impact checks.
+- **Auto-close**: when the work finishes successfully, transition to **Done** (transition id `31`) and set **Due date** = today (`Australia/Sydney`) in the same transition; if the due date is rejected on transition, set it with `editJiraIssue`. Never overwrite an existing due date. State the closed issue key in the final reply.
+- **If work fails or stalls**: do not close — leave the issue In Progress and name it as blocked in the reply so it stays visible on the board.
+
+### Overrides
+
+If the user names another assignee, project, start date, or due date, use their values. Do not look up Mahdi again unless the stored accountId fails.

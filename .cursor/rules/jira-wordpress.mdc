@@ -1,0 +1,84 @@
+---
+description: Default Jira issue create/transition behaviour for this WordPress repo via Atlassian MCP
+alwaysApply: true
+---
+
+# Jira (WordPress / WEPC)
+
+When creating or updating Jira issues from this repo, use Atlassian MCP with these defaults. Do not ask for project, board, or assignee unless the user overrides them.
+
+## Site and board
+
+- `cloudId`: `d44de458-5093-4475-aa45-852744950502` (call `getAccessibleAtlassianResources` only if this fails)
+- Project: **WordPress** (`WEPC`, id `10005`)
+- Board: **WEPC board** (id `6`) — team-managed; issues in `WEPC` appear on this board. Do not create issues in any other project.
+- Default issue type: **Task** (`10024`). Use Epic/Subtask only if the user asks.
+- Dates: `Australia/Sydney` (`YYYY-MM-DD`)
+
+## Create defaults
+
+On `createJiraIssue`:
+
+- `projectKey`: `WEPC`
+- `assignee`: `712020:511898f6-d703-4a94-9c60-86d6ac340b7f` (Mahdi / mahdi@itt.com.au)
+- **Start date** (`customfield_10015`) = the issue **created date** (Sydney calendar day of `created`). On create that is the create timestamp, not a separate planned-start date.
+- Leave **Due date** empty on create unless the user sets one
+- Always include a **Description** (never create with summary only)
+- Default **status**: move the issue to **In Progress** (the board's "Doing" column, status id `10024`) on create — pass `transition: { "id": "21" }` on `createJiraIssue`, or call `transitionJiraIssue` (transition id `21`) immediately after create. Do not leave new issues in To Do unless the user asks.
+
+Pass Start date on create from that created day. If create returns a `created` timestamp, use that date; if Start date is missing or wrong, `editJiraIssue` it to the created date.
+
+## Description (required)
+
+Write for **non-technical management**. Professional, direct, outcome-focused. No code, file paths, framework names, or implementation jargon.
+
+Use this markdown shape every time:
+
+```
+**Business Goal**
+<1–2 sentences: why this work exists and the value it delivers to the project or user.>
+
+**Summary of Work**
+- <plain-English outcome>
+- <plain-English outcome>
+- <optional third outcome>
+```
+
+- **Business Goal**: 1–2 sentences only.
+- **Summary of Work**: 2–3 bullets of what was accomplished or added (functionality and benefit, not how it was built).
+- Summary/title can stay slightly more specific; Description must stay high-level.
+
+Example:
+
+```
+createJiraIssue(
+  cloudId="d44de458-5093-4475-aa45-852744950502",
+  projectKey="WEPC",
+  issueType="Task",
+  summary="...",
+  description="**Business Goal**\n...\n\n**Summary of Work**\n- ...\n- ...",
+  assignee="712020:511898f6-d703-4a94-9c60-86d6ac340b7f",
+  additional_fields={"Start date": "<created date YYYY-MM-DD>"}
+)
+```
+
+## Move to Done
+
+When transitioning to **Done** (status id `10025`):
+
+1. `listJiraIssueTransitions` if the transition name is unknown
+2. `transitionJiraIssue` with `fields: { "duedate": "<today Australia/Sydney>" }`
+3. If due date was not accepted on the transition, `editJiraIssue` with `fields: { "duedate": "<today>" }`
+
+Do not overwrite an existing due date unless the user asks.
+
+## Automatic lifecycle — create and close without being asked
+
+- **Auto-create**: when a prompt in this repo is a concrete work task (host changes, fixes, installs, config changes, cleanup, deploys, incident response, multi-step implementation work), create the WEPC issue **before starting the work** using all Create defaults above — Task, assignee Mahdi, status In Progress (`transition: { "id": "21" }` on create), Start date = created date, Description in the required format. Name the issue key (e.g. `WEPC-123`) when starting the work.
+- **Skip auto-create** for: questions, read-only status checks/lookups, conversation, or trivial no-impact checks.
+- **Auto-close**: when the work finishes successfully, transition to **Done** (transition id `31`) and set **Due date** = today (`Australia/Sydney`) in the same transition; if the due date is rejected on transition, set it with `editJiraIssue`. Never overwrite an existing due date. State the closed issue key in the final reply.
+- **If work fails or stalls**: do not close — leave the issue In Progress and name it as blocked in the reply so it stays visible on the board.
+
+## Overrides
+
+If the user names another assignee, project, start date, or due date, use their values. Do not look up Mahdi again unless the stored accountId fails.

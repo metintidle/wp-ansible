@@ -1,0 +1,46 @@
+---
+description: SSH fleet config layout, maintenance-plan marker convention, and host lifecycle rules for this repo
+alwaysApply: true
+---
+
+# SSH fleet management
+
+Fleet SSH configs are symlinked into the repo root: `ssh-config` → `~/.ssh/config`, `ohara` → `~/.ssh/ohara/config`. Edits via the symlinks edit the live configs — always back up `~/.ssh/config` before restructuring, and verify after edits with `ssh -G <alias>` and a before/after `grep '^Host '` diff.
+
+## Config layout (keep these sections, in order)
+
+1. Includes (`csb`, OrbStack — must stay above all Host blocks — `hparson`, `ohara`)
+2. Infrastructure / non-Amazon-Linux
+3. Amazon Linux 2 (note: `figtreesports` is actually Debian 11 Bitnami)
+4. Amazon Linux 2023 — static / non-WordPress
+5. Amazon Linux 2023 — WordPress, **maintenance plan**
+6. Amazon Linux 2023 — WordPress, standard
+7. Legacy / commented out
+
+Conventions: one blank line between host blocks, 4-space indent, comment header above every host (name/purpose, site URL, special notes). Do NOT add per-host cron-status comments — they go stale; fleet cron state lives in `docs/fleet-cron-fail2ban-audit-*.md`.
+
+## Maintenance-plan marker (machine-parsed)
+
+The WP auto-update cron scope is resolved dynamically by `bash/maintenance-plan-hosts.sh` — never hard-code host lists in playbooks, scripts, or docs. Scope =
+
+1. every `Host` in `~/.ssh/ohara/config`, plus
+2. every host in `~/.ssh/config` whose block carries this EXACT comment as the last comment line directly above the `Host` line (a blank line ends the block):
+   `# Maintenance plan — IT&T monitoring and security`
+3. plus `EXCEPTIONS_IN` / minus `EXCEPTIONS_OUT` in that script.
+
+Gotchas already fixed in the resolver — do not regress them: BSD awk `.` does not match the multibyte em dash (use `.*`); a marker above a commented-out `#Host` block must not leak to the next active host; the marker example in the config file header must not match (blank-line rule).
+
+Usage: `./bash/maintenance-plan-hosts.sh`, or `LIMIT=$(./bash/maintenance-plan-hosts.sh | paste -sd, -)` for `ansible-playbook --limit "$LIMIT"`.
+
+## Adding / removing / changing a host
+
+- **New host**: place it in the correct OS/stack section (alphabetical within WordPress sections), add the comment header (name, URL, notes), and add the marker line only if it is a maintenance-plan customer. Update the section header host count.
+- **Plan change**: add/remove ONLY the marker line — never move the host between sections just for plan changes, and never edit `maintenance-plan-hosts.sh` for marker-covered hosts.
+- **Decommission**: comment out the whole block (including the marker) and leave it in place, or move it to the Legacy section. Commented `#Host` blocks are ignored by the resolver.
+- **After any edit**: run `diff <(grep '^Host ' ~/.ssh/config.bak-*) <(grep '^Host ' ~/.ssh/config)` for restructures, `ssh -G` on touched aliases, and `./bash/maintenance-plan-hosts.sh | wc -l` to confirm the scope count changed exactly as intended.
+
+## Cron scope policy (summary)
+
+- OS-upgrade cron + `wp-site-backup.sh` cron → ALL AL2023 servers (backup = WordPress hosts only; static/non-WordPress n/a).
+- WP auto-update cron (`run-wp-auto-update.sh`) → maintenance-plan hosts ONLY, per the resolver; remove it from any other host.
+- Full policy: `AGENTS.md` → Learned User Preferences.
