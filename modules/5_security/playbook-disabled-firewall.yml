@@ -5,8 +5,8 @@
 # blocks Nginx on 80/443 until these services are allowed.
 #
 # Fail2Ban hosts in this repo normally disable firewalld in favour of iptables
-# (see playbook-fail2ban.yml). When fail2ban is active here, firewalld is stopped
-# instead of configured, so iptables bans keep working.
+# (see playbook-fail2ban.yml). ssh/http/https are opened first whenever firewalld
+# is present, then firewalld is stopped on fail2ban hosts.
 #
 # Usage:
 #   ansible-playbook -i inventory/al2023-fail2ban.ini modules/5_security/playbook-disabled-firewall.yml

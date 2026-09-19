@@ -1,12 +1,75 @@
 ---
 # After AL2023 dnf upgrades, firewalld may be installed/re-enabled with only ssh open.
-# Fail2ban hosts use iptables instead — disable firewalld when fail2ban is active.
+# Always open ssh/http/https when firewalld is present. Fail2ban hosts still prefer
+# iptables — disable firewalld after ports are open so a leftover daemon cannot
+# block Nginx.
 - name: Check whether fail2ban is active
   ansible.builtin.command:
     cmd: systemctl is-active fail2ban
   register: firewall_fail2ban_active
   changed_when: false
   failed_when: false
+
+- name: Check whether firewalld is active
+  ansible.builtin.command:
+    cmd: systemctl is-active firewalld
+  register: firewalld_active
+  changed_when: false
+  failed_when: false
+
+- name: Check whether firewalld is installed
+  ansible.builtin.command:
+    cmd: rpm -q firewalld
+  register: firewalld_pkg
+  changed_when: false
+  failed_when: false
+
+- name: Open SSH/HTTP/HTTPS on firewalld (permanent)
+  ansible.builtin.command:
+    cmd: "firewall-cmd --permanent --add-service={{ item }}"
+  loop: "{{ (['ssh'] if firewall_open_ssh | default(true) | bool else []) + ['http', 'https'] }}"
+  when: firewalld_active.stdout == "active"
+  register: firewalld_perm
+  changed_when: >
+    firewalld_perm.rc == 0 and
+    'ALREADY_ENABLED' not in (firewalld_perm.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_perm.stdout | default(''))
+  failed_when: >
+    firewalld_perm.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_perm.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_perm.stdout | default(''))
+
+- name: Open SSH/HTTP/HTTPS on firewalld (runtime)
+  ansible.builtin.command:
+    cmd: "firewall-cmd --add-service={{ item }}"
+  loop: "{{ (['ssh'] if firewall_open_ssh | default(true) | bool else []) + ['http', 'https'] }}"
+  when: firewalld_active.stdout == "active"
+  register: firewalld_runtime
+  changed_when: >
+    firewalld_runtime.rc == 0 and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stdout | default(''))
+  failed_when: >
+    firewalld_runtime.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_runtime.stdout | default(''))
+
+- name: Persist SSH/HTTP/HTTPS while firewalld is down
+  ansible.builtin.command:
+    cmd: "firewall-offline-cmd --add-service={{ item }}"
+  loop: "{{ (['ssh'] if firewall_open_ssh | default(true) | bool else []) + ['http', 'https'] }}"
+  when:
+    - firewalld_pkg.rc == 0
+    - firewalld_active.stdout != "active"
+  register: firewalld_offline
+  changed_when: >
+    firewalld_offline.rc == 0 and
+    'ALREADY_ENABLED' not in (firewalld_offline.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_offline.stdout | default(''))
+  failed_when: >
+    firewalld_offline.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_offline.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_offline.stdout | default(''))
 
 - name: Stop and disable firewalld when fail2ban manages iptables
   ansible.builtin.service:
@@ -40,42 +103,43 @@
     enabled: true
   when: firewall_fail2ban_active.stdout != "active"
 
-- name: Open services on firewalld (permanent)
+- name: Open services on firewalld (permanent, non-fail2ban)
   ansible.builtin.command:
     cmd: "firewall-cmd --permanent --add-service={{ item }}"
   loop: "{{ (['ssh'] if firewall_open_ssh | default(true) | bool else []) + ['http', 'https'] }}"
   when: firewall_fail2ban_active.stdout != "active"
-  register: firewalld_perm
+  register: firewalld_perm_enabled
   changed_when: >
-    firewalld_perm.rc == 0 and
-    'ALREADY_ENABLED' not in (firewalld_perm.stderr | default('')) and
-    'ALREADY_ENABLED' not in (firewalld_perm.stdout | default(''))
+    firewalld_perm_enabled.rc == 0 and
+    'ALREADY_ENABLED' not in (firewalld_perm_enabled.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_perm_enabled.stdout | default(''))
   failed_when: >
-    firewalld_perm.rc != 0 and
-    'ALREADY_ENABLED' not in (firewalld_perm.stderr | default('')) and
-    'ALREADY_ENABLED' not in (firewalld_perm.stdout | default(''))
+    firewalld_perm_enabled.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_perm_enabled.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_perm_enabled.stdout | default(''))
 
-- name: Open services on firewalld (runtime)
+- name: Open services on firewalld (runtime, non-fail2ban)
   ansible.builtin.command:
     cmd: "firewall-cmd --add-service={{ item }}"
   loop: "{{ (['ssh'] if firewall_open_ssh | default(true) | bool else []) + ['http', 'https'] }}"
   when: firewall_fail2ban_active.stdout != "active"
-  register: firewalld_runtime
+  register: firewalld_runtime_enabled
   changed_when: >
-    firewalld_runtime.rc == 0 and
-    'ALREADY_ENABLED' not in (firewalld_runtime.stderr | default('')) and
-    'ALREADY_ENABLED' not in (firewalld_runtime.stdout | default(''))
+    firewalld_runtime_enabled.rc == 0 and
+    'ALREADY_ENABLED' not in (firewalld_runtime_enabled.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_runtime_enabled.stdout | default(''))
   failed_when: >
-    firewalld_runtime.rc != 0 and
-    'ALREADY_ENABLED' not in (firewalld_runtime.stderr | default('')) and
-    'ALREADY_ENABLED' not in (firewalld_runtime.stdout | default(''))
+    firewalld_runtime_enabled.rc != 0 and
+    'ALREADY_ENABLED' not in (firewalld_runtime_enabled.stderr | default('')) and
+    'ALREADY_ENABLED' not in (firewalld_runtime_enabled.stdout | default(''))
 
 - name: Firewalld post-upgrade summary
   ansible.builtin.debug:
     msg:
       - >-
-        fail2ban active: {{ firewall_fail2ban_active.stdout == 'active' }} —
-        {{ 'firewalld disabled (iptables/fail2ban in use)' if firewall_fail2ban_active.stdout == 'active'
-           else 'firewalld enabled with services: ' ~ ('ssh, ' if firewall_open_ssh | default(true) | bool else '') ~ 'http, https' }}
-      - "Verify firewalld: firewall-cmd --list-services"
+        fail2ban active: {{ firewall_fail2ban_active.stdout == 'active' }};
+        firewalld active at start: {{ firewalld_active.stdout == 'active' }} —
+        ssh/http/https are opened whenever firewalld is present, then firewalld
+        is disabled on fail2ban hosts.
+      - "Verify firewalld: firewall-cmd --list-services (or firewall-offline-cmd --list-services)"
       - "Verify iptables: iptables -L INPUT -n"

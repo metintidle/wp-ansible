@@ -61,7 +61,7 @@
         enabled: true
 
     # Flush and rebuild INPUT — iptables-services ships a default REJECT that
-    # must come after 22/443 ACCEPT rules (CCCSL pattern: 443 open, 80 blocked).
+    # must come after 22/80/443 ACCEPT (HTTP is required for ACME + HTTPS redirects).
     - name: Flush INPUT chain
       tags: [install]
       ansible.builtin.command: iptables -F INPUT
@@ -87,19 +87,14 @@
       ansible.builtin.command: iptables -A INPUT -p tcp --dport 22 -m conntrack --ctstate NEW -j ACCEPT
       changed_when: true
 
+    - name: Allow HTTP connections
+      tags: [install]
+      ansible.builtin.command: iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j ACCEPT
+      changed_when: true
+
     - name: Allow HTTPS connections
       tags: [install]
       ansible.builtin.command: iptables -A INPUT -p tcp --dport 443 -m conntrack --ctstate NEW -j ACCEPT
-      changed_when: true
-
-    - name: Allow return traffic on port 80 (ESTABLISHED,RELATED)
-      tags: [install]
-      ansible.builtin.command: iptables -A INPUT -p tcp --sport 80 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-      changed_when: true
-
-    - name: Block new incoming connections on port 80 (HTTP)
-      tags: [install]
-      ansible.builtin.command: iptables -A INPUT -p tcp --dport 80 -m conntrack --ctstate NEW -j DROP
       changed_when: true
 
     - name: Reject all other incoming traffic
