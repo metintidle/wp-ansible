@@ -15,6 +15,16 @@ Use this when debugging "can't reach the server", SSL renewal failures, or block
 
 If none are active, filtering is done only at **AWS Security Group** (and Nginx).
 
+**AL2023 WordPress hosts:** After OS upgrades or reboots, firewalld can come up with **ssh** only (no **http** / **https**), which breaks public sites while SSH still works. Check services:
+
+```bash
+sudo firewall-cmd --list-services   # expect ssh http https (or firewalld disabled on fail2ban hosts after fix)
+sudo systemctl status ensure-web-ports.timer
+sudo tail -20 /var/log/firewalld-boot-fix.log
+```
+
+Deploy or refresh guards: [`modules/8_updates/playbook-ensure-web-ports.yml`](../modules/8_updates/playbook-ensure-web-ports.yml) (timer every 5 minutes, firewalld `ExecStartPost`, `@reboot` cron). Details: [modules/8_updates/README.md](../modules/8_updates/README.md#os-auto-upgrades-amazon-linux-2023).
+
 ### 2. Listening ports
 
 ```bash
@@ -81,3 +91,4 @@ When you attach a **new Elastic IP** (or a new instance) and point the domain to
 - [README.md](../README.md) — FTP ports
 - [docs/ssl-dns-troubleshooting.md](ssl-dns-troubleshooting.md) — DNS and Certbot
 - [modules/5_security/](../modules/5_security/) — Fail2Ban, CrowdSec, strict whitelist
+- [modules/8_updates/README.md](../modules/8_updates/README.md) — firewalld boot fix, OS upgrade cron

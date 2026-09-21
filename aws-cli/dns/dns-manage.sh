@@ -11,14 +11,14 @@
 #
 # Environment:
 #   CUSTOMER — preset key (see below); sets AWS_PROFILE + DOMAIN when unset
-#   AWS_PROFILE — IAM login profile from ~/.aws/config (sync-config)
+#   AWS_PROFILE — IAM login profile from ~/.aws/config (see docs/aws-credential.md)
 #   DOMAIN   — default tongarrafamilypractice.com
 #   IPV4     — default 13.211.239.203
 #   IPV6     — default 2406:da1c:f1e:dc00:371d:f5a3:741:8281
 #   TTL      — default 300
 #   ZONE_ID  — optional; resolved from DOMAIN when unset
 #
-# Customer presets (login: cd auto-aws && npm run cli-login -- --account <Profile>):
+# Customer presets (login: ./aws-cli/auth/aws-login.sh <Profile>):
 #   ucdrs / UnanderraCommunityHealth — account 055537175907, domain ucdrs.com.au
 
 set -euo pipefail
