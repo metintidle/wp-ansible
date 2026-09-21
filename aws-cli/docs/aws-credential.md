@@ -1,106 +1,87 @@
-# AWS CLI login profiles (IAM users from Bitwarden vault)
+# AWS CLI login profiles (IAM `login_session`)
 
-Part of [`aws-cli/`](../README.md). This workflow lets you run any `aws` command locally using **console IAM credentials** from `aws-credentials.json` (Bitwarden export). Passwords stay in the vault file; they are **not** written to `~/.aws/credentials`.
+Part of [`aws-cli/`](../README.md). Run `aws` locally with **AWS CLI v2 `aws login`** and `login_session` profiles in `~/.aws/config`. Console passwords are **not** stored in `~/.aws/credentials`.
 
-Requires **AWS CLI v2.32.0+** with the `aws login` command. See [aws-credential-issues.md](./aws-credential-issues.md) for troubleshooting.
+Requires **AWS CLI v2.32.0+**. See [aws-credential-issues.md](./aws-credential-issues.md) for troubleshooting.
 
 ## Prerequisites
 
-1. **Bitwarden export** at repo root: `aws-credentials.json` (gitignored). Each item needs:
-   - `login.username` — IAM username
-   - `login.password` — console password
-   - custom field `account` — 12-digit AWS account ID
+1. **AWS CLI 2.32.0+** — `aws --version`.
 
-2. **AWS CLI 2.32.0+** — run `aws --version`.
+2. **IAM user** with console sign-in and the managed policy **`SignInLocalDevelopmentAccess`** attached (once per user — see [issues doc](./aws-credential-issues.md#1-missing-iam-permission-most-likely)).
 
-3. **Node.js** — for `auto-aws` Playwright automation:
-   ```bash
-   cd auto-aws && npm install
-   ```
+3. **Optional reference:** Bitwarden export `aws-credentials.json` at repo root (gitignored) with `login.username`, `login.password`, and custom field `account` (12-digit ID). Use it when filling in `setup-profile.sh`; the shell workflow does not read this file automatically.
 
-## One-time setup
+## One-time setup per account
 
-### 1. Sync profiles to `~/.aws/config`
-
-Generates named profiles with `login_session` ARNs (no static access keys):
+Add a `login_session` profile with [`auth/setup-profile.sh`](../auth/setup-profile.sh) (backs up existing `~/.aws/config`):
 
 ```bash
-cd auto-aws
-npm run sync-config
+./aws-cli/auth/setup-profile.sh <ProfileName> <account-id> <iam-username>
+# Example:
+./aws-cli/auth/setup-profile.sh CamdenSurgery 122610501814 CamdenSurgery
 ```
 
-Each profile looks like:
+Generated block:
 
 ```ini
-[profile TongarraFamilyPractice]
+[profile CamdenSurgery]
 region = ap-southeast-2
 output = json
-login_session = arn:aws:iam::285964549210:user/TongarraFamilyPractice
+login_session = arn:aws:iam::122610501814:user/CamdenSurgery
 ```
 
-Profile name = trimmed IAM username. If two accounts share a username, the name is suffixed with the account ID.
-
-Existing `~/.aws/config` is backed up with a timestamp before changes.
-
-### 2. Bootstrap `SignInLocalDevelopmentAccess` (once per account)
-
-`aws login` requires the managed policy **SignInLocalDevelopmentAccess** on the IAM user you sign in as. Run once per account:
-
-```bash
-npm run bootstrap -- --account TongarraFamilyPractice
-```
-
-This console-logs in via Playwright, opens CloudShell, checks `list-attached-user-policies`, and attaches the policy if missing. Pauses for MFA if prompted.
-
-If bootstrap fails with `AccessDenied`, an admin must attach the policy manually.
+Repeat for each Lightsail customer profile. Profile name is usually the IAM username; use a unique name if the same username exists in another account.
 
 ## Daily use
 
 ### Log in
 
+[`auth/aws-login.sh`](../auth/aws-login.sh) skips login when the session is already valid; otherwise runs `aws login` (browser sign-in):
+
 ```bash
-npm run cli-login -- --account TongarraFamilyPractice
+./aws-cli/auth/aws-login.sh CamdenSurgery
+export AWS_PROFILE=CamdenSurgery
+aws sts get-caller-identity
 ```
 
-This ensures the profile exists, runs `aws login --profile <name> --remote`, opens the authorize URL in Playwright, fills account ID + IAM username + password from the vault, completes OAuth consent, and submits the authorization code. Sessions are cached in `~/.aws/login/cache` (15-minute creds, auto-refresh up to 12 hours).
+Or invoke `aws login --profile <name>` directly. Sessions cache under `~/.aws/login/cache` (short-lived creds with refresh).
 
 ### Run AWS commands
 
 ```bash
-aws sts get-caller-identity --profile TongarraFamilyPractice
-aws lightsail get-instances --profile TongarraFamilyPractice
+aws lightsail get-instances --profile CamdenSurgery
 ```
 
-Or use the wrapper (auto `cli-login` when the session is missing or expired):
+Auto-login wrapper when the session is missing or expired:
 
 ```bash
-./aws-cli/auth/aws-profile.sh TongarraFamilyPractice lightsail get-instances
+./aws-cli/auth/aws-profile.sh CamdenSurgery lightsail get-instances
 ```
 
 ### Default profile
 
 ```bash
-export AWS_PROFILE=TongarraFamilyPractice
+export AWS_PROFILE=CamdenSurgery
 aws lightsail get-instances
 ```
 
 ### Log out
 
 ```bash
-aws logout --profile TongarraFamilyPractice
+aws logout --profile CamdenSurgery
 ```
 
 ## Security notes
 
 - Do **not** commit `aws-credentials.json`.
-- Do **not** put console passwords or access keys in `~/.aws/credentials` for these profiles.
-- `login_session` values in `~/.aws/config` are identity ARNs, not secrets.
+- Do **not** put static access keys in `~/.aws/credentials` for the same profile names — they override `login_session` and cause `ExpiredToken` / `AccessDenied`.
+- `login_session` ARNs in `~/.aws/config` are not secrets.
 
 ## Related
 
 - [aws-cli README](../README.md) — layout, migration orchestrator, script index
 - [aws-credential-issues.md](./aws-credential-issues.md) — CLI version, policy, static-key conflicts
-- [auto-aws/README.md](../../auto-aws/README.md) — console login, CloudShell provision/migrate
-- [auth/setup-profile.sh](../auth/setup-profile.sh) — add a `login_session` profile without npm
-- [auth/aws-login.sh](../auth/aws-login.sh) — `aws login --profile` wrapper
-- [auth/aws-profile.sh](../auth/aws-profile.sh) — run any `aws` command with auto-login
+- [auth/setup-profile.sh](../auth/setup-profile.sh) — add or refresh a profile block
+- [auth/aws-login.sh](../auth/aws-login.sh) — ensure active session
+- [auth/aws-profile.sh](../auth/aws-profile.sh) — run any `aws` subcommand with auto-login

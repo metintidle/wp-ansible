@@ -274,7 +274,7 @@ Minimal aws-cli-only setup:
 export AWS_PROFILE=<ProfileName>
 ```
 
-Optional: [`auto-aws/`](../auto-aws/) for vault sync and Playwright login (`npm run sync-config`, `npm run cli-login`).
+Profile setup and login use shell helpers only: [`auth/setup-profile.sh`](./auth/setup-profile.sh), [`auth/aws-login.sh`](./auth/aws-login.sh), [`auth/aws-profile.sh`](./auth/aws-profile.sh). See [docs/aws-credential.md](./docs/aws-credential.md).
 
 ## Examples
 
@@ -310,7 +310,6 @@ Optional: [`auto-aws/`](../auto-aws/) for vault sync and Playwright login (`npm 
 
 - [docs/aws-credential.md](./docs/aws-credential.md) — IAM login profiles
 - [docs/aws-credential-issues.md](./docs/aws-credential-issues.md) — `aws login` troubleshooting
-- [auto-aws/README.md](../auto-aws/README.md) — Playwright login alternative
 - [modules/1_nginx-php/playbook.yml](../modules/1_nginx-php/playbook.yml) — nginx + PHP-FPM (create) / copy site from rescue disk (migrate)
 - [modules/2_wordpress/playbook.yml](../modules/2_wordpress/playbook.yml) — new WordPress install (`db_name`, `db_prefix`)
 - [modules/2_wordpress/playbook-core-plugins.yml](../modules/2_wordpress/playbook-core-plugins.yml) — BBQ + SQLite Object Cache, auto-updates, BBQ lock

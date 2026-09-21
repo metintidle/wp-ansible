@@ -17,8 +17,13 @@ The system uses a sequential deployment approach with separate playbooks for eac
 4. **modules/4_agent** - Resmon wp-agent (Socket.io to monitoring hub; see `modules/4_agent/README.md`)
 5. **modules/5_security** - Fail2Ban, CrowdSec, geo firewall, strict whitelist
 6. **modules/6_cache** - FastCGI caching and object caching (SQLite-based)
-7. **tools** - Additional tools installation
-8. **newrelic** - Monitoring and performance tracking (if used)
+7. **modules/7_cleanup** - Unused media audit/cleanup (optional monthly cron)
+8. **modules/8_updates** - AL2023 OS upgrades (all AL2023 hosts), WordPress auto-update cron (maintenance-plan hosts only), firewalld HTTP/HTTPS boot guard — see `modules/8_updates/README.md`
+9. **modules/9_backup** - Root cron WordPress backups to `/var/backups/wordpress/`; coordinates with module 8 — see `modules/9_backup/README.md` (also imported at end of `modules/2_wordpress/playbook.yml`)
+10. **tools** - Additional tools installation
+11. **newrelic** - Monitoring and performance tracking (if used)
+
+Lightsail create/migrate shell workflow: [`aws-cli/README.md`](aws-cli/README.md). IAM login: [`aws-cli/docs/aws-credential.md`](aws-cli/docs/aws-credential.md).
 
 ### Key Components
 
