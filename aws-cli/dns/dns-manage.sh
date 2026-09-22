@@ -13,8 +13,8 @@
 #   CUSTOMER — preset key (see below); sets AWS_PROFILE + DOMAIN when unset
 #   AWS_PROFILE — IAM login profile from ~/.aws/config (sync-config)
 #   DOMAIN   — default tongarrafamilypractice.com
-#   IPV4     — default 13.211.239.203
-#   IPV6     — default 2406:da1c:f1e:dc00:371d:f5a3:741:8281
+#   IPV4     — required for every domain except the download default; no implicit fallback
+#   IPV6     — optional; when empty, AAAA records are skipped (never defaulted for other domains)
 #   TTL      — default 300
 #   ZONE_ID  — optional; resolved from DOMAIN when unset
 #
@@ -46,11 +46,34 @@ if [[ -n "$CUSTOMER" ]]; then
   fi
 fi
 
-DOMAIN="${DOMAIN:-tongarrafamilypractice.com}"
-IPV4="${IPV4:-13.211.239.203}"
-IPV6="${IPV6:-2406:da1c:f1e:dc00:371d:f5a3:741:8281}"
+# The implicit IP defaults belong to the tongarrafamilypractice.com zone ONLY.
+# They must never leak into another domain: that is how gerringonggp.com.au got AAAA
+# records pointing at the Tongarra server, so IPv6 visitors were served
+# tongarrafamilypractice.com (wrong site, wrong TLS certificate) while IPv4 was fine.
+# An empty IPV4/IPV6 — a failed Lightsail lookup, for example — is therefore an error
+# for every domain other than the default one.
+DEFAULTS_DOMAIN="tongarrafamilypractice.com"
+DEFAULTS_IPV4="13.211.239.203"
+DEFAULTS_IPV6="2406:da1c:f1e:dc00:371d:f5a3:741:8281"
+
+DOMAIN="${DOMAIN:-$DEFAULTS_DOMAIN}"
 TTL="${TTL:-300}"
 ZONE_ID="${ZONE_ID:-}"
+
+if [[ "$DOMAIN" == "$DEFAULTS_DOMAIN" ]]; then
+  IPV4="${IPV4:-$DEFAULTS_IPV4}"
+  IPV6="${IPV6:-$DEFAULTS_IPV6}"
+else
+  if [[ -z "${IPV4:-}" || "${IPV4:-}" == "None" ]]; then
+    echo "ERROR: IPV4 must be set explicitly for ${DOMAIN} — refusing to fall back to ${DEFAULTS_IPV4}" >&2
+    exit 1
+  fi
+  if [[ -n "${IPV6:-}" && "${IPV6:-}" == "$DEFAULTS_IPV6" ]]; then
+    echo "ERROR: refusing to publish ${DEFAULTS_DOMAIN}'s IPv6 (${DEFAULTS_IPV6}) in ${DOMAIN}" >&2
+    exit 1
+  fi
+  IPV6="${IPV6:-}"
+fi
 
 usage() {
   cat <<EOF
