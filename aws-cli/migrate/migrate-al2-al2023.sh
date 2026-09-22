@@ -251,6 +251,12 @@ do_dns() {
     --instance-name "$NEW_INSTANCE_NAME" \
     --query 'instance.ipv6Addresses[0]' \
     --output text 2>/dev/null || true)
+  [[ "$IPV6" == "None" ]] && IPV6=""
+  if [[ -z "$IPV6" ]]; then
+    echo "WARNING: Lightsail reports no IPv6 for ${NEW_INSTANCE_NAME} — AAAA records will not be written." >&2
+    echo "         Any existing AAAA records stay as they are; verify they do not point at another host:" >&2
+    echo "         dig +short <domain> AAAA  vs  ssh <host> 'ip -6 addr show scope global'" >&2
+  fi
   export AWS_PROFILE="$PROFILE"
   export IPV4="$ip"
   export IPV6="${IPV6:-}"

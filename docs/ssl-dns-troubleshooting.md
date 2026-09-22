@@ -33,7 +33,63 @@ Certbot uses **HTTP-01** challenge: Let's Encrypt must reach your server over th
 
 ---
 
-## Generate or renew SSL after DNS is fixed
+## Wrong certificate over IPv6 only (AAAA points at another server)
+
+**Symptom:** HTTPS works for a site over IPv4, but a browser shows **another site's certificate** — usually with that other site's content or a 404. The server itself is healthy: this is a DNS (AAAA) problem, not a certificate problem.
+
+**Cause:** the domain's **AAAA record points at a different server** (typically another customer's). Browsers and tools prefer IPv6, so IPv6-capable visitors reach the wrong host, which has no matching `server_name` and answers with its default (first) vhost certificate. IPv4 visitors reach the right host and see the right certificate.
+
+This happened in this fleet to `gerringonggp.com.au` (and `gfmp.net.au` + their `www`): the AAAA records held the Tongarra Family Practice host `2406:da1c:f1e:dc00:371d:f5a3:741:8281`, so IPv6 visitors were served `tongarrafamilypractice.com`, while the A records (`3.104.213.239`, the Gerringong host) were correct.
+
+**Tooling root cause:** `aws-cli/dns/dns-manage.sh` fell back to hard-coded Tongarra IPs (`IPV4=13.211.239.203`, `IPV6=2406:da1c:f1e:dc00:371d:f5a3:741:8281`) whenever `IPV4` / `IPV6` were empty. Bash `:-` treats an empty value as unset, so a failed Lightsail IPv6 lookup during a migration silently published the wrong AAAA. The script now refuses those defaults for any domain other than `tongarrafamilypractice.com`, and `aws-cli/migrate/migrate-al2-al2023.sh` warns when Lightsail reports no IPv6.
+
+### Diagnose
+
+```bash
+# 1) A and AAAA for the domain
+dig +short gerringonggp.com.au A
+dig +short gerringonggp.com.au AAAA
+
+# 2) Which certificate does the AAAA address serve?
+openssl s_client -connect '[2406:da1c:f1e:dc00:371d:f5a3:741:8281]:443' \
+  -servername gerringonggp.com.au </dev/null 2>/dev/null | openssl x509 -noout -subject
+
+# 3) On the real host: its own global IPv6, listeners, vhost names
+ssh <host> 'ip -6 addr show scope global; sudo ss -lntp | grep -E ":(80|443)"'
+ssh <host> "sudo grep -rhE 'server_name' /etc/nginx/ | sort -u"
+```
+
+A certificate subject that does not match the domain confirms the AAAA record is wrong. A cert subject matching a *different customer's* domain means IPv6 visitors are on the wrong server entirely.
+
+### Fix
+
+1. Repoint the AAAA record at the host's **own** IPv6 address — or delete it if the host has no usable IPv6 (IPv4-only domains still pass the HTTP-01 challenge).
+2. Check the host's IPv6 is reachable **from outside** before repointing. On Lightsail, firewall rules are per address family, so a host can hold an IPv6 address in the OS and still drop all inbound IPv6 traffic:
+
+   ```bash
+   # from another IPv6-capable host
+   ping6 -c 2 <host-ipv6>
+   nc -6 -z -w 5 <host-ipv6> 443 && echo OPEN || echo FILTERED
+   ```
+
+3. Wait out the TTL (300s), re-check `dig`, then verify the certificate over IPv6 again.
+
+A host whose IPv6 is filtered or dead is worse than having no AAAA record at all: dual-stack clients wait for a timeout before falling back to IPv4, and IPv6-only clients fail outright.
+
+### Fleet-wide check
+
+Compare every domain's AAAA with the address each host actually holds:
+
+```bash
+for d in $(grep -hE '^#[[:space:]]*https?://' ~/.ssh/config | sed -E 's|^#[[:space:]]*https?://||; s|/$||' | sort -u); do
+  printf '%-40s AAAA=%s\n' "$d" "$(dig +short "$d" AAAA | tr '\n' ' ')"
+done
+```
+
+Then confirm each host's own address with `ssh <host> 'ip -6 addr show scope global'`. Records that point at an address no host owns (or at another host's address) cause either the wrong-site/wrong-cert symptom above or silent IPv6 breakage.
+
+---
+
 
 Once DNS has propagated (A and optionally AAAA point to your server), **on the server** run one of the following.
 
