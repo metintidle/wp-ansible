@@ -11,12 +11,12 @@
 #   dreamscape — DreamScape Reseller API: customer domains + DNS (see aws-cli/dreamscap.md)
 #   dns       — Route53 hosted zone(s) + apex/www A (and AAAA) records
 #   nginx     — modules/1_nginx-php/playbook.yml (fresh stack, skip rescue disk)
-#   wordpress — modules/2_wordpress/playbook.yml (prompts for db_name + table_prefix)
+#   wordpress — modules/2_wordpress/playbook.yml (db_name + table_prefix default from host alias)
 #   all       — create → ports → ssh-config → dns → nginx → wordpress
 #
-# WordPress prompts (or env, to skip):
-#   DB_NAME / DATA_NAME     MySQL database name → ansible -e db_name
-#   DB_PREFIX / TABLE_PREFIX  table prefix (default wp_) → ansible -e db_prefix
+# WordPress DB values (default derived from SSH host alias; env to override):
+#   DB_NAME / DATA_NAME     MySQL database name (default: host alias lowercased) → ansible -e db_name
+#   DB_PREFIX / TABLE_PREFIX  table prefix (default: first 3 letters of host alias) → ansible -e db_prefix
 #
 # Environment:
 #   REGION, AVAILABILITY_ZONE, NEW_INSTANCE_NAME, BUNDLE_ID, STATIC_IP_NAME
@@ -635,20 +635,16 @@ source_db_admin() {
 }
 
 prompt_wp_vars() {
-  local name prefix
+  local name prefix host_key host_prefix
+  # DB name default: SSH host alias, lowercased (non-alnum → _)
+  host_key="$(printf '%s' "$HOST" | tr '[:upper:]' '[:lower:]' | tr -c 'A-Za-z0-9_' '_')"
+  # Table prefix default: first three letters of the host alias
+  host_prefix="${host_key:0:3}"
   name="${DB_NAME:-${DATA_NAME:-}}"
   prefix="${DB_PREFIX:-${TABLE_PREFIX:-}}"
 
   if [[ -z "$name" ]]; then
-    if [[ ! -t 0 ]]; then
-      echo "ERROR: DB_NAME / DATA_NAME required when stdin is not a terminal" >&2
-      exit 1
-    fi
-    read -r -p "Database name (db_name): " name
-  fi
-  if [[ -z "$name" ]]; then
-    echo "ERROR: database name is required" >&2
-    exit 1
+    name="$host_key"
   fi
   if [[ ! "$name" =~ ^[A-Za-z0-9_]+$ ]]; then
     echo "ERROR: db_name must be letters, digits, or underscore: ${name}" >&2
@@ -656,12 +652,7 @@ prompt_wp_vars() {
   fi
 
   if [[ -z "$prefix" ]]; then
-    if [[ ! -t 0 ]]; then
-      prefix="wp_"
-    else
-      read -r -p "Table prefix (table_prefix) [wp_]: " prefix
-      prefix="${prefix:-wp_}"
-    fi
+    prefix="$host_prefix"
   fi
   if [[ "$prefix" != *_ ]]; then
     prefix="${prefix}_"
