@@ -5,6 +5,12 @@ alwaysApply: true
 
 # Jira (WordPress / WEPC)
 
+This file loads only in the `wp-ansible` workspace. Issues created from this repo stay in **WEPC**. Do not switch projects because another repo is mentioned in the prompt.
+
+Cross-repo detection (which workspace maps to which Jira project) is the Cursor **user rule** titled **Jira project routing**. That rule applies in every project. This file is the WEPC profile: description format, transition ids, and auto-create behaviour below win over the user rule while this workspace is open.
+
+WordPress workspaces that share WEPC: `wp-ansible`, `wp-cli-proxy`, `wp-dockers`, `Wordpress Plugins`.
+
 When creating or updating Jira issues from this repo, use Atlassian MCP with these defaults. Do not ask for project, board, or assignee unless the user overrides them.
 
 ## Site and board
