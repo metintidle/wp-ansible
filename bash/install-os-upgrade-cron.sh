@@ -9,7 +9,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PLAYBOOK="${REPO_ROOT}/modules/8_updates/playbook.yml"
+PLAYBOOK="${REPO_ROOT}/modules/8_updates/playbook-os.yml"
 SSH_CONFIG="${SSH_CONFIG:-$HOME/.ssh/config}"
 INVENTORY="${INVENTORY:-}"
 
@@ -17,7 +17,7 @@ usage() {
   cat <<EOF
 Usage: $0 [--remove] [--schedule "CRON_EXPR"] [--tz TIMEZONE] HOST [HOST ...]
 
-Deploys modules/8_updates OS upgrade scripts + root cron via Ansible.
+Deploys modules/8_updates OS upgrade scripts + root cron + systemd journal limits (and vacuum) via Ansible.
 
   --remove     Remove OS upgrade cron (os_upgrade_remove_cron=true)
   --schedule   Cron expression (default: 0 0 */3 * *)
@@ -70,4 +70,4 @@ if [[ -n "$SSH_CONFIG" ]]; then
   export ANSIBLE_ssh_common_args="-F ${SSH_CONFIG}"
 fi
 
-exec ansible-playbook -i "$INVENTORY" "$PLAYBOOK" --tags os_upgrade --limit "$LIMIT" "${EXTRA[@]}"
+exec ansible-playbook -i "$INVENTORY" "$PLAYBOOK" --limit "$LIMIT" "${EXTRA[@]}"
