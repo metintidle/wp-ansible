@@ -41,6 +41,7 @@ bash/fix-mst-imsdb-layout.sh
 svt-logs/
 wp.zip
 aws-credentials.json
+aws_credentials.json
 aws-cli/dreamscape.env
 auto-aws/node_modules/
 auto-aws/profiles/
@@ -62,3 +63,5 @@ healthsupply-rest-api-fix.md
 .env
 bash/*
 bash/install-os-upgrade-cron.sh
+aws_credentials2.json
+wordpress-bot.md
