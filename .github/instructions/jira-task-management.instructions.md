@@ -22,16 +22,20 @@ Do not ask for project, board, or assignee when these defaults apply. Only call 
 
 ## Creating issues
 
-For concrete, non-trivial work in this repository—host changes, fixes, installations, configuration changes, cleanups, deployments, incident response, or multi-step implementation—create a WEPC task before starting work.
+For concrete, non-trivial work in this repository—host changes, fixes, installations, configuration changes, cleanups, deployments, incident response, or multi-step implementation—find or create a WEPC task before starting work.
 
 Do **not** auto-create an issue for questions, read-only status checks or lookups, conversation, or trivial no-impact checks.
+
+Before creating a task, search WEPC with Atlassian Rovo for the same business goal and work scope, including tasks in **In Progress** and **Done**. Inspect likely matches by description, not just similar titles. If an existing task covers the work, update its summary and description to include the new outcomes instead of creating a duplicate; reopen a **Done** task to **In Progress** when continuing that same work. Create a new task only if no equivalent one exists. If search is unavailable, do not assume there is no match.
+
+When reusing a task, state its key before beginning work and preserve its existing dates unless the user requests a change.
 
 When creating a task:
 
 1. Always include a description; never create a summary-only issue.
 2. Set Start date (`customfield_10015`) to the created date in Sydney. If the create response exposes a different created date, update the Start date to match it.
 3. Leave the due date empty unless the user provides one.
-4. Move the task to **In Progress** (transition ID `21`) when created; do not leave it in To Do unless requested.
+4. Move the task to **In Progress** (transition ID `21`) when created; do not leave it in To Do unless requested. Rank it at the top of the **In Progress** list.
 5. State the issue key before beginning the work.
 
 Use this description format, written for non-technical management. Keep it professional, direct, outcome-focused, and free of code, paths, framework names, and implementation jargon:
@@ -48,7 +52,7 @@ Use this description format, written for non-technical management. Keep it profe
 
 ## Completing work
 
-After successful work, transition the issue to **Done** using transition ID `31` and set its due date to today in Sydney. Do not overwrite an existing due date unless the user requests it.
+After successful work, transition the issue to **Done** using transition ID `31`, rank it at the top of the **Done** list, and set its due date to today in Sydney. Do not overwrite an existing due date unless the user requests it.
 
 If the transition does not accept the due date, set it immediately with an issue edit. If the work fails or stalls, leave the issue In Progress and identify it as blocked in the response.
 

@@ -47,57 +47,61 @@ On `createJiraIssue`:
 
 Pass Start date on create from that created day. If create returns a `created` timestamp, use that date; if Start date is missing or wrong, `editJiraIssue` it to the created date.
 
-### Description (required)
+## Jira task management — WordPress / WEPC
 
-Write for **non-technical management**. Professional, direct, outcome-focused. No code, file paths, framework names, or implementation jargon.
+Use the Atlassian Rovo MCP integration for every Jira operation in this workspace.
 
-Use this markdown shape every time:
+## Default Jira destination
 
-```
+Unless the user explicitly overrides a value:
+
+- Cloud ID: `d44de458-5093-4475-aa45-852744950502`
+- Project: **WordPress** (`WEPC`, project ID `10005`)
+- Board: **WEPC board** (ID `6`)
+- Issue type: **Task** (`10024`); use Epic or Subtask only when requested.
+- Assignee: `712020:511898f6-d703-4a94-9c60-86d6ac340b7f` (Mahdi)
+- Dates use the `Australia/Sydney` calendar in `YYYY-MM-DD` format.
+
+Do not ask for project, board, or assignee when these defaults apply. Only call `getAccessibleAtlassianResources` if the configured Cloud ID fails.
+
+## Creating issues
+
+For concrete, non-trivial work in this repository—host changes, fixes, installations, configuration changes, cleanups, deployments, incident response, or multi-step implementation—find or create a WEPC task before starting work.
+
+Do **not** auto-create an issue for questions, read-only status checks or lookups, conversation, or trivial no-impact checks.
+
+Before creating a task, search WEPC with Atlassian Rovo for the same business goal and work scope, including tasks in **In Progress** and **Done**. Inspect likely matches by description, not just similar titles. If an existing task covers the work, update its summary and description to include the new outcomes instead of creating a duplicate; reopen a **Done** task to **In Progress** when continuing that same work. Create a new task only if no equivalent one exists. If search is unavailable, do not assume there is no match.
+
+When reusing a task, state its key before beginning work and preserve its existing dates unless the user requests a change.
+
+When creating a task:
+
+1. Always include a description; never create a summary-only issue.
+2. Set Start date (`customfield_10015`) to the created date in Sydney. If the create response exposes a different created date, update the Start date to match it.
+3. Leave the due date empty unless the user provides one.
+4. Move the task to **In Progress** (transition ID `21`) when created; do not leave it in To Do unless requested. Rank it at the top of the **In Progress** list.
+5. State the issue key before beginning the work.
+
+Use this description format, written for non-technical management. Keep it professional, direct, outcome-focused, and free of code, paths, framework names, and implementation jargon:
+
+```markdown
 **Business Goal**
-<1–2 sentences: why this work exists and the value it delivers to the project or user.>
+<One or two sentences explaining the value and purpose.>
 
 **Summary of Work**
-- <plain-English outcome>
-- <plain-English outcome>
-- <optional third outcome>
+- <Plain-English outcome>
+- <Plain-English outcome>
+- <Optional third outcome>
 ```
 
-- **Business Goal**: 1–2 sentences only.
-- **Summary of Work**: 2–3 bullets of what was accomplished or added (functionality and benefit, not how it was built).
-- Summary/title can stay slightly more specific; Description must stay high-level.
+## Completing work
 
-Example:
+After successful work, transition the issue to **Done** using transition ID `31`, rank it at the top of the **Done** list, and set its due date to today in Sydney. Do not overwrite an existing due date unless the user requests it.
 
-```
-createJiraIssue(
-  cloudId="d44de458-5093-4475-aa45-852744950502",
-  projectKey="WEPC",
-  issueType="Task",
-  summary="...",
-  description="**Business Goal**\n...\n\n**Summary of Work**\n- ...\n- ...",
-  assignee="712020:511898f6-d703-4a94-9c60-86d6ac340b7f",
-  additional_fields={"Start date": "<created date YYYY-MM-DD>"}
-)
-```
+If the transition does not accept the due date, set it immediately with an issue edit. If the work fails or stalls, leave the issue In Progress and identify it as blocked in the response.
 
-### Move to Done
+State the closed issue key in the final response after successful completion.
 
-When transitioning to **Done** (status id `10025`):
+## User overrides
 
-1. `listJiraIssueTransitions` if the transition name is unknown
-2. `transitionJiraIssue` with `fields: { "duedate": "<today Australia/Sydney>" }`
-3. If due date was not accepted on the transition, `editJiraIssue` with `fields: { "duedate": "<today>" }`
-
-Do not overwrite an existing due date unless the user asks.
-
-### Automatic lifecycle — create and close without being asked
-
-- **Auto-create**: when a prompt in this repo is a concrete work task (host changes, fixes, installs, config changes, cleanup, deploys, incident response, multi-step implementation work), create the WEPC issue **before starting the work** using all Create defaults above — Task, assignee Mahdi, status In Progress (`transition: { "id": "21" }` on create), Start date = created date, Description in the required format. Name the issue key (e.g. `WEPC-123`) when starting the work.
-- **Skip auto-create** for: questions, read-only status checks/lookups, conversation, or trivial no-impact checks.
-- **Auto-close**: when the work finishes successfully, transition to **Done** (transition id `31`) and set **Due date** = today (`Australia/Sydney`) in the same transition; if the due date is rejected on transition, set it with `editJiraIssue`. Never overwrite an existing due date. State the closed issue key in the final reply.
-- **If work fails or stalls**: do not close — leave the issue In Progress and name it as blocked in the reply so it stays visible on the board.
-
-### Overrides
-
-If the user names another assignee, project, start date, or due date, use their values. Do not look up Mahdi again unless the stored accountId fails.
+Honor any user-specified assignee, project, start date, due date, issue type, or requested status. Do not re-look up the default assignee unless the stored account ID fails.
