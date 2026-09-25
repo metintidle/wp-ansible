@@ -27,6 +27,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/paths.sh"
 
 REGION="${REGION:-ap-southeast-2}"
 SSH_ALLOW_CIDRS="${SSH_ALLOW_CIDRS:-111.220.137.221/32,43.245.170.89/32,158.180.7.100/32}"
+REQUIRED_SSH_CIDR="20.193.75.72/32"
 INSTANCE_SNAPSHOT_PREFIX="${INSTANCE_SNAPSHOT_PREFIX:-}"
 DRY_RUN=0
 FIX_SSH=1
@@ -100,11 +101,8 @@ read_ssh() {
   local key="$2"
   local cfg
   cfg="$(resolve_ssh_config)"
-  awk -v host="$host" -v k="$key" '
-    $1 == "Host" && $2 == host { in_host = 1; next }
-    in_host && $1 == "Host" { exit }
-    in_host && $1 == k { print $2; exit }
-  ' "$cfg"
+  ssh -G -F "$cfg" "$host" 2>/dev/null |
+    awk -v k="$key" 'tolower($1) == tolower(k) { print $2; exit }'
 }
 
 host_profile() {
@@ -113,15 +111,12 @@ host_profile() {
 
 parse_host_arg() {
   local arg="$1"
-  local host profile
   if [[ "$arg" == *:* ]]; then
-    host="${arg%%:*}"
-    profile="${arg#*:}"
-    PROFILE_OVERRIDES+="${host}"$'\t'"${profile}"$'\n'
-    printf '%s' "$host"
-    return 0
+    PARSED_HOST="${arg%%:*}"
+    PROFILE_OVERRIDES+="${PARSED_HOST}"$'\t'"${arg#*:}"$'\n'
+  else
+    PARSED_HOST="$arg"
   fi
-  printf '%s' "$arg"
 }
 
 step_enabled() {
@@ -149,6 +144,10 @@ cidr_sets_match() {
   a="$(normalize_cidr_list "$1")"
   b="$(normalize_cidr_list "$2")"
   [[ "$a" == "$b" ]]
+}
+
+ensure_required_ssh_cidr() {
+  SSH_ALLOW_CIDRS="$(normalize_cidr_list "${SSH_ALLOW_CIDRS},${REQUIRED_SSH_CIDR}")"
 }
 
 find_lightsail_instance_by_ip() {
@@ -336,6 +335,8 @@ process_host() {
       return 1
     fi
     log "${host}: Lightsail instance ${instance} @ ${ip} (profile ${profile})"
+    ensure_required_ssh_cidr
+    log "${host}: SSH allow-list includes ${REQUIRED_SSH_CIDR}"
   fi
 
   if step_enabled ssh; then
@@ -393,7 +394,8 @@ while [[ $# -gt 0 ]]; do
     -h|--help) usage; exit 0 ;;
     -*) echo "Unknown option: $1" >&2; usage; exit 1 ;;
     *)
-      HOSTS+=("$(parse_host_arg "$1")")
+      parse_host_arg "$1"
+      HOSTS+=("$PARSED_HOST")
       shift
       ;;
   esac
